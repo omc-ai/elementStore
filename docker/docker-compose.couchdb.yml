@@ -1,0 +1,44 @@
+#
+# ElementStore CouchDB - Standalone
+#
+# Connects to existing agura network for use with wallet_bo_php83
+#
+# Usage:
+#   docker-compose -f docker-compose.couchdb.yml up -d
+#
+# Access:
+#   - From host: http://localhost:5984
+#   - From agura containers: http://elementstore_couchdb:5984
+#   - Fauxton UI: http://localhost:5984/_utils
+#
+
+services:
+  couchdb:
+    image: couchdb:3.3
+    container_name: elementstore_couchdb
+    restart: unless-stopped
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+    environment:
+      - COUCHDB_USER=${COUCHDB_USER:-admin}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD:-elementstore}
+      - TZ=${TZ:-UTC}
+    networks:
+      - agura_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+networks:
+  agura_network:
+    external: true
+    name: agura_default
+
+volumes:
+  couchdb_data:
+    name: elementstore_couchdb_data

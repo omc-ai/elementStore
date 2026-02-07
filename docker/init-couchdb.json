@@ -1,0 +1,12 @@
+{
+  "@storage": {
+    "bootstrap": {
+      "id": "bootstrap",
+      "class_id": "@storage",
+      "type": "couchdb",
+      "server": "http://couchdb:5984",
+      "username": "admin",
+      "password": "elementstore"
+    }
+  }
+}

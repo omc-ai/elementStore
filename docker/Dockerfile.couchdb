@@ -1,0 +1,37 @@
+#
+# ElementStore CouchDB Container
+#
+# CouchDB 3.x for ElementStore document storage
+#
+# Build:
+#   docker build -f Dockerfile.couchdb -t elementstore-couchdb .
+#
+# Run:
+#   docker run -p 5984:5984 -v couchdb_data:/opt/couchdb/data elementstore-couchdb
+#
+# Default credentials: admin / elementstore
+# Fauxton UI: http://localhost:5984/_utils
+#
+
+FROM couchdb:3.3
+
+LABEL maintainer="Agura <dev@agura.tech>"
+LABEL description="ElementStore CouchDB storage"
+LABEL version="1.0.0"
+
+# Default admin credentials (override in docker-compose or runtime)
+ENV COUCHDB_USER=admin
+ENV COUCHDB_PASSWORD=elementstore
+
+# CouchDB configuration
+# Enable single node setup and CORS
+COPY couchdb-local.ini /opt/couchdb/etc/local.d/elementstore.ini
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:5984/_up || exit 1
+
+EXPOSE 5984
+
+# Volume for persistent data
+VOLUME ["/opt/couchdb/data"]

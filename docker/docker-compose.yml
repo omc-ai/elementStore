@@ -1,0 +1,100 @@
+#
+# ElementStore Docker Compose
+#
+# Services:
+#   - php: PHP 8.3 + Phalcon 5.x (API server)
+#   - couchdb: CouchDB 3.x (document storage)
+#
+# Usage:
+#   docker-compose up -d          # Start all services
+#   docker-compose up -d php      # Start only PHP
+#   docker-compose up -d couchdb  # Start only CouchDB
+#   docker-compose logs -f        # View logs
+#   docker-compose down           # Stop all services
+#
+# Endpoints:
+#   - API: http://localhost:8080
+#   - CouchDB: http://localhost:5984
+#   - Fauxton UI: http://localhost:5984/_utils
+#
+
+version: '3.8'
+
+services:
+  # ==========================================================================
+  # PHP + Phalcon API Server
+  # ==========================================================================
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: elementstore_php
+    restart: unless-stopped
+    ports:
+      - "${PHP_PORT:-8080}:80"
+    volumes:
+      # Mount ElementStore source code
+      - ../:/var/www/elementStore:ro
+      # Mount data directory (writable)
+      - elementstore_data:/var/www/data
+      # Override init config for CouchDB
+      - ./init-couchdb.json:/var/www/elementStore/@init.json:ro
+    environment:
+      - TZ=${TZ:-UTC}
+    depends_on:
+      couchdb:
+        condition: service_healthy
+    networks:
+      - elementstore_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================================================
+  # CouchDB Document Store
+  # ==========================================================================
+  couchdb:
+    build:
+      context: .
+      dockerfile: Dockerfile.couchdb
+    container_name: elementstore_couchdb
+    restart: unless-stopped
+    ports:
+      - "${COUCHDB_PORT:-5984}:5984"
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+    environment:
+      - COUCHDB_USER=${COUCHDB_USER:-admin}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD:-elementstore}
+      - TZ=${TZ:-UTC}
+    networks:
+      - elementstore_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+# ==========================================================================
+# Networks
+# ==========================================================================
+networks:
+  elementstore_network:
+    driver: bridge
+    name: elementstore_network
+
+# ==========================================================================
+# Volumes
+# ==========================================================================
+volumes:
+  # JSON storage (if using JsonStorageProvider)
+  elementstore_data:
+    name: elementstore_data
+
+  # CouchDB persistent data
+  couchdb_data:
+    name: elementstore_couchdb_data
