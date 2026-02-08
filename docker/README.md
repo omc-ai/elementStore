@@ -174,6 +174,16 @@ Ensure data directories have proper permissions:
 docker exec elementstore_php chown -R www-data:www-data /var/www/data
 ```
 
+## Compose Variants
+
+| File | Use Case | Volume |
+|---|---|---|
+| `docker/docker-compose.yml` | Standalone development | Local bind mount |
+| `docker-compose.agura.yml` | Local Agura integration | `agura_code` named volume |
+| `docker-compose.staging.yml` | Staging server | `/var/www` bind mount |
+
+The staging variant uses bind mounts because the staging server maps `/var/www` directly (not a Docker named volume).
+
 ## Production Considerations
 
 1. **Change CouchDB credentials** in `.env`

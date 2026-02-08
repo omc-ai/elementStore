@@ -71,6 +71,26 @@ docker-compose up -d
 
 API available at `http://localhost:8080`.
 
+### Agura Platform Integration
+
+ElementStore runs as part of the `arc3d.dev.agura.tech` environment:
+
+```bash
+# Start on agura_default network (local)
+docker compose -f docker-compose.agura.yml up -d
+
+# Start on staging server (uses bind mount)
+docker compose -f docker-compose.staging.yml up -d
+```
+
+| Environment | API | Admin UI |
+|---|---|---|
+| Standalone | `http://localhost:8080` | `http://localhost:8080/admin/` |
+| Local (Agura) | `http://elementstore.master.local` | `http://elementstore.master.local/admin/` |
+| Staging | `http://arc3d.dev.agura.tech/elementStore` | `http://arc3d.dev.agura.tech/elementStore/admin/` |
+
+The admin UI auto-detects its `API_BASE` from the URL path, so it works at any mount point.
+
 ### API Examples
 
 ```bash
