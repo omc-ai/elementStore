@@ -863,6 +863,6 @@ if (typeof window !== 'undefined') {
     // initialize
     store = new ElementStore('root.store');
     window.store = store;  // expose for F12 console
-    storage = new AtomStorage({id: 'root.storage', class_id: '@storage', url: '/elementStore'}, store);
+    storage = new AtomStorage({id: 'root.storage', class_id: '@storage', url: (typeof API_BASE !== 'undefined' ? API_BASE : '')}, store);
     store.storage = storage;
 }

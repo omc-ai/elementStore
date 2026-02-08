@@ -1,0 +1,109 @@
+# PHP 8.3 with Phalcon 5.8 for ElementStore
+# Lightweight FPM container for Agura integration
+
+FROM php:8.3-fpm-bookworm
+
+LABEL maintainer="ElementStore"
+LABEL description="PHP 8.3 + Phalcon 5.8 for elementStore API"
+
+WORKDIR /var/www
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    zip \
+    unzip \
+    libzip-dev \
+    libicu-dev \
+    libonig-dev \
+    procps \
+    nano \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions
+RUN docker-php-ext-install -j$(nproc) \
+    pdo \
+    pdo_mysql \
+    mbstring \
+    zip \
+    opcache \
+    intl \
+    bcmath
+
+# Install PSR extension (required by Phalcon)
+RUN pecl install psr && docker-php-ext-enable psr
+
+# Install zephir_parser (required by Phalcon)
+RUN pecl install zephir_parser && docker-php-ext-enable zephir_parser
+
+# Install Phalcon 5.8.0
+RUN cd /tmp \
+    && curl -LO https://github.com/phalcon/cphalcon/archive/refs/tags/v5.8.0.tar.gz \
+    && tar -xzf v5.8.0.tar.gz \
+    && cd cphalcon-5.8.0/build \
+    && ./install \
+    && echo "extension=phalcon.so" > /usr/local/etc/php/conf.d/50-phalcon.ini \
+    && cd /tmp && rm -rf cphalcon-5.8.0 v5.8.0.tar.gz
+
+# Install Xdebug for debugging
+RUN pecl install xdebug && docker-php-ext-enable xdebug
+
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# PHP configuration (inline)
+RUN echo '[PHP]\n\
+error_reporting = E_ALL\n\
+display_errors = Off\n\
+display_startup_errors = Off\n\
+log_errors = On\n\
+error_log = /var/log/php/error.log\n\
+max_execution_time = 300\n\
+max_input_time = 300\n\
+memory_limit = 256M\n\
+upload_max_filesize = 50M\n\
+post_max_size = 50M\n\
+date.timezone = UTC\n\
+opcache.enable = 1\n\
+opcache.memory_consumption = 128\n\
+opcache.interned_strings_buffer = 8\n\
+opcache.max_accelerated_files = 10000\n\
+opcache.revalidate_freq = 2\n\
+opcache.validate_timestamps = 1\n\
+expose_php = Off\n\
+\n\
+[xdebug]\n\
+xdebug.mode = debug\n\
+xdebug.start_with_request = yes\n\
+xdebug.client_host = host.docker.internal\n\
+xdebug.client_port = 9003\n\
+xdebug.idekey = PHPSTORM\n\
+xdebug.discover_client_host = false\n' > /usr/local/etc/php/php.ini
+
+# PHP-FPM pool configuration (inline)
+RUN echo '[www]\n\
+user = www-data\n\
+group = www-data\n\
+listen = 9000\n\
+listen.owner = www-data\n\
+listen.group = www-data\n\
+listen.mode = 0660\n\
+pm = dynamic\n\
+pm.max_children = 20\n\
+pm.start_servers = 4\n\
+pm.min_spare_servers = 2\n\
+pm.max_spare_servers = 10\n\
+pm.max_requests = 500\n\
+catch_workers_output = yes\n\
+decorate_workers_output = no\n\
+clear_env = no\n' > /usr/local/etc/php-fpm.d/zz-elementstore.conf
+
+# Create log directory
+RUN mkdir -p /var/log/php && chown www-data:www-data /var/log/php
+
+WORKDIR /var/www/elementStore
+
+EXPOSE 9000
+
+CMD ["php-fpm"]

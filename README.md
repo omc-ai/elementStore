@@ -1,5 +1,7 @@
 # ElementStore
 
+**Repository**: https://github.com/omc-ai/elementStore
+
 A schema-driven object store where **classes are objects too**. Define your data model at runtime through the same API you use to store data — no migrations, no code generation.
 
 ## What Is It?
@@ -117,8 +119,8 @@ curl -X DELETE http://localhost:8080/store/user/1
 Include the scripts and you get a live store connected to the API:
 
 ```html
-<script src="element-store.js"></script>
-<script src="ui-element.js"></script>
+<script src="admin/element-store.js"></script>
+<script src="admin/ui-element.js"></script>
 ```
 
 ```javascript
@@ -156,7 +158,7 @@ el.bind(document.getElementById('my-div'));
 el.syncToDom();     // pushes x/y/width/height to CSS
 ```
 
-Open `test.html` for an interactive demo.
+Open `admin/test.html` for an interactive demo.
 
 ## REST API Reference
 
@@ -231,14 +233,14 @@ Configure via `@init.json`:
 elementStore/
 ├── index.php              # REST API router (Phalcon Micro)
 ├── autoload.php           # PSR-4 autoloader
-├── @init.json             # Storage configuration
-├── element-store.js       # JavaScript client (browser + Node.js)
-├── ui-element.js          # DOM-bound AtomElement extension
-├── test.html              # Interactive browser demo
+├── @init.json             # Storage configuration (JSON provider)
+├── @init.couchdb.json     # Storage configuration (CouchDB provider)
 ├── test.sh                # API test suite (curl-based)
 ├── package.json
+├── docker-compose.agura.yml  # Agura platform integration compose
 ├── src/
 │   ├── ClassModel.php     # Core orchestration layer
+│   ├── ClassModel.v1.php  # Legacy v1 class model
 │   ├── AtomObj.php        # Base object with extraData support
 │   ├── Prop.php           # Property definition with validation
 │   ├── ClassMeta.php      # Class definition metadata
@@ -253,12 +255,21 @@ elementStore/
 │   ├── Genesis.php
 │   ├── init.php
 │   └── test.php
-├── admin/                 # Admin UI
-│   └── index.html
+├── admin/                 # Admin UI and JavaScript client
+│   ├── index.html         # Admin dashboard
+│   ├── element-store.js   # JavaScript client (browser + Node.js)
+│   ├── ui-element.js      # DOM-bound AtomElement extension
+│   └── test.html          # Interactive browser demo
 └── docker/                # Docker setup (PHP + CouchDB)
     ├── docker-compose.yml
+    ├── docker-compose.couchdb.yml  # CouchDB-specific compose
     ├── Dockerfile.php
+    ├── Dockerfile.fpm             # PHP-FPM variant
     ├── Dockerfile.couchdb
+    ├── apache-vhost.conf          # Apache virtual host config
+    ├── couchdb-local.ini          # CouchDB local settings
+    ├── init-couchdb.json          # CouchDB initialization data
+    ├── .env.example               # Environment template
     └── README.md
 ```
 

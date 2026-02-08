@@ -1087,7 +1087,10 @@
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
-        const API_BASE = '/elementStore';
+        const API_BASE = (() => {
+            const match = window.location.pathname.match(/^(\/[^/]+)\/admin/);
+            return match ? match[1] : '';
+        })();
         let gridApi = null;
         let currentTab = 'classes';
         let currentClassId = null;

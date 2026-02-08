@@ -1,0 +1,66 @@
+# Docker Compose for Agura namespace integration
+# This file runs elementStore within the Agura docker network
+# Usage: docker compose -f docker-compose.agura.yml up -d
+#
+# Services:
+#   - php: PHP 8.3 + Phalcon 5.8 backend API (port 19007 -> 9000)
+#   - couchdb: CouchDB 3.3 document store (port 5984)
+
+services:
+  php:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.fpm
+    container_name: elementstore_php83
+    restart: unless-stopped
+    volumes:
+      - code:/var/www
+    ports:
+      - "19007:9000"
+    networks:
+      default:
+        aliases:
+          - elementstore-php
+    depends_on:
+      couchdb:
+        condition: service_healthy
+    environment:
+      - PHP_ENV=development
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "master.local:172.18.0.12"
+    working_dir: /var/www/elementStore
+
+  couchdb:
+    image: couchdb:3.3
+    container_name: elementstore_couchdb
+    restart: unless-stopped
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+    environment:
+      - COUCHDB_USER=${COUCHDB_USER:-admin}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD:-elementstore}
+    networks:
+      default:
+        aliases:
+          - elementstore-couchdb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  code:
+    external: true
+    name: agura_code
+  couchdb_data:
+    name: elementstore_couchdb_data
+
+networks:
+  default:
+    external: true
+    name: agura_default

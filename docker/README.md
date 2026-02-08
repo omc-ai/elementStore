@@ -1,5 +1,7 @@
 # ElementStore Docker Setup
 
+> Part of [ElementStore](https://github.com/omc-ai/elementStore) — see main README for project overview.
+
 Docker configuration for running ElementStore with PHP + Phalcon and CouchDB.
 
 ## Services
