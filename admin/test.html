@@ -158,37 +158,11 @@
   <!-- Demo -->
   <script>
     // ═══════════════════════════════════════════════════════════════
-    // SEED UI CLASSES
+    // UI classes are now seeded by ui-element.js via store.seed()
     // ═══════════════════════════════════════════════════════════════
 
     var idCounter = 0;
     function genId(prefix) { return prefix + '-' + (++idCounter); }
-
-    function seedUIClasses() {
-      // ui-element (base)
-      store.setObject({id: 'ui-element', class_id: '@class', name: 'UI Element'});
-      store.setObject({id: 'ui-element.x',      class_id: '@prop', data_type: 'float', default_value: 0});
-      store.setObject({id: 'ui-element.y',      class_id: '@prop', data_type: 'float', default_value: 0});
-      store.setObject({id: 'ui-element.width',  class_id: '@prop', data_type: 'float', default_value: 100});
-      store.setObject({id: 'ui-element.height', class_id: '@prop', data_type: 'float', default_value: 40});
-      store.setObject({id: 'ui-element.label',  class_id: '@prop', data_type: 'string', default_value: ''});
-
-      // ui-dialog (extends ui-element)
-      store.setObject({id: 'ui-dialog', class_id: '@class', name: 'Dialog', extends_id: 'ui-element'});
-      store.setObject({id: 'ui-dialog.title',    class_id: '@prop', data_type: 'string', default_value: 'Dialog'});
-      store.setObject({id: 'ui-dialog.children', class_id: '@prop', data_type: 'relation', is_array: true, object_class_id: 'ui-element'});
-
-      // ui-button (extends ui-element)
-      store.setObject({id: 'ui-button', class_id: '@class', name: 'Button', extends_id: 'ui-element'});
-      store.setObject({id: 'ui-button.text', class_id: '@prop', data_type: 'string', default_value: 'Click me'});
-
-      // ui-workspace
-      store.setObject({id: 'ui-workspace', class_id: '@class', name: 'Workspace'});
-      store.setObject({id: 'ui-workspace.name',     class_id: '@prop', data_type: 'string', default_value: 'Workspace'});
-      store.setObject({id: 'ui-workspace.children', class_id: '@prop', data_type: 'relation', is_array: true, object_class_id: 'ui-element'});
-    }
-
-    seedUIClasses();
 
     // ═══════════════════════════════════════════════════════════════
     // WORKSPACE — the root container (an AtomObj, not AtomElement)

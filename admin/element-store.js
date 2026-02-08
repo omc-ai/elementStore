@@ -21,39 +21,40 @@ const seedData = {
     '@storage': {id: '@storage', class_id: '@class'},
 
     // @class props (prop id = owning_class + '.' + key)
-    '@class.name':       {id: '@class.name',       class_id: '@prop'},
-    '@class.extends_id': {id: '@class.extends_id', class_id: '@prop', data_type: 'relation', object_class_id: '@class'},
+    '@class.name':       {id: '@class.name',       class_id: '@prop', key: 'name'},
+    '@class.extends_id': {id: '@class.extends_id', class_id: '@prop', key: 'extends_id', data_type: 'relation', object_class_id: '@class'},
     '@class.props': {
         id: '@class.props',
         class_id: '@prop',
+        key: 'props',
         data_type: 'object',
         is_array: true,
         object_class_id: '@prop',
     },
 
     // @prop props
-    '@prop.id':                  {id: '@prop.id',                  class_id: '@prop'},
-    '@prop.key':                 {id: '@prop.key',                 class_id: '@prop', required: true},
-    '@prop.name':                {id: '@prop.name',                class_id: '@prop'},
-    '@prop.description':         {id: '@prop.description',         class_id: '@prop'},
-    '@prop.data_type':           {id: '@prop.data_type',           class_id: '@prop'},
-    '@prop.is_array':            {id: '@prop.is_array',            class_id: '@prop', data_type: 'boolean'},
-    '@prop.object_class_id':     {id: '@prop.object_class_id',     class_id: '@prop', data_type: 'relation', object_class_id: '@class'},
-    '@prop.object_class_strict': {id: '@prop.object_class_strict', class_id: '@prop', data_type: 'boolean'},
-    '@prop.on_orphan':           {id: '@prop.on_orphan',           class_id: '@prop'},
-    '@prop.options':             {id: '@prop.options',             class_id: '@prop', data_type: 'object', is_array: true},
-    '@prop.editor':              {id: '@prop.editor',              class_id: '@prop', data_type: 'object'},
-    '@prop.validators':          {id: '@prop.validators',          class_id: '@prop', data_type: 'object', is_array: true},
-    '@prop.required':            {id: '@prop.required',            class_id: '@prop', data_type: 'boolean'},
-    '@prop.readonly':            {id: '@prop.readonly',            class_id: '@prop', data_type: 'boolean'},
-    '@prop.default_value':       {id: '@prop.default_value',       class_id: '@prop'},
-    '@prop.display_order':       {id: '@prop.display_order',       class_id: '@prop', data_type: 'integer'},
-    '@prop.group_name':          {id: '@prop.group_name',          class_id: '@prop'},
-    '@prop.hidden':              {id: '@prop.hidden',              class_id: '@prop', data_type: 'boolean'},
+    '@prop.id':                  {id: '@prop.id',                  class_id: '@prop', key: 'id'},
+    '@prop.key':                 {id: '@prop.key',                 class_id: '@prop', key: 'key', required: true},
+    '@prop.name':                {id: '@prop.name',                class_id: '@prop', key: 'name'},
+    '@prop.description':         {id: '@prop.description',         class_id: '@prop', key: 'description'},
+    '@prop.data_type':           {id: '@prop.data_type',           class_id: '@prop', key: 'data_type'},
+    '@prop.is_array':            {id: '@prop.is_array',            class_id: '@prop', key: 'is_array', data_type: 'boolean'},
+    '@prop.object_class_id':     {id: '@prop.object_class_id',     class_id: '@prop', key: 'object_class_id', data_type: 'relation', object_class_id: '@class'},
+    '@prop.object_class_strict': {id: '@prop.object_class_strict', class_id: '@prop', key: 'object_class_strict', data_type: 'boolean'},
+    '@prop.on_orphan':           {id: '@prop.on_orphan',           class_id: '@prop', key: 'on_orphan'},
+    '@prop.options':             {id: '@prop.options',             class_id: '@prop', key: 'options', data_type: 'object', is_array: true},
+    '@prop.editor':              {id: '@prop.editor',              class_id: '@prop', key: 'editor', data_type: 'object'},
+    '@prop.validators':          {id: '@prop.validators',          class_id: '@prop', key: 'validators', data_type: 'object', is_array: true},
+    '@prop.required':            {id: '@prop.required',            class_id: '@prop', key: 'required', data_type: 'boolean'},
+    '@prop.readonly':            {id: '@prop.readonly',            class_id: '@prop', key: 'readonly', data_type: 'boolean'},
+    '@prop.default_value':       {id: '@prop.default_value',       class_id: '@prop', key: 'default_value'},
+    '@prop.display_order':       {id: '@prop.display_order',       class_id: '@prop', key: 'display_order', data_type: 'integer'},
+    '@prop.group_name':          {id: '@prop.group_name',          class_id: '@prop', key: 'group_name'},
+    '@prop.hidden':              {id: '@prop.hidden',              class_id: '@prop', key: 'hidden', data_type: 'boolean'},
 
     // @storage props
-    '@storage.url':  {id: '@storage.url',  class_id: '@prop'},
-    '@storage.type': {id: '@storage.type', class_id: '@prop'},
+    '@storage.url':  {id: '@storage.url',  class_id: '@prop', key: 'url'},
+    '@storage.type': {id: '@storage.type', class_id: '@prop', key: 'type'},
 };
 
 
@@ -585,15 +586,19 @@ class AtomStorage extends AtomObj {
 
 class ElementStore {
 
-    constructor(id, seed) {
+    constructor(id, seedOverride) {
         this.id = id;
         this.objects = {};
         this.storage = null;  // AtomStorage for remote operations
 
-        // Seed: construct each element via setObject
-        seed = seed || seedData;
+        // Seed core definitions
+        this.seed(seedOverride || seedData);
+    }
+
+    /** Seed data into the store (creates objects without triggering remote save) */
+    seed(data) {
         var self = this;
-        Object.values(seed).forEach(function (raw) {
+        Object.values(data).forEach(function (raw) {
             self.setObject(raw);
         });
     }
@@ -858,6 +863,6 @@ if (typeof window !== 'undefined') {
     // initialize
     store = new ElementStore('root.store');
     window.store = store;  // expose for F12 console
-    storage = new AtomStorage({id: 'root.storage', class_id: '@storage', url: 'http://master.local/elementStore/api'}, store);
+    storage = new AtomStorage({id: 'root.storage', class_id: '@storage', url: '/elementStore'}, store);
     store.storage = storage;
 }
