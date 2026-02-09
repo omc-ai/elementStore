@@ -1,5 +1,10 @@
 # ElementStore
 
+> **Registry**: This project is registered in the [platform_root elementStore registry](../platform_root/README.md).
+> **Registry ID**: `elementStore` (class: `@project`)
+> **Registry data**: [`platform_root/db/elementStore/@project.json`](../platform_root/db/elementStore/@project.json)
+> **Quick reference**: [`platform_root/docs/ELEMENTSTORE_REGISTRY_GUIDE.md`](../platform_root/docs/ELEMENTSTORE_REGISTRY_GUIDE.md)
+
 **Repository**: https://github.com/omc-ai/elementStore
 
 A schema-driven object store where **classes are objects too**. Define your data model at runtime through the same API you use to store data — no migrations, no code generation.
