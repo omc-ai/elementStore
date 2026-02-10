@@ -91,7 +91,7 @@ docker compose -f docker-compose.staging.yml up -d
 | Environment | API | Admin UI |
 |---|---|---|
 | Standalone | `http://localhost:8080` | `http://localhost:8080/admin/` |
-| Local (Agura) | `http://elementstore.master.local` | `http://elementstore.master.local/admin/` |
+| Local (Agura) | `http://arc3d.master.local/elementStore` | `http://arc3d.master.local/elementStore/admin/` |
 | Staging | `http://arc3d.dev.agura.tech/elementStore` | `http://arc3d.dev.agura.tech/elementStore/admin/` |
 
 The admin UI auto-detects its `API_BASE` from the URL path, so it works at any mount point.
