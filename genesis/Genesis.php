@@ -320,6 +320,9 @@ class Genesis
                     ['key' => 'readonly', 'label' => 'Read Only', 'description' => 'Field cannot be edited after creation', 'data_type' => 'boolean', 'default_value' => false, 'display_order' => 51, 'group_name' => 'Validation'],
                     ['key' => 'validators', 'label' => 'Validators', 'description' => 'Validation rules [{type, ...params}]', 'data_type' => 'relation', 'object_class_id' => ['@function'], 'is_array' => true, 'display_order' => 52, 'group_name' => 'Validation'],
                     ['key' => 'default_value', 'label' => 'Default Value', 'description' => 'Default value for new objects', 'data_type' => 'string', 'display_order' => 53, 'group_name' => 'Validation'],
+
+                    // === Security ===
+                    ['key' => 'server_only', 'label' => 'Server Only', 'description' => 'Property is stripped from API responses (backend-only)', 'data_type' => 'boolean', 'default_value' => false, 'display_order' => 60, 'group_name' => 'Security'],
                 ],
             ],
 

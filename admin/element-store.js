@@ -51,11 +51,45 @@ const seedData = {
     '@prop.display_order':       {id: '@prop.display_order',       class_id: '@prop', key: 'display_order', data_type: 'integer'},
     '@prop.group_name':          {id: '@prop.group_name',          class_id: '@prop', key: 'group_name'},
     '@prop.hidden':              {id: '@prop.hidden',              class_id: '@prop', key: 'hidden', data_type: 'boolean'},
+    '@prop.server_only':         {id: '@prop.server_only',         class_id: '@prop', key: 'server_only', data_type: 'boolean'},
 
     // @storage props
     '@storage.url':  {id: '@storage.url',  class_id: '@prop', key: 'url'},
     '@storage.type': {id: '@storage.type', class_id: '@prop', key: 'type'},
 };
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOCAL ID GENERATOR
+// ═══════════════════════════════════════════════════════════════════════════
+
+var _localIdCounter = 0;
+function generateLocalId() {
+    return '_' + (++_localIdCounter) + '_' + Math.random().toString(36).substr(2, 6);
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// JWT TOKEN MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════
+
+var _jwtToken = null;
+
+/**
+ * Set the JWT token for API authentication.
+ * @param {string|null} token - JWT Bearer token, or null to clear
+ */
+function setJwtToken(token) {
+    _jwtToken = token;
+}
+
+/**
+ * Get the current JWT token.
+ * @returns {string|null}
+ */
+function getJwtToken() {
+    return _jwtToken;
+}
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -141,13 +175,16 @@ class AtomCollection {
         return results;
     }
 
-    /** Add raw item to collection */
-    add(raw) {
-        if (this._classId && !raw.class_id) {
-            raw.class_id = this._classId;
+    /** Add item to collection (accepts raw object or AtomObj) */
+    add(obj) {
+        if (!(obj instanceof AtomObj) && this._store) {
+            if (this._classId && !obj.class_id) {
+                obj.class_id = this._classId;
+            }
+            obj = new AtomObj(obj, this._store);
         }
-        this._items.push(raw);
-        return this._wrap(this._items.length - 1);
+        this._items.push(obj);
+        return obj;
     }
 
     /** Remove item by key */
@@ -170,6 +207,55 @@ class AtomCollection {
             }
         }
         return false;
+    }
+
+    /**
+     * Move an item to a new index position within the collection.
+     * Splices from old position, inserts at new. Marks parent dirty.
+     * @param {AtomObj|Object} item - The item to move (matched by reference or id)
+     * @param {number} newIndex - Target index (0-based)
+     * @returns {boolean} true if moved successfully
+     */
+    setItemIndex(item, newIndex) {
+        var oldIndex = -1;
+        var itemId = item.id || item._id;
+        for (var i = 0; i < this._items.length; i++) {
+            var cur = this._items[i];
+            if (cur === item || (itemId && (cur.id === itemId || cur._id === itemId))) {
+                oldIndex = i;
+                break;
+            }
+        }
+        if (oldIndex === -1 || oldIndex === newIndex) return false;
+
+        // Clamp newIndex
+        if (newIndex < 0) newIndex = 0;
+        if (newIndex >= this._items.length) newIndex = this._items.length - 1;
+
+        // Splice out and insert at new position
+        var removed = this._items.splice(oldIndex, 1)[0];
+        this._items.splice(newIndex, 0, removed);
+
+        // Mark the item as order-changed for dirty tracking
+        if (removed && removed._orderChanged !== undefined) {
+            removed._orderChanged = true;
+        }
+        return true;
+    }
+
+    /**
+     * Save all dirty children, then trigger parent sync + save.
+     * Convenience method for batch-saving collection changes.
+     */
+    save() {
+        if (!this._store) throw new Error('AtomCollection.save: no store');
+        // Save dirty items
+        for (var i = 0; i < this._items.length; i++) {
+            var item = this._items[i];
+            if (item && typeof item.hasChanges === 'function' && item.hasChanges()) {
+                item.save();
+            }
+        }
     }
 
     /** Return raw array for serialization */
@@ -209,6 +295,16 @@ class AtomObj {
     _class = null;
     /** @type {Object|null} */
     _snapshot = null;
+    /** @type {string} client-local identity, never sent to server */
+    _id = null;
+    /** @type {AtomObj[]} all related AtomObj instances */
+    _related = [];
+    /** @type {AtomObj[]} subset of _related needing save */
+    _dirtyRelated = [];
+    /** @type {AtomObj[]} parent objects that own this object */
+    _belongsTo = [];
+    /** @type {Function[]} onChange callbacks: fn({obj, prop, value, oldValue}) */
+    _onChange = [];
 
     /**
      * @param {Object|string} raw - Raw data object, or class_id string (new object)
@@ -228,6 +324,11 @@ class AtomObj {
 
         this.store = store || null;
         this.objects = {};
+        this._id = generateLocalId();
+        this._related = [];
+        this._dirtyRelated = [];
+        this._belongsTo = [];
+        this._onChange = [];
 
         // String → new object of that class
         if (typeof raw === 'string') {
@@ -248,7 +349,7 @@ class AtomObj {
         var proxy = new Proxy(this, {
             get: function (target, prop, receiver) {
                 // internal fields — bypass data
-                if (prop === 'store' || prop === 'data' || prop === 'objects' || prop === '_class' || prop === '_snapshot' || prop === 'el') return target[prop];
+                if (prop === 'store' || prop === 'data' || prop === 'objects' || prop === '_class' || prop === '_snapshot' || prop === '_id' || prop === '_related' || prop === '_dirtyRelated' || prop === '_belongsTo' || prop === '_onChange' || prop === 'el') return target[prop];
                 // methods — bind to proxy so 'this' resolves through proxy
                 if (typeof target[prop] === 'function') return target[prop].bind(receiver);
                 // data fields — delegate to propDef if available
@@ -266,7 +367,7 @@ class AtomObj {
             },
             set: function (target, prop, val) {
                 // internal fields — bypass data
-                if (prop === 'store' || prop === 'data' || prop === 'objects' || prop === '_class' || prop === '_snapshot' || prop === 'el') {
+                if (prop === 'store' || prop === 'data' || prop === 'objects' || prop === '_class' || prop === '_snapshot' || prop === '_id' || prop === '_related' || prop === '_dirtyRelated' || prop === '_belongsTo' || prop === '_onChange' || prop === 'el') {
                     target[prop] = val;
                     return true;
                 }
@@ -284,7 +385,22 @@ class AtomObj {
                         }
                     }
                 }
+                // Notify parents this object is dirty
+                if (target._belongsTo && target._belongsTo.length > 0) {
+                    var self = target;
+                    target._belongsTo.forEach(function(parent) {
+                        if (parent._dirtyRelated.indexOf(self) === -1) {
+                            parent._dirtyRelated.push(self);
+                        }
+                    });
+                }
+                var oldVal = target.data[prop];
                 target.data[prop] = val;
+                // Fire onChange callbacks
+                if (target._onChange && target._onChange.length > 0) {
+                    var info = {obj: target, prop: prop, value: val, oldValue: oldVal};
+                    target._onChange.forEach(function(fn) { fn(info); });
+                }
                 return true;
             }
         });
@@ -358,11 +474,43 @@ class AtomObj {
         return changes;
     }
 
-    /** Save to store (updates snapshot) */
+    /** Save to store — recursive, children-first (updates snapshot) */
     save() {
         if (!this.store) throw new Error('save: no store assigned');
+
+        // 1. Save dirty related objects first (children before parent)
+        var dirtyList = this._dirtyRelated.slice();
+        for (var i = 0; i < dirtyList.length; i++) {
+            dirtyList[i].save();
+        }
+        this._dirtyRelated = [];
+
+        // 2. Rebuild raw ID arrays for relation properties from _related objects
+        this._syncRelationIds();
+
+        // 3. Save self
         this.store.setObject(this);
         this._snapshot = JSON.parse(JSON.stringify(this.data));
+    }
+
+    /** Walk relation props, rebuild raw ID arrays/values from actual objects */
+    _syncRelationIds() {
+        if (!this.store || !this._class) return;
+        var data = this.data;
+        var objects = this.objects;
+        var props = this.store.collectClassProps(this.data.class_id);
+        props.forEach(function(propObj) {
+            if (propObj.data_type !== 'relation') return;
+            var dotIdx = propObj.id.lastIndexOf('.');
+            var key = dotIdx >= 0 ? propObj.id.substring(dotIdx + 1) : propObj.id;
+            var relObjs = objects[key];
+            if (!relObjs) return;
+            if (propObj.is_array && Array.isArray(relObjs)) {
+                data[key] = relObjs.map(function(o) { return o.id || o._id; });
+            } else if (relObjs instanceof AtomObj) {
+                data[key] = relObjs.id || relObjs._id;
+            }
+        });
     }
 
     /** Get related objects that have unsaved changes */
@@ -431,6 +579,7 @@ class AtomProp extends AtomObj {
     display_order = 0;
     group_name = null;
     hidden = false;
+    server_only = false;
 
     /**
      * Get typed value from sender object
@@ -439,6 +588,30 @@ class AtomProp extends AtomObj {
      * @returns {*} object | AtomCollection | AtomObj[] | AtomObj | string | boolean | number | function
      */
     getPropValue(senderObj, propName) {
+        // Computed order_id: if item is in a parent's collection, return its index
+        if (propName === 'order_id' && senderObj._belongsTo && senderObj._belongsTo.length > 0) {
+            var parent = senderObj._belongsTo[0];
+            if (parent && parent.objects) {
+                var keys = Object.keys(parent.objects);
+                for (var ki = 0; ki < keys.length; ki++) {
+                    var arr = parent.objects[keys[ki]];
+                    if (Array.isArray(arr)) {
+                        var idx = arr.indexOf(senderObj);
+                        if (idx === -1) {
+                            // Try matching by id
+                            for (var si = 0; si < arr.length; si++) {
+                                if (arr[si].id === senderObj.id || arr[si]._id === senderObj._id) {
+                                    idx = si;
+                                    break;
+                                }
+                            }
+                        }
+                        if (idx >= 0) return idx;
+                    }
+                }
+            }
+        }
+
         var val = senderObj.data[propName];
         if (val === undefined || val === null) return val;
 
@@ -465,12 +638,18 @@ class AtomProp extends AtomObj {
             case 'relation':
                 if (!store) return val;
                 if (this.is_array && Array.isArray(val)) {
-                    // Fetch all into objects[propName] (array of AtomObj)
+                    // Build/update objects array from _related + store lookups
                     if (!senderObj.objects[propName]) {
                         var items = [];
-                        val.forEach(function (id) {
-                            var fetched = store.getObject(id);
-                            if (fetched) items.push(fetched);
+                        val.forEach(function (refId) {
+                            // First check _related, then store
+                            var found = null;
+                            for (var i = 0; i < senderObj._related.length; i++) {
+                                var r = senderObj._related[i];
+                                if (r.id === refId || r._id === refId) { found = r; break; }
+                            }
+                            if (!found && store) found = store.getObject(refId);
+                            if (found) items.push(found);
                         });
                         senderObj.objects[propName] = items;
                     }
@@ -478,8 +657,14 @@ class AtomProp extends AtomObj {
                 }
                 // single relation → objects[propName] = AtomObj
                 if (!senderObj.objects[propName]) {
-                    var fetched = store.getObject(val);
-                    if (fetched) senderObj.objects[propName] = fetched;
+                    // Check _related first
+                    var found = null;
+                    for (var i = 0; i < senderObj._related.length; i++) {
+                        var r = senderObj._related[i];
+                        if (r.id === val || r._id === val) { found = r; break; }
+                    }
+                    if (!found) found = store.getObject(val);
+                    if (found) senderObj.objects[propName] = found;
                 }
                 return senderObj.objects[propName] || val;
             case 'function':
@@ -529,14 +714,38 @@ class AtomProp extends AtomObj {
                 // Accept AtomObj → store object in objects[propName], id in data
                 if (value instanceof AtomObj) {
                     senderObj.objects[propName] = value;
-                    value = value.id;
+                    // Register in _related and _belongsTo
+                    if (senderObj._related.indexOf(value) === -1) {
+                        senderObj._related.push(value);
+                    }
+                    if (value._belongsTo.indexOf(senderObj) === -1) {
+                        value._belongsTo.push(senderObj);
+                    }
+                    if (value.hasChanges && value.hasChanges()) {
+                        if (senderObj._dirtyRelated.indexOf(value) === -1) {
+                            senderObj._dirtyRelated.push(value);
+                        }
+                    }
+                    value = value.id || value._id;
                 }
                 if (this.is_array && Array.isArray(value)) {
                     var relObjs = [];
                     value = value.map(function (v) {
                         if (v instanceof AtomObj) {
                             relObjs.push(v);
-                            return v.id;
+                            // Register in _related and _belongsTo
+                            if (senderObj._related.indexOf(v) === -1) {
+                                senderObj._related.push(v);
+                            }
+                            if (v._belongsTo.indexOf(senderObj) === -1) {
+                                v._belongsTo.push(senderObj);
+                            }
+                            if (v.hasChanges && v.hasChanges()) {
+                                if (senderObj._dirtyRelated.indexOf(v) === -1) {
+                                    senderObj._dirtyRelated.push(v);
+                                }
+                            }
+                            return v.id || v._id;
                         }
                         return v;
                     });
@@ -688,8 +897,9 @@ class ElementStore {
             obj = new AtomObj(obj, this);
         }
 
-        // Store locally
-        this.objects[obj.id] = obj;
+        // Store locally — key by id if available, otherwise _id
+        var key = obj.id || obj._id;
+        this.objects[key] = obj;
 
         // Save to remote if storage configured
         if (this.storage) {
@@ -710,6 +920,14 @@ class ElementStore {
             if (match) results.push(obj);
         });
         return results;
+    }
+
+    /**
+     * Set JWT token for authenticated API calls.
+     * @param {string|null} token - JWT Bearer token
+     */
+    setToken(token) {
+        setJwtToken(token);
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -755,7 +973,7 @@ class ElementStore {
             if (obj.hasChanges && obj.hasChanges()) {
                 if (self.storage) self.saveRemote(obj);
                 obj._snapshot = JSON.parse(JSON.stringify(obj.data));
-                saved.push(obj.id);
+                saved.push(obj.id || obj._id);
             }
         });
         return saved;
@@ -788,6 +1006,9 @@ class ElementStore {
             var xhr = new XMLHttpRequest();
             xhr.open('GET', url, false); // sync
             xhr.setRequestHeader('Content-Type', 'application/json');
+            if (_jwtToken) {
+                xhr.setRequestHeader('Authorization', 'Bearer ' + _jwtToken);
+            }
             xhr.send();
             if (xhr.status === 200) {
                 return JSON.parse(xhr.responseText);
@@ -804,19 +1025,46 @@ class ElementStore {
 
         var classId = obj.class_id;
         var id = obj.id;
-        var url = this.storage.url + '/store/' + encodeURIComponent(classId) + '/' + encodeURIComponent(id);
+        var isNew = !id;
+        var url, method;
+
+        if (isNew) {
+            url = this.storage.url + '/store/' + encodeURIComponent(classId);
+            method = 'POST';
+        } else {
+            url = this.storage.url + '/store/' + encodeURIComponent(classId) + '/' + encodeURIComponent(id);
+            method = 'PUT';
+        }
 
         try {
             var xhr = new XMLHttpRequest();
-            xhr.open('PUT', url, false); // sync
+            xhr.open(method, url, false); // sync
             xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.setRequestHeader('X-Allow-Custom-Ids', 'true');
+            if (_jwtToken) {
+                xhr.setRequestHeader('Authorization', 'Bearer ' + _jwtToken);
+            }
+            if (!isNew) xhr.setRequestHeader('X-Allow-Custom-Ids', 'true');
             xhr.send(JSON.stringify(obj.data));
-            if (xhr.status >= 400) {
-                console.warn('saveRemote failed for ' + id + ': HTTP ' + xhr.status);
+
+            if (xhr.status >= 200 && xhr.status < 300) {
+                var response = JSON.parse(xhr.responseText);
+                if (isNew && response.id) {
+                    // Re-key: _id → id
+                    var oldKey = obj._id;
+                    obj.data.id = response.id;
+                    this.objects[obj.id] = obj;
+                    delete this.objects[oldKey];
+                }
+                // Merge server fields (created_at, updated_at, etc.)
+                var self = this;
+                Object.keys(response).forEach(function(k) {
+                    obj.data[k] = response[k];
+                });
+            } else {
+                console.warn('saveRemote failed: HTTP ' + xhr.status);
             }
         } catch (e) {
-            console.warn('saveRemote failed for ' + id + ':', e.message);
+            console.warn('saveRemote failed:', e.message);
         }
     }
 }
@@ -840,6 +1088,9 @@ if (typeof module !== 'undefined' && module.exports) {
         seedData,
         classRegistry,
         registerClass,
+        generateLocalId,
+        setJwtToken,
+        getJwtToken,
         AtomObj,
         AtomClass,
         AtomProp,
@@ -853,6 +1104,9 @@ if (typeof window !== 'undefined') {
     window.seedData = seedData;
     window.classRegistry = classRegistry;
     window.registerClass = registerClass;
+    window.generateLocalId = generateLocalId;
+    window.setJwtToken = setJwtToken;
+    window.getJwtToken = getJwtToken;
     window.AtomObj = AtomObj;
     window.AtomClass = AtomClass;
     window.AtomProp = AtomProp;

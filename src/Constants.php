@@ -75,6 +75,12 @@ class Constants
     /** @var string Owner/creator user ID field */
     const F_OWNER_ID = 'owner_id';
 
+    /** @var string Application ID for multi-tenant isolation */
+    const F_APP_ID = 'app_id';
+
+    /** @var string Domain for multi-tenant isolation */
+    const F_DOMAIN = 'domain';
+
     // =========================================================================
     // DATA TYPES (DT_*)
     // Types for property values - used for validation and storage

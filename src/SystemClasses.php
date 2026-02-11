@@ -216,6 +216,22 @@ class SystemClasses
                 Prop::PF_DEFAULT_VALUE => false,
                 Prop::PF_DISPLAY_ORDER => 16,
             ],
+            [
+                Prop::PF_KEY => Prop::PF_SERVER_ONLY,
+                Prop::PF_LABEL => 'Server Only',
+                Prop::PF_DESCRIPTION => 'Property is stripped from API responses (backend-only)',
+                Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
+                Prop::PF_DEFAULT_VALUE => false,
+                Prop::PF_DISPLAY_ORDER => 17,
+            ],
+            [
+                Prop::PF_KEY => Prop::PF_CREATE_ONLY,
+                Prop::PF_LABEL => 'Create Only',
+                Prop::PF_DESCRIPTION => 'Only writable when creating new objects (readonly after first save)',
+                Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
+                Prop::PF_DEFAULT_VALUE => false,
+                Prop::PF_DISPLAY_ORDER => 18,
+            ],
         ];
 
         return [
@@ -255,8 +271,9 @@ class SystemClasses
                 Prop::PF_KEY => Constants::F_EXTENDS_ID,
                 Prop::PF_LABEL => 'Extends',
                 Prop::PF_DESCRIPTION => 'Parent class for inheritance',
-                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_OBJECT_CLASS_ID => Constants::K_CLASS,
+                Prop::PF_CREATE_ONLY => true,
                 Prop::PF_DISPLAY_ORDER => 3,
             ],
             [

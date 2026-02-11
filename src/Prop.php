@@ -46,6 +46,8 @@ class Prop extends EntityObj
     const PF_DISPLAY_ORDER = 'display_order';
     const PF_GROUP_NAME = 'group_name';
     const PF_HIDDEN = 'hidden';
+    const PF_SERVER_ONLY = 'server_only';
+    const PF_CREATE_ONLY = 'create_only';
 
     // =========================================================================
     // ORPHAN ACTION CONSTANTS
@@ -151,6 +153,12 @@ class Prop extends EntityObj
 
     /** @var bool Hide from default views */
     public bool $hidden = false;
+
+    /** @var bool Server-only property — stripped from API responses */
+    public bool $server_only = false;
+
+    /** @var bool Only writable when creating (readonly after first save) */
+    public bool $create_only = false;
 
     /**
      * Constructor with data normalization

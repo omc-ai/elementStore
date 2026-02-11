@@ -529,13 +529,6 @@ show_result "$RESULT" "User 001's Customer"
 USER1_CUST_ID=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
 log "User 001's customer ID: $USER1_CUST_ID"
 
-# Verify owner_id is set
-if echo "$RESULT" | grep -q '"owner_id":"user_001"'; then
-    pass "owner_id correctly set to user_001"
-else
-    fail "owner_id not set correctly"
-fi
-
 # Create object as user_002
 log "Creating object as user_002..."
 RESULT=$(curl -s -X POST "${BASE_URL}/store/customer" \
@@ -582,12 +575,11 @@ fi
 log "User 001 listing all customers (should only see own)..."
 RESULT=$(curl -s -X GET "${BASE_URL}/store/customer" \
     -H "X-User-Id: user_001")
-COUNT=$(echo "$RESULT" | python3 -c "import sys,json; data=json.load(sys.stdin); print(len([x for x in data if x.get('owner_id')=='user_001']))" 2>/dev/null)
 TOTAL=$(echo "$RESULT" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null)
-if [ "$COUNT" = "$TOTAL" ] && [ "$TOTAL" != "0" ]; then
-    pass "User 001 only sees their own objects ($COUNT objects)"
+if [ "$TOTAL" = "1" ]; then
+    pass "User 001 only sees their own objects ($TOTAL object)"
 else
-    fail "User 001 sees objects from other users (own: $COUNT, total: $TOTAL)"
+    fail "User 001 sees wrong number of objects (expected 1, got $TOTAL)"
 fi
 
 # Admin mode (no user_id) - can see all
@@ -599,6 +591,114 @@ if [ "$TOTAL" -gt "1" ]; then
     pass "Admin can see all objects ($TOTAL objects)"
 else
     warn "Admin should see multiple objects (got $TOTAL)"
+fi
+
+# =============================================================================
+# STEP 12: Test Security Field Stripping (toApiArray)
+# =============================================================================
+log "Step 12: Test Security Field Stripping"
+
+# Verify owner_id is NOT present in API responses
+log "Checking that security fields are stripped from GET responses..."
+RESULT=$(curl -s -X GET "${BASE_URL}/store/customer/${USER1_CUST_ID}" \
+    -H "X-User-Id: user_001")
+
+if echo "$RESULT" | grep -q '"owner_id"'; then
+    fail "owner_id should NOT appear in API response (toApiArray should strip it)"
+else
+    pass "owner_id stripped from GET /store/{class}/{id} response"
+fi
+
+if echo "$RESULT" | grep -q '"app_id"'; then
+    fail "app_id should NOT appear in API response"
+else
+    pass "app_id stripped from GET response"
+fi
+
+if echo "$RESULT" | grep -q '"domain"'; then
+    fail "domain should NOT appear in API response"
+else
+    pass "domain stripped from GET response"
+fi
+
+# Verify security fields stripped from list response
+log "Checking security fields stripped from list response..."
+RESULT=$(curl -s -X GET "${BASE_URL}/store/customer" \
+    -H "X-User-Id: user_001")
+
+if echo "$RESULT" | grep -q '"owner_id"'; then
+    fail "owner_id should NOT appear in list response"
+else
+    pass "owner_id stripped from GET /store/{class} list response"
+fi
+
+# Verify security fields stripped from POST (create) response
+log "Checking security fields stripped from create response..."
+RESULT=$(curl -s -X POST "${BASE_URL}/store/customer" \
+    -H "Content-Type: application/json" \
+    -H "X-User-Id: user_001" \
+    -d '{"name": "Strip Test", "email": "strip@test.com", "status": "active"}')
+check_success "$RESULT" "Create customer for strip test"
+
+if echo "$RESULT" | grep -q '"owner_id"'; then
+    fail "owner_id should NOT appear in POST response"
+else
+    pass "owner_id stripped from POST /store/{class} response"
+fi
+STRIP_TEST_ID=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+
+# Verify security fields stripped from PUT (update) response
+log "Checking security fields stripped from update response..."
+RESULT=$(curl -s -X PUT "${BASE_URL}/store/customer/${STRIP_TEST_ID}" \
+    -H "Content-Type: application/json" \
+    -H "X-User-Id: user_001" \
+    -d '{"name": "Strip Test Updated"}')
+
+if echo "$RESULT" | grep -q '"owner_id"'; then
+    fail "owner_id should NOT appear in PUT response"
+else
+    pass "owner_id stripped from PUT /store/{class}/{id} response"
+fi
+
+# Verify security fields stripped from query response
+log "Checking security fields stripped from query response..."
+RESULT=$(curl -s -X GET "${BASE_URL}/query/customer?status=active" \
+    -H "X-User-Id: user_001")
+
+if echo "$RESULT" | grep -q '"owner_id"'; then
+    fail "owner_id should NOT appear in query response"
+else
+    pass "owner_id stripped from GET /query/{class} response"
+fi
+
+# =============================================================================
+# STEP 13: Test Relation Resolve/Query Modes
+# =============================================================================
+log "Step 13: Test Relation Resolve/Query Modes"
+
+# Default mode (resolve) - get related customer from invoice
+log "Testing resolve mode (default)..."
+RESULT=$(api GET "/store/invoice/$INV_1_ID/customer_id")
+if echo "$RESULT" | grep -q '"name":"Test Customer Alpha"'; then
+    pass "Resolve mode returns related object"
+else
+    warn "Resolve mode result: $RESULT"
+fi
+
+# Verify resolved relation also strips security fields
+if echo "$RESULT" | grep -q '"owner_id"'; then
+    fail "owner_id should NOT appear in resolved relation response"
+else
+    pass "Security fields stripped from resolved relation"
+fi
+
+# Explicit resolve mode via ?mode=resolve
+log "Testing explicit ?mode=resolve..."
+RESULT=$(api GET "/store/invoice/$INV_1_ID/customer_id?mode=resolve")
+if echo "$RESULT" | grep -q '"name":"Test Customer Alpha"'; then
+    pass "Explicit ?mode=resolve returns related object"
+else
+    warn "Explicit resolve mode result: $RESULT"
 fi
 
 # =============================================================================

@@ -62,19 +62,65 @@ if (!extension_loaded('phalcon')) {
     exit;
 }
 
-// Get user ID from header (X-User-Id) if available
-$userId = $_SERVER['HTTP_X_USER_ID'] ?? null;
+// =============================================================================
+// AUTHENTICATION — JWT or legacy X-User-Id fallback
+// =============================================================================
+
+$userId = null;
+$appId = null;
+$domain = null;
+$jwtPublicKey = getenv('ES_JWT_PUBLIC_KEY') ?: null;
+
+if ($jwtPublicKey) {
+    // JWT mode: parse Authorization: Bearer <token>
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (preg_match('/^Bearer\s+(.+)$/i', $authHeader, $matches)) {
+        $token = $matches[1];
+        try {
+            // Load firebase/php-jwt if composer autoload exists
+            $composerAutoload = __DIR__ . '/vendor/autoload.php';
+            if (file_exists($composerAutoload)) {
+                require_once $composerAutoload;
+            }
+            $decoded = \Firebase\JWT\JWT::decode($token, new \Firebase\JWT\Key($jwtPublicKey, 'RS256'));
+            $userId = $decoded->sub ?? $decoded->user_id ?? null;
+            $appId = $decoded->app_id ?? null;
+            $domain = $decoded->domain ?? null;
+        } catch (\Exception $e) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid or expired token', 'detail' => $e->getMessage()]);
+            exit;
+        }
+    } else {
+        // No token provided when JWT is configured
+        http_response_code(401);
+        echo json_encode(['error' => 'Authorization header with Bearer token is required']);
+        exit;
+    }
+} else {
+    // Legacy fallback (dev mode) — X-User-Id header
+    // Log deprecation warning
+    $userId = $_SERVER['HTTP_X_USER_ID'] ?? null;
+    if ($userId !== null) {
+        error_log('[ElementStore] DEPRECATED: X-User-Id header used. Migrate to JWT authentication.');
+    }
+}
 
 $model = ClassModel::boot(__DIR__, $userId);
 
-// Disable ownership enforcement for testing (can be controlled via header)
-if (isset($_SERVER['HTTP_X_DISABLE_OWNERSHIP']) && $_SERVER['HTTP_X_DISABLE_OWNERSHIP'] === 'true') {
-    $model->setEnforceOwnership(false);
+// Set full security context if JWT provided app_id/domain
+if ($appId !== null || $domain !== null) {
+    $model->setSecurityContext($userId, $appId, $domain);
 }
 
 // Allow custom IDs for seeding/testing (can be controlled via header)
 if (isset($_SERVER['HTTP_X_ALLOW_CUSTOM_IDS']) && $_SERVER['HTTP_X_ALLOW_CUSTOM_IDS'] === 'true') {
     $model->setAllowCustomIds(true);
+}
+
+// Legacy: Disable ownership enforcement (only in dev/no-JWT mode)
+if (!$jwtPublicKey && isset($_SERVER['HTTP_X_DISABLE_OWNERSHIP']) && $_SERVER['HTTP_X_DISABLE_OWNERSHIP'] === 'true') {
+    $model->setEnforceOwnership(false);
 }
 
 $di = new FactoryDefault();
@@ -86,7 +132,7 @@ $app = new Micro($di);
 $app->before(function () use ($app) {
     $app->response->setHeader('Access-Control-Allow-Origin', '*');
     $app->response->setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    $app->response->setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, token, X-User-Id, X-Disable-Ownership, X-Allow-Custom-Ids');
+    $app->response->setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-User-Id, X-Disable-Ownership, X-Allow-Custom-Ids');
     $app->response->setContentType('application/json', 'UTF-8');
 
     if ($app->request->isOptions()) {
@@ -134,6 +180,28 @@ function handleException(\Exception $e): Response
 }
 
 // =============================================================================
+// RESPONSE FILTERING — strip server_only fields from class definitions
+// =============================================================================
+
+/**
+ * Remove props flagged as server_only from a class definition's props array
+ */
+function stripServerOnlyProps(array $classData): array
+{
+    if (!isset($classData[Constants::F_PROPS]) || !is_array($classData[Constants::F_PROPS])) {
+        return $classData;
+    }
+    $classData[Constants::F_PROPS] = array_values(array_filter(
+        $classData[Constants::F_PROPS],
+        function ($prop) {
+            $serverOnly = is_array($prop) ? ($prop['server_only'] ?? false) : false;
+            return !$serverOnly;
+        }
+    ));
+    return $classData;
+}
+
+// =============================================================================
 // HEALTH & INFO
 // =============================================================================
 
@@ -174,21 +242,23 @@ $app->get('/class', function () use ($app) {
     /** @var ClassModel $model */
     $model = $app->di->get('model');
     $classes = $model->getAllClasses();
-    return json(array_map(fn($c) => $c->toArray(), $classes));
+    return json(array_map(fn($c) => stripServerOnlyProps($c->toArray()), $classes));
 });
 
 $app->get('/class/{id}', function ($id) use ($app) {
     /** @var ClassModel $model */
     $model = $app->di->get('model');
     $class = $model->getClass($id);
-    return $class ? json($class->toArray()) : error("Class not found: {$id}", 404);
+    return $class ? json(stripServerOnlyProps($class->toArray())) : error("Class not found: {$id}", 404);
 });
 
 $app->get('/class/{id}/props', function ($id) use ($app) {
     /** @var ClassModel $model */
     $model = $app->di->get('model');
     $props = $model->getClassProps($id);
-    return json(array_map(fn($p) => $p->toArray(), $props));
+    // Filter out server_only props from the response
+    $filtered = array_filter($props, fn($p) => !$p->server_only);
+    return json(array_map(fn($p) => $p->toArray(), array_values($filtered)));
 });
 
 $app->post('/class', function () use ($app) {
@@ -221,7 +291,7 @@ $app->get('/store/{class}', function ($c) use ($app) {
     /** @var ClassModel $model */
     $model = $app->di->get('model');
     $objects = $model->query($c);
-    return json(array_map(fn($o) => $o->toArray(), $objects));
+    return json(array_map(fn($o) => $o->toApiArray(), $objects));
 });
 
 // Get single object by ID
@@ -229,7 +299,7 @@ $app->get('/store/{class}/{id}', function ($c, $id) use ($app) {
     /** @var ClassModel $model */
     $model = $app->di->get('model');
     $result = $model->getObject($c, $id);
-    return $result ? json($result->toArray()) : error("Not found: {$c}/{$id}", 404);
+    return $result ? json($result->toApiArray()) : error("Not found: {$c}/{$id}", 404);
 });
 
 // GET /store/{class}/{id}/{prop} - Get property value (resolves relations)
@@ -245,24 +315,23 @@ $app->get('/store/{class}/{id}/{prop}', function ($c, $id, $prop) use ($app) {
 
     $value = $objArray[$prop];
 
-    // Check if relation - fetch related object(s)
+    // Check if relation - use getRelated() with mode support
     $classMeta = $model->getClass($c);
     if ($classMeta) {
         $propDef = $classMeta->getProp($prop);
-        if ($propDef && $propDef->data_type === Constants::DT_RELATION && $propDef->object_class_id) {
-            if ($propDef->is_array && is_array($value)) {
-                // HasMany
-                $related = [];
-                foreach ($value as $relId) {
-                    $relObj = $model->getObject($propDef->object_class_id, $relId);
-                    if ($relObj) $related[] = $relObj->toArray();
-                }
-                return json($related);
-            } else {
-                // HasOne
-                $relObj = $model->getObject($propDef->object_class_id, $value);
-                return $relObj ? json($relObj->toArray()) : json(null);
+        if ($propDef && $propDef->data_type === Constants::DT_RELATION && $propDef->hasTargetClasses()) {
+            // Support ?mode=query|resolve (default: resolve)
+            parse_str($_SERVER['QUERY_STRING'] ?? '', $qp);
+            $mode = $qp['mode'] ?? 'resolve';
+
+            $related = $model->getRelated($obj, $prop, $mode);
+            $result = array_map(fn($o) => $o->toApiArray(), $related);
+
+            // For single (non-array) relation in resolve mode, return single object
+            if (!$propDef->is_array && $mode === 'resolve') {
+                return json(!empty($result) ? $result[0] : null);
             }
+            return json($result);
         }
     }
 
@@ -285,7 +354,7 @@ $app->put('/store/{class}/{id}/{prop}', function ($c, $id, $prop) use ($app) {
             Constants::F_ID => $id,
             $prop => $value
         ]);
-        return json($result->toArray());
+        return json($result->toApiArray());
     } catch (\Exception $e) {
         return handleException($e);
     }
@@ -300,7 +369,7 @@ $app->post('/store/{class}', function ($c) use ($app) {
         /** @var ClassModel $model */
         $model = $app->di->get('model');
         $result = $model->setObject($c, $input);
-        return json($result->toArray(), 201);
+        return json($result->toApiArray(), 201);
     } catch (\Exception $e) {
         return handleException($e);
     }
@@ -316,7 +385,7 @@ $app->put('/store/{class}/{id}', function ($c, $id) use ($app) {
         /** @var ClassModel $model */
         $model = $app->di->get('model');
         $result = $model->setObject($c, $input);
-        return json($result->toArray());
+        return json($result->toApiArray());
     } catch (\Exception $e) {
         return handleException($e);
     }
@@ -343,7 +412,7 @@ $app->get('/find/{id}', function ($id) use ($app) {
         if (str_starts_with($class->id, '@')) continue; // skip system classes
         try {
             $obj = $model->getObject($class->id, $id);
-            if ($obj) return json($obj->toArray());
+            if ($obj) return json($obj->toApiArray());
         } catch (\Exception $e) {
             // not found in this class, continue
         }
@@ -370,7 +439,7 @@ $app->get('/query/{class}', function ($c) use ($app) {
     /** @var ClassModel $model */
     $model = $app->di->get('model');
     $results = $model->query($c, $filters, $options);
-    return json(array_map(fn($o) => $o->toArray(), $results));
+    return json(array_map(fn($o) => $o->toApiArray(), $results));
 });
 
 // =============================================================================

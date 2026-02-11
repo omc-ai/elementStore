@@ -115,6 +115,40 @@
     }
     .console-bar span { color: #0fb; }
     .console-bar .dirty { color: #f0c040; }
+
+    /* ─── Console Monitor ─── */
+    #monitor {
+      position: fixed; bottom: 28px; left: 0; width: 420px; z-index: 9999;
+      background: #0d1b2a; border: 1px solid #0f3460; border-left: none;
+      border-radius: 0 6px 0 0; font-family: 'Consolas', 'Courier New', monospace;
+      display: flex; flex-direction: column;
+    }
+    #monitor-toolbar {
+      display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+      background: #16213e; border-bottom: 1px solid #0f3460;
+      border-radius: 0 6px 0 0; font-size: 11px; color: #8899aa;
+      cursor: default; user-select: none;
+    }
+    #monitor-toolbar .monitor-title { font-weight: 600; color: #e94560; margin-right: auto; }
+    #monitor-toolbar button {
+      background: #0f3460; color: #8899aa; border: 1px solid #1a4080;
+      padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 10px;
+    }
+    #monitor-toolbar button:hover { background: #1a4080; color: #e0e0e0; }
+    #monitor-toolbar button.active { color: #f0c040; border-color: #f0c040; }
+    #monitor-log {
+      height: 200px; overflow-y: auto; padding: 4px 8px; font-size: 11px;
+      line-height: 1.5; resize: vertical; min-height: 80px;
+    }
+    #monitor-log::-webkit-scrollbar { width: 6px; }
+    #monitor-log::-webkit-scrollbar-track { background: #0d1b2a; }
+    #monitor-log::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 3px; }
+    #monitor-log .log-entry { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #monitor-log .log-time { color: #555; }
+    #monitor-log .log-get { color: #4dd0e1; }
+    #monitor-log .log-set { color: #66bb6a; }
+    #monitor-log .log-change { color: #ffa726; }
+    #monitor-log .log-detail { color: #8899aa; }
   </style>
 </head>
 <body>
@@ -151,9 +185,135 @@
     </div>
   </div>
 
+  <!-- Console Monitor Panel -->
+  <div id="monitor">
+    <div id="monitor-toolbar">
+      <span class="monitor-title">Monitor</span>
+      <button id="monitor-pause" onclick="toggleMonitorPause()">Pause</button>
+      <button onclick="clearMonitorLog()">Clear</button>
+    </div>
+    <div id="monitor-log"></div>
+  </div>
+
   <!-- Libraries -->
   <script src="element-store.js"></script>
   <script src="ui-element.js"></script>
+
+  <!-- Console Monitor -->
+  <script>
+    var _monitorPaused = false;
+    var _monitorMaxEntries = 500;
+    var _monitorLogEl = document.getElementById('monitor-log');
+
+    function monitorLog(type, detail) {
+      if (_monitorPaused) return;
+
+      var now = new Date();
+      var time = String(now.getHours()).padStart(2, '0') + ':' +
+                 String(now.getMinutes()).padStart(2, '0') + ':' +
+                 String(now.getSeconds()).padStart(2, '0') + '.' +
+                 String(now.getMilliseconds()).padStart(3, '0');
+
+      var cssClass, label, info;
+      switch (type) {
+        case 'getObject':
+          cssClass = 'log-get';
+          label = 'GET';
+          info = detail.id + (detail.classId ? ' [' + detail.classId + ']' : '') +
+                 (detail.found ? '' : ' (miss)');
+          break;
+        case 'setObject':
+          cssClass = 'log-set';
+          label = 'SET';
+          info = (detail.id || '(new)') + (detail.classId ? ' [' + detail.classId + ']' : '');
+          break;
+        case 'onChange':
+          cssClass = 'log-change';
+          label = 'CHG';
+          info = (detail.id || detail._id || '?') +
+                 ' .' + detail.prop + ' = ' + JSON.stringify(detail.value);
+          break;
+        default:
+          cssClass = 'log-detail';
+          label = type;
+          info = JSON.stringify(detail);
+      }
+
+      var entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = '<span class="log-time">' + time + '</span> ' +
+                         '<span class="' + cssClass + '">' + label + '</span> ' +
+                         '<span class="log-detail">' + escapeMonitor(info) + '</span>';
+
+      _monitorLogEl.appendChild(entry);
+
+      // Trim old entries
+      while (_monitorLogEl.children.length > _monitorMaxEntries) {
+        _monitorLogEl.removeChild(_monitorLogEl.firstChild);
+      }
+
+      // Auto-scroll to bottom
+      _monitorLogEl.scrollTop = _monitorLogEl.scrollHeight;
+    }
+
+    function escapeMonitor(s) {
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function toggleMonitorPause() {
+      _monitorPaused = !_monitorPaused;
+      var btn = document.getElementById('monitor-pause');
+      btn.textContent = _monitorPaused ? 'Resume' : 'Pause';
+      if (_monitorPaused) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+
+    function clearMonitorLog() {
+      _monitorLogEl.innerHTML = '';
+    }
+
+    // ── Monkey-patch store methods for monitoring ──
+
+    var _origGetObject = store.getObject.bind(store);
+    store.getObject = function(id, classId) {
+      var result = _origGetObject(id, classId);
+      monitorLog('getObject', {id: id, classId: classId, found: !!result});
+      return result;
+    };
+
+    var _origSetObject = store.setObject.bind(store);
+    store.setObject = function(obj) {
+      var result = _origSetObject(obj);
+      monitorLog('setObject', {id: result.id || result._id, classId: result.class_id});
+      // Register onChange monitor on the new object
+      registerMonitorOnChange(result);
+      return result;
+    };
+
+    // Register onChange callback for monitor on an AtomObj
+    function registerMonitorOnChange(obj) {
+      if (!obj || !obj._onChange) return;
+      // Avoid double-registering
+      if (obj._onChange._monitorRegistered) return;
+      obj._onChange.push(function(info) {
+        monitorLog('onChange', {
+          id: info.obj.data.id || null,
+          _id: info.obj._id || null,
+          prop: info.prop,
+          value: info.value,
+          oldValue: info.oldValue
+        });
+      });
+      obj._onChange._monitorRegistered = true;
+    }
+
+    // Register onChange on existing store objects (seed data)
+    Object.values(store.objects).forEach(function(obj) {
+      if (obj && obj._onChange) registerMonitorOnChange(obj);
+    });
+  </script>
 
   <!-- Demo -->
   <script>

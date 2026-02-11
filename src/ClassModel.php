@@ -69,6 +69,12 @@ class ClassModel
     /** @var mixed Current user ID (owner of objects) */
     private mixed $userId = null;
 
+    /** @var mixed Application ID for multi-tenant isolation */
+    private mixed $appId = null;
+
+    /** @var mixed Domain for multi-tenant isolation */
+    private mixed $domain = null;
+
     /** @var bool Enforce owner_id filtering on getObject */
     private bool $enforceOwnership = true;
 
@@ -192,6 +198,33 @@ class ClassModel
     }
 
     /**
+     * Set full security context (user, app, domain) — called from JWT parsing
+     */
+    public function setSecurityContext(mixed $userId, mixed $appId, mixed $domain): self
+    {
+        $this->userId = $userId;
+        $this->appId = $appId;
+        $this->domain = $domain;
+        return $this;
+    }
+
+    /**
+     * Get current app ID
+     */
+    public function getAppId(): mixed
+    {
+        return $this->appId;
+    }
+
+    /**
+     * Get current domain
+     */
+    public function getDomain(): mixed
+    {
+        return $this->domain;
+    }
+
+    /**
      * Enable/disable ownership enforcement
      */
     public function setEnforceOwnership(bool $enforce): self
@@ -215,6 +248,58 @@ class ClassModel
     public function getStorage(): IStorageProvider
     {
         return $this->storage;
+    }
+
+    // =========================================================================
+    // SECURITY HELPERS
+    // =========================================================================
+
+    /**
+     * Check if object data passes security access checks (owner_id, app_id, domain)
+     * Returns false if any set security field mismatches the current context.
+     *
+     * @param array $data Object data from storage
+     * @return bool True if access is allowed
+     */
+    private function checkSecurityAccess(array $data): bool
+    {
+        if ($this->userId !== null) {
+            $objOwnerId = $data[Constants::F_OWNER_ID] ?? null;
+            if ($objOwnerId !== null && $objOwnerId !== $this->userId) {
+                return false;
+            }
+        }
+        if ($this->appId !== null) {
+            $objAppId = $data[Constants::F_APP_ID] ?? null;
+            if ($objAppId !== null && $objAppId !== $this->appId) {
+                return false;
+            }
+        }
+        if ($this->domain !== null) {
+            $objDomain = $data[Constants::F_DOMAIN] ?? null;
+            if ($objDomain !== null && $objDomain !== $this->domain) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Inject security filters (owner_id, app_id, domain) into a query filter array
+     *
+     * @param array &$filters Filter array to modify
+     */
+    private function injectSecurityFilters(array &$filters): void
+    {
+        if ($this->userId !== null) {
+            $filters[Constants::F_OWNER_ID] = $this->userId;
+        }
+        if ($this->appId !== null) {
+            $filters[Constants::F_APP_ID] = $this->appId;
+        }
+        if ($this->domain !== null) {
+            $filters[Constants::F_DOMAIN] = $this->domain;
+        }
     }
 
     // =========================================================================
@@ -247,11 +332,10 @@ class ClassModel
             return null;
         }
 
-        // Check ownership for non-system classes
-        if (!$this->isSystemClass($class_id) && $this->enforceOwnership && $this->userId !== null) {
-            $objOwnerId = $data[Constants::F_OWNER_ID] ?? null;
-            if ($objOwnerId !== null && $objOwnerId !== $this->userId) {
-                return null; // Not owned by current user
+        // Check security access for non-system classes
+        if (!$this->isSystemClass($class_id) && $this->enforceOwnership) {
+            if (!$this->checkSecurityAccess($data)) {
+                return null; // Security mismatch
             }
         }
 
@@ -293,10 +377,9 @@ class ClassModel
                 );
             }
 
-            // Verify ownership on update
-            if ($oldData !== null && $this->enforceOwnership && $this->userId !== null && !$this->isSystemClass($class_id)) {
-                $objOwnerId = $oldData[Constants::F_OWNER_ID] ?? null;
-                if ($objOwnerId !== null && $objOwnerId !== $this->userId) {
+            // Verify security access on update
+            if ($oldData !== null && $this->enforceOwnership && !$this->isSystemClass($class_id)) {
+                if (!$this->checkSecurityAccess($oldData)) {
                     throw new StorageException(
                         "You don't have permission to modify this object.",
                         'forbidden'
@@ -323,9 +406,17 @@ class ClassModel
             }
         }
 
-        // Step 3: Set owner_id for new objects (non-system classes)
-        if ($oldData === null && !$this->isSystemClass($class_id) && $this->userId !== null) {
-            $data[Constants::F_OWNER_ID] = $this->userId;
+        // Step 3: Stamp security fields for new objects (non-system classes)
+        if ($oldData === null && !$this->isSystemClass($class_id)) {
+            if ($this->userId !== null) {
+                $data[Constants::F_OWNER_ID] = $this->userId;
+            }
+            if ($this->appId !== null) {
+                $data[Constants::F_APP_ID] = $this->appId;
+            }
+            if ($this->domain !== null) {
+                $data[Constants::F_DOMAIN] = $this->domain;
+            }
         }
 
         // Step 4: Detect changes
@@ -360,14 +451,11 @@ class ClassModel
      */
     public function deleteObject(string $class_id, mixed $id): bool
     {
-        // Verify ownership before delete
-        if (!$this->isSystemClass($class_id) && $this->enforceOwnership && $this->userId !== null) {
+        // Verify security access before delete
+        if (!$this->isSystemClass($class_id) && $this->enforceOwnership) {
             $obj = $this->storage->getobj($class_id, $id);
-            if ($obj !== null) {
-                $objOwnerId = $obj[Constants::F_OWNER_ID] ?? null;
-                if ($objOwnerId !== null && $objOwnerId !== $this->userId) {
-                    return false; // Not owned by current user
-                }
+            if ($obj !== null && !$this->checkSecurityAccess($obj)) {
+                return false; // Security mismatch
             }
         }
 
@@ -393,9 +481,9 @@ class ClassModel
         // Add class_id filter
         $filters[Constants::F_CLASS_ID] = $class_id;
 
-        // Add owner_id filter for non-system classes
-        if (!$this->isSystemClass($class_id) && $this->enforceOwnership && $this->userId !== null) {
-            $filters[Constants::F_OWNER_ID] = $this->userId;
+        // Add security filters for non-system classes
+        if (!$this->isSystemClass($class_id) && $this->enforceOwnership) {
+            $this->injectSecurityFilters($filters);
         }
 
         $results = $this->storage->query($class_id, $filters, $options);
@@ -412,7 +500,64 @@ class ClassModel
     // =========================================================================
 
     /**
+     * Get related objects for a parent object's relation property
+     *
+     * @param AtomObj $parentObj Parent object
+     * @param string  $propKey   Relation property key on parent
+     * @param string  $mode      'resolve' = fetch IDs from parent array in order,
+     *                           'query' = full query on target class (security auto-filters)
+     * @param array   $filters   Additional filters (for query mode)
+     *
+     * @return AtomObj[] Related objects
+     */
+    public function getRelated(AtomObj $parentObj, string $propKey, string $mode = 'resolve', array $filters = []): array
+    {
+        $classMeta = $this->getClass($parentObj->class_id);
+        if (!$classMeta) {
+            return [];
+        }
+
+        $propDef = $classMeta->getProp($propKey);
+        if (!$propDef || !$propDef->hasTargetClasses()) {
+            return [];
+        }
+
+        $targetClass = $propDef->getPrimaryTargetClass();
+        if (!$targetClass) {
+            return [];
+        }
+
+        if ($mode === 'query') {
+            // Full query on target class — security auto-filters via query()
+            return $this->query($targetClass, $filters);
+        }
+
+        // Default: resolve mode — read parent's ID array and fetch each in order
+        $parentData = $parentObj->toArray();
+        $ids = $parentData[$propKey] ?? [];
+
+        if (!is_array($ids)) {
+            // Single relation
+            $obj = $this->getObject($targetClass, $ids);
+            return $obj ? [$obj] : [];
+        }
+
+        // Fetch each ID preserving parent array order (security enforced per-object)
+        $results = [];
+        foreach ($ids as $refId) {
+            $obj = $this->getObject($targetClass, $refId);
+            if ($obj) {
+                $results[] = $obj;
+            }
+        }
+        return $results;
+    }
+
+    /**
      * Get related objects where owner_id = parent id
+     *
+     * @deprecated Use getRelated() instead. This method conflates owner_id (security)
+     *             with parent-child relationships.
      *
      * @param string $class_id     Class of related objects
      * @param mixed  $owner_id     ID of parent object
@@ -514,7 +659,8 @@ class ClassModel
         $props = $meta->getProps();
 
         // Handle inheritance - merge parent props
-        if ($meta->extends_id !== null) {
+        // Stop at system classes (@ prefix) — their props define class metadata, not object schemas
+        if ($meta->extends_id !== null && !str_starts_with($meta->extends_id, '@')) {
             $parentProps = $this->getClassProps($meta->extends_id);
             // Parent props first, then own props (own override parent)
             $propsByKey = [];

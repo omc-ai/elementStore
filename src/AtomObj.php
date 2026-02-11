@@ -47,6 +47,12 @@ class AtomObj implements \JsonSerializable
     /** @var mixed Owner/creator ID */
     public mixed $owner_id = null;
 
+    /** @var mixed Application ID for multi-tenant isolation */
+    public mixed $app_id = null;
+
+    /** @var mixed Domain for multi-tenant isolation */
+    public mixed $domain = null;
+
     /** @var array Storage for extra/dynamic properties */
     protected array $extraData = [];
 
@@ -280,8 +286,11 @@ class AtomObj implements \JsonSerializable
         return $this->toArray();
     }
 
+    /** @var array Security fields stripped from API responses */
+    protected static array $securityFields = ['owner_id', 'app_id', 'domain'];
+
     /**
-     * Convert to array
+     * Convert to array (full — includes security fields, used for storage)
      * Merges public properties with extraData.
      * Filters out null values and internal properties.
      *
@@ -302,6 +311,21 @@ class AtomObj implements \JsonSerializable
 
         // Filter out null values
         return array_filter($merged, fn($v) => $v !== null);
+    }
+
+    /**
+     * Convert to array for API responses (strips security fields)
+     * Use this instead of toArray() when returning data to clients.
+     *
+     * @return array
+     */
+    public function toApiArray(): array
+    {
+        $data = $this->toArray();
+        foreach (static::$securityFields as $field) {
+            unset($data[$field]);
+        }
+        return $data;
     }
 
     /**
