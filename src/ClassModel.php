@@ -84,6 +84,7 @@ class ClassModel
     /** @var \Phalcon\Di\DiInterface|null DI container */
     private ?\Phalcon\Di\DiInterface $di = null;
 
+
     // =========================================================================
     // CONSTRUCTOR & BOOT
     // =========================================================================
@@ -241,6 +242,7 @@ class ClassModel
         $this->allowCustomIds = $allow;
         return $this;
     }
+
 
     /**
      * Get the storage provider
@@ -451,10 +453,12 @@ class ClassModel
      */
     public function deleteObject(string $class_id, mixed $id): bool
     {
+        // Load existing data (for security check + broadcast _old)
+        $oldData = $this->storage->getobj($class_id, $id);
+
         // Verify security access before delete
         if (!$this->isSystemClass($class_id) && $this->enforceOwnership) {
-            $obj = $this->storage->getobj($class_id, $id);
-            if ($obj !== null && !$this->checkSecurityAccess($obj)) {
+            if ($oldData !== null && !$this->checkSecurityAccess($oldData)) {
                 return false; // Security mismatch
             }
         }
@@ -462,7 +466,13 @@ class ClassModel
         // Remove from cache
         unset($this->objectCache[$class_id][$id]);
 
-        return $this->storage->delobj($class_id, $id);
+        $deleted = $this->storage->delobj($class_id, $id);
+
+        if ($deleted) {
+            BroadcastService::emitDelete($class_id, $id, $oldData, $this->userId);
+        }
+
+        return $deleted;
     }
 
     /**
@@ -1279,6 +1289,9 @@ class ClassModel
 
         // Save the object
         $result = $this->storage->setobj($class_id, $data);
+
+        // Broadcast change to WS subscribers (skip sender by user_id)
+        BroadcastService::emitChange($result, $oldData, $this->userId);
 
         // Handle class meta changes (renames)
         if ($class_id === Constants::K_CLASS && !empty($changes)) {

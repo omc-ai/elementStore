@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Type System Map - ElementStore</title>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .header a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 14px; }
+        .header a:hover { color: #fff; }
+        .container { padding: 24px 30px; max-width: 1400px; margin: 0 auto; }
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 28px 0 14px;
+            color: #1f2937;
+        }
+        .section-title:first-child { margin-top: 0; }
+
+        /* Type reference table */
+        .ref-table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .ref-table th { text-align: left; padding: 10px 14px; background: #f3f4f6; border-bottom: 1px solid #e5e7eb; font-weight: 600; font-size: 12px; color: #6b7280; }
+        .ref-table td { padding: 8px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+        .ref-table tr:last-child td { border-bottom: none; }
+        .ref-table .mono { font-family: 'Monaco','Menlo',monospace; font-size: 11px; color: #4338ca; }
+        .badge {
+            display: inline-block; font-size: 10px; font-weight: 600;
+            padding: 2px 8px; border-radius: 4px; font-family: 'Monaco','Menlo',monospace;
+        }
+        .badge-type { background: #e0e7ff; color: #4338ca; }
+        .badge-dep { background: #fef3c7; color: #92400e; }
+        .badge-default { background: #dcfce7; color: #166534; }
+        .badge-editor { background: #f3f4f6; color: #374151; font-size: 11px; padding: 2px 6px; border-radius: 3px; }
+
+        /* Playground */
+        .playground {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 20px;
+            min-height: 400px;
+        }
+        @media (max-width: 900px) { .playground { grid-template-columns: 1fr; } }
+        .pg-panel {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .pg-panel-header {
+            padding: 12px 16px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+        }
+        .pg-panel-body { padding: 16px; }
+        .pg-json {
+            margin: 0 16px 16px;
+            background: #1e1e1e;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Monaco','Menlo',monospace;
+            font-size: 11px;
+            color: #9cdcfe;
+            max-height: 180px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .pg-group { margin-bottom: 14px; }
+        .pg-label { display: block; font-size: 12px; font-weight: 500; color: #374151; margin-bottom: 4px; }
+        .pg-input, .pg-select, .pg-textarea {
+            width: 100%; padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;
+        }
+        .pg-input:focus, .pg-select:focus, .pg-textarea:focus {
+            outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        .pg-textarea { min-height: 50px; resize: vertical; font-family: 'Monaco','Menlo',monospace; font-size: 11px; }
+        .pg-row { display: flex; gap: 12px; }
+        .pg-row > * { flex: 1; }
+        .pg-toggle { display: flex; align-items: center; gap: 8px; padding-top: 4px; }
+        .pg-toggle input { width: 16px; height: 16px; cursor: pointer; }
+        .pg-toggle label { font-size: 12px; color: #6b7280; cursor: pointer; }
+
+        /* Editor index */
+        .editor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 14px;
+        }
+        .editor-card {
+            background: #fff; border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;
+        }
+        .editor-card-hdr {
+            padding: 10px 14px; border-bottom: 1px solid #e5e7eb;
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        }
+        .editor-card-hdr h4 { font-size: 13px; font-weight: 600; }
+        .editor-card-body { padding: 10px 14px; font-size: 12px; }
+        .editor-card-body p { color: #6b7280; margin-bottom: 6px; }
+        .editor-types { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+        .params-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        .params-table th { text-align: left; padding: 3px 6px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; font-weight: 600; font-size: 10px; color: #6b7280; text-transform: uppercase; }
+        .params-table td { padding: 3px 6px; border-bottom: 1px solid #f3f4f6; }
+
+        /* Loading */
+        .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: #9ca3af; }
+        .spinner { width: 24px; height: 24px; border: 3px solid #e5e7eb; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 16px 24px; border-radius: 8px; color: white; font-weight: 500; z-index: 2000; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { background: #10b981; }
+        .toast.error { background: #ef4444; }
+
+        /* ===== GE styles (cloned from index.html for playground rendering) ===== */
+        .ge { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .ge td { padding: 4px 8px; vertical-align: top; border-bottom: 1px solid #eee; }
+        .ge-key {
+            padding-top: 8px; width: 160px; min-width: 80px; background: #fafafa;
+            font-size: 12px; font-weight: 500; color: #374151;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            position: relative; border-right: 1px solid #e5e7eb;
+        }
+        .ge-key .t { color: #9ca3af; font-weight: 400; font-size: 10px; margin-left: 4px; }
+        .ge-key .req { color: #ef4444; }
+        .ge-val { font-size: 13px; }
+        .ge-resizer { position: absolute; right: 0; top: 0; bottom: 0; width: 4px; cursor: col-resize; background: transparent; z-index: 10; }
+        .ge-resizer:hover, .ge-resizer.active { background: #667eea; }
+        .ge-val input, .ge-val select, .ge-val textarea { width: 100%; padding: 6px 8px; border: none; background: transparent; font-size: 13px; }
+        .ge-val input:focus, .ge-val select:focus, .ge-val textarea:focus { outline: none; background: #f8fafc; }
+        .ge-val input[readonly] { color: #6b7280; cursor: default; }
+        .ge-key .ge-meta-btn { opacity: 0; margin-left: 4px; padding: 1px 4px; font-size: 9px; background: #e0e7ff; color: #4338ca; border: none; border-radius: 3px; cursor: pointer; transition: opacity 0.15s; }
+        .ge tr:hover .ge-meta-btn { opacity: 0.7; }
+        .ge-meta-btn:hover { opacity: 1 !important; background: #c7d2fe; }
+        .ge-val textarea { min-height: 60px; font-family: inherit; resize: vertical; }
+        .ge-val textarea.code { font-family: 'Monaco','Menlo',monospace; font-size: 12px; background: #1e1e1e; color: #d4d4d4; min-height: 100px; }
+        .ge-nest-row td { padding: 0 !important; border-bottom: none; }
+        .ge-nest-indent { width: 28px; min-width: 28px; background: #f8fafc; border-right: 3px solid #667eea; text-align: center; padding-top: 6px !important; }
+        .ge-nest-indent.l1 { border-right-color: #667eea; }
+        .ge-nest-indent.l2 { border-right-color: #10b981; }
+        .ge-nest-indent.l3 { border-right-color: #f59e0b; }
+        .ge-nest-content { padding: 0 !important; background: #fafbfc; }
+        .ge-nest-content.collapsed { display: none; }
+        .ge-fold { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 1px solid #6c757d; background: #495057; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: bold; color: #fff; line-height: 1; }
+        .ge-fold:hover { background: #343a40; }
+        .ge-fold.collapsed { background: #667eea; border-color: #5a6fd6; }
+        .ge-arr-inline { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: #92400e; }
+        .ge-arr-inline .count { background: #fef3c7; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+        .ge-obj-inline { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: #4338ca; }
+        .ge-obj-inline .cls { background: #e0e7ff; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+        .ge-arr-item { margin: 4px 0; border: 1px solid #e5e7eb; border-radius: 4px; background: #fff; }
+        .ge-arr-item-hdr { padding: 4px 10px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
+        .ge-arr-item-hdr .left { display: flex; align-items: center; gap: 6px; }
+        .ge-arr-item-hdr .idx { font-weight: 600; color: #6b7280; background: #e5e7eb; padding: 1px 6px; border-radius: 3px; }
+        .ge-arr-item-body { padding: 0; }
+        .ge-arr-item-body .ge { margin: 0; }
+        .ge-arr-item.collapsed .ge-arr-item-body { display: none; }
+        .ge-arr-item.collapsed .ge-arr-item-hdr { border-bottom: none; }
+        .ge-btn { padding: 2px 8px; border: none; border-radius: 3px; font-size: 10px; cursor: pointer; }
+        .ge-btn-add { background: #dcfce7; color: #166534; }
+        .ge-btn-add:hover { background: #bbf7d0; }
+        .ge-btn-del { background: #fee2e2; color: #dc2626; }
+        .ge-btn-del:hover { background: #fecaca; }
+        .ge-toggle { display: inline-flex; align-items: center; gap: 8px; }
+        .ge-toggle input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        .ge-toggle-label { font-size: 12px; color: #6b7280; }
+        .ge-combo { display: flex; flex-direction: column; gap: 4px; }
+        .ge-combo select { width: 100%; }
+        .ge-combo-custom { width: 100%; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; }
+        .ge-class-select { width: 100%; }
+        .ge-val .select2-container { width: 100% !important; }
+        .ge-val .select2-container .select2-selection--single { border: none; background: transparent; height: 30px; }
+        .ge-meta-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); z-index: 1100; display: none; align-items: center; justify-content: center; }
+        .ge-meta-dialog { background: #fff; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); min-width: 400px; max-width: 600px; max-height: 500px; display: flex; flex-direction: column; }
+        .ge-meta-dialog-hdr { padding: 10px 14px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; border-radius: 8px 8px 0 0; }
+        .ge-meta-dialog-hdr div { display: flex; gap: 6px; }
+        .ge-meta-json { margin: 0; padding: 14px; font-family: 'Monaco','Menlo',monospace; font-size: 11px; color: #374151; white-space: pre-wrap; word-break: break-word; overflow: auto; flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Type System Map</h1>
+        <a href="index.html">&larr; Back to Admin</a>
+    </div>
+
+    <div class="container">
+        <div id="loading" class="loading"><div class="spinner"></div>Loading...</div>
+        <div id="content" style="display:none">
+
+            <!-- Quick Reference -->
+            <div class="section-title">Data Types</div>
+            <div id="typeRef"></div>
+
+            <!-- Playground -->
+            <div class="section-title">@prop Playground</div>
+            <div class="playground">
+                <div class="pg-panel">
+                    <div class="pg-panel-header">Configure @prop</div>
+                    <div class="pg-panel-body" id="pgConfig"></div>
+                </div>
+                <div class="pg-panel">
+                    <div class="pg-panel-header">Live Preview</div>
+                    <div class="pg-panel-body" id="pgPreview"></div>
+                    <div class="pg-json" id="pgJson" style="display:none"></div>
+                </div>
+            </div>
+
+            <!-- Editor Index -->
+            <div class="section-title">Editor Index <span style="font-size:13px;font-weight:400;color:#9ca3af" id="editorCount"></span></div>
+            <div class="editor-grid" id="editorIndex"></div>
+
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="element-store.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/editor/generic-editor.js"></script>
+    <script src="js/editor/fields.js"></script>
+    <script>
+    // =====================================================================
+    // TYPE SYSTEM MAP
+    // =====================================================================
+
+    var TYPES = [
+        { name: 'string',   stored: 'string',          note: 'Text. Supports enum options, class-backed selects, patterns.' },
+        { name: 'boolean',  stored: 'boolean',          note: 'True / false toggle.' },
+        { name: 'integer',  stored: 'number (int)',     note: 'Whole numbers. parseInt coercion.' },
+        { name: 'float',    stored: 'number (float)',   note: 'Decimal numbers. parseFloat coercion.' },
+        { name: 'datetime', stored: 'string (ISO)',     note: 'Date+time value. Rendered with datetime-local input.' },
+        { name: 'object',   stored: 'object (inline)',  note: 'Embedded objects / JSON. Nested editor when class set.' },
+        { name: 'relation', stored: 'string (ID ref)',  note: 'Reference to another object. Resolves to AtomObj on read.' },
+        { name: 'function', stored: 'string (code)',    note: 'JS code string. Evaluated with new Function() on read.' },
+    ];
+
+    var DEPRECATED = [
+        { name: 'number', note: 'Use integer or float' },
+        { name: 'date',   note: 'Use datetime' },
+        { name: 'enum',   note: 'Use string with options.values' },
+    ];
+
+    var editorsFromApi = [];
+    var editorsByType = {};
+
+    // --- Init ---
+    async function init() {
+        try {
+            var [classes, editors] = await Promise.all([
+                api('GET', '/class'),
+                api('GET', '/store/@editor').catch(function() { return []; })
+            ]);
+
+            allClassesList = classes;
+            editorsFromApi = editors;
+
+            // Index editors by data_type
+            editorsByType = {};
+            editors.forEach(function(ed) {
+                var types = ed.data_types || ed.supported_types || [];
+                if (typeof types === 'string') types = [types];
+                types.forEach(function(t) {
+                    if (!editorsByType[t]) editorsByType[t] = [];
+                    editorsByType[t].push(ed);
+                });
+            });
+
+            renderTypeRef();
+            renderPlayground();
+            renderEditorIndex();
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+
+            // Initial playground render
+            await pgRenderNow();
+        } catch (err) {
+            document.getElementById('loading').innerHTML =
+                '<div style="color:#ef4444">Failed to load: ' + esc(err.message) + '</div>';
+            console.error('Type map init error:', err);
+        }
+    }
+
+    // =====================================================================
+    // Type Reference Table
+    // =====================================================================
+    function renderTypeRef() {
+        var html = '<table class="ref-table"><thead><tr>'
+            + '<th>Type</th><th>Stored As</th><th>Editors</th><th>Note</th>'
+            + '</tr></thead><tbody>';
+
+        TYPES.forEach(function(t) {
+            var eds = editorsByType[t.name] || [];
+            var defEd = eds.find(function(e) { return e.is_default; });
+            html += '<tr>'
+                + '<td><span class="badge badge-type">' + esc(t.name) + '</span></td>'
+                + '<td class="mono">' + esc(t.stored) + '</td>'
+                + '<td>';
+            if (eds.length > 0) {
+                eds.forEach(function(e) {
+                    var name = e.name || e.id;
+                    html += '<span class="badge badge-editor">' + esc(name) + '</span> ';
+                });
+            } else {
+                html += '<span style="color:#9ca3af">built-in</span>';
+            }
+            html += '</td><td style="font-size:12px;color:#6b7280">' + esc(t.note) + '</td></tr>';
+        });
+
+        DEPRECATED.forEach(function(t) {
+            html += '<tr style="opacity:0.5">'
+                + '<td><span class="badge badge-dep">' + esc(t.name) + '</span></td>'
+                + '<td colspan="2" style="font-size:12px;color:#92400e">deprecated</td>'
+                + '<td style="font-size:12px;color:#6b7280">' + esc(t.note) + '</td></tr>';
+        });
+
+        html += '</tbody></table>';
+        document.getElementById('typeRef').innerHTML = html;
+    }
+
+    // =====================================================================
+    // Playground
+    // =====================================================================
+    function renderPlayground() {
+        var typeOpts = TYPES.map(function(t) {
+            return '<option value="' + t.name + '">' + t.name + '</option>';
+        }).join('');
+
+        var classOpts = allClassesList.map(function(c) {
+            return '<option value="' + esc(c.id) + '">' + esc(c.id) + '</option>';
+        }).join('');
+
+        document.getElementById('pgConfig').innerHTML =
+            '<div class="pg-group">'
+            + '<label class="pg-label">data_type</label>'
+            + '<select class="pg-select" id="pg-dt" onchange="pgUpdateEditors(); pgRender();">' + typeOpts + '</select>'
+            + '</div>'
+
+            + '<div class="pg-row">'
+            + '<div class="pg-group"><div class="pg-toggle"><input type="checkbox" id="pg-arr" onchange="pgRender()"><label for="pg-arr">is_array</label></div></div>'
+            + '<div class="pg-group"><div class="pg-toggle"><input type="checkbox" id="pg-req" onchange="pgRender()"><label for="pg-req">required</label></div></div>'
+            + '<div class="pg-group"><div class="pg-toggle"><input type="checkbox" id="pg-ro" onchange="pgRender()"><label for="pg-ro">readonly</label></div></div>'
+            + '</div>'
+
+            + '<div class="pg-group">'
+            + '<label class="pg-label">editor</label>'
+            + '<select class="pg-select" id="pg-editor" onchange="pgRender()"><option value="">-- default --</option></select>'
+            + '</div>'
+
+            + '<div class="pg-group">'
+            + '<label class="pg-label">object_class_id</label>'
+            + '<select class="pg-select" id="pg-cls" onchange="pgRender()"><option value="">--</option>' + classOpts + '</select>'
+            + '</div>'
+
+            + '<div class="pg-group">'
+            + '<label class="pg-label">label</label>'
+            + '<input class="pg-input" id="pg-label" value="Sample Field" oninput="pgRender()">'
+            + '</div>'
+
+            + '<div class="pg-group">'
+            + '<label class="pg-label">description</label>'
+            + '<input class="pg-input" id="pg-desc" placeholder="Help text..." oninput="pgRender()">'
+            + '</div>'
+
+            + '<div class="pg-group">'
+            + '<label class="pg-label">default_value</label>'
+            + '<input class="pg-input" id="pg-def" oninput="pgRender()">'
+            + '</div>'
+
+            + '<div class="pg-group">'
+            + '<label class="pg-label">options (JSON)</label>'
+            + '<textarea class="pg-textarea" id="pg-opts" placeholder=\'{"values":["a","b","c"]}\' oninput="pgRender()"></textarea>'
+            + '</div>';
+
+        pgUpdateEditors();
+    }
+
+    function pgUpdateEditors() {
+        var dt = document.getElementById('pg-dt').value;
+        var sel = document.getElementById('pg-editor');
+        var eds = editorsByType[dt] || [];
+        var html = '<option value="">-- default --</option>';
+        eds.forEach(function(e) {
+            html += '<option value="' + esc(e.id) + '">' + esc(e.name || e.id) + (e.is_default ? ' (default)' : '') + '</option>';
+        });
+        sel.innerHTML = html;
+    }
+
+    function pgBuildProp() {
+        var dt = document.getElementById('pg-dt').value;
+        var opts = {};
+        try {
+            var raw = document.getElementById('pg-opts').value.trim();
+            if (raw) opts = JSON.parse(raw);
+        } catch (e) { /* ignore */ }
+
+        var prop = {
+            key: 'playground_field',
+            label: document.getElementById('pg-label').value || 'Sample Field',
+            description: document.getElementById('pg-desc').value || '',
+            data_type: dt,
+            is_array: document.getElementById('pg-arr').checked,
+            required: document.getElementById('pg-req').checked,
+            readonly: document.getElementById('pg-ro').checked,
+            options: opts,
+        };
+
+        var ed = document.getElementById('pg-editor').value;
+        if (ed) prop.editor = ed;
+
+        var cls = document.getElementById('pg-cls').value;
+        if (cls) prop.object_class_id = cls;
+
+        var def = document.getElementById('pg-def').value;
+        if (def) prop.default_value = def;
+
+        if (opts.values && Array.isArray(opts.values)) prop.enum_values = opts.values;
+
+        return prop;
+    }
+
+    function pgSampleValue(prop) {
+        if (prop.is_array) {
+            switch (prop.data_type) {
+                case 'string': return ['Alpha', 'Beta'];
+                case 'boolean': return [true, false];
+                case 'integer': return [1, 2, 3];
+                case 'float': return [1.5, 2.7];
+                case 'object': return [{}];
+                default: return [];
+            }
+        }
+        switch (prop.data_type) {
+            case 'string': return (prop.enum_values && prop.enum_values[0]) || 'Hello World';
+            case 'boolean': return true;
+            case 'integer': return 42;
+            case 'float': return 3.14;
+            case 'datetime': return '2025-06-15T14:30';
+            case 'object': return {};
+            case 'relation': return '';
+            case 'function': return 'function(scope) { return scope.value; }';
+            default: return '';
+        }
+    }
+
+    var _pgTimer = null;
+    function pgRender() {
+        clearTimeout(_pgTimer);
+        _pgTimer = setTimeout(pgRenderNow, 120);
+    }
+
+    async function pgRenderNow() {
+        var prop = pgBuildProp();
+        var val = pgSampleValue(prop);
+        var preview = document.getElementById('pgPreview');
+        var jsonBox = document.getElementById('pgJson');
+
+        try {
+            var html = await geField(prop, val, 'playground', 0);
+            preview.innerHTML = '<table class="ge"><tbody>' + html + '</tbody></table>';
+
+            // Init Select2 on any class selects
+            $(preview).find('.ge-class-select').select2({
+                width: '100%',
+                placeholder: 'Select...',
+                allowClear: true
+            });
+        } catch (err) {
+            preview.innerHTML = '<div style="color:#ef4444;padding:8px;font-size:13px">Error: ' + esc(err.message) + '</div>';
+            console.error('Playground render error:', err);
+        }
+
+        jsonBox.style.display = 'block';
+        jsonBox.textContent = JSON.stringify(prop, null, 2);
+    }
+
+    // =====================================================================
+    // Editor Index
+    // =====================================================================
+    function renderEditorIndex() {
+        if (editorsFromApi.length === 0) {
+            document.getElementById('editorIndex').innerHTML =
+                '<div style="color:#9ca3af;font-size:13px;padding:20px;text-align:center;grid-column:1/-1">No @editor objects found.</div>';
+            document.getElementById('editorCount').textContent = '';
+            return;
+        }
+
+        // Group by category
+        var groups = {};
+        editorsFromApi.forEach(function(ed) {
+            var cat = ed.category || 'Other';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(ed);
+        });
+
+        var html = '';
+        var cats = Object.keys(groups).sort();
+
+        cats.forEach(function(cat) {
+            if (cats.length > 1 || cat !== 'Other') {
+                html += '<div style="grid-column:1/-1;font-size:14px;font-weight:600;color:#374151;margin-top:4px">' + esc(cat) + '</div>';
+            }
+            groups[cat].forEach(function(ed) {
+                html += editorCard(ed);
+            });
+        });
+
+        document.getElementById('editorIndex').innerHTML = html;
+        document.getElementById('editorCount').textContent = '(' + editorsFromApi.length + ')';
+    }
+
+    function editorCard(ed) {
+        var types = ed.data_types || ed.supported_types || [];
+        if (typeof types === 'string') types = [types];
+        var props = ed.props || ed.parameters || [];
+
+        var html = '<div class="editor-card"><div class="editor-card-hdr">'
+            + '<h4>' + esc(ed.name || ed.id) + '</h4>';
+        if (ed.is_default) html += '<span class="badge badge-default">default</span>';
+        html += '</div><div class="editor-card-body">';
+
+        if (ed.description) html += '<p>' + esc(ed.description) + '</p>';
+
+        if (types.length > 0) {
+            html += '<div class="editor-types">';
+            types.forEach(function(t) { html += '<span class="badge badge-type">' + esc(t) + '</span> '; });
+            html += '</div>';
+        }
+
+        if (props.length > 0) {
+            html += '<table class="params-table"><thead><tr><th>Param</th><th>Type</th><th>Default</th></tr></thead><tbody>';
+            props.forEach(function(p) {
+                html += '<tr><td class="mono">' + esc(p.key || p.name || '') + '</td>'
+                    + '<td>' + esc(p.type || p.data_type || '-') + '</td>'
+                    + '<td>' + esc(p.default_value !== undefined ? String(p.default_value) : '-') + '</td></tr>';
+            });
+            html += '</tbody></table>';
+        }
+
+        html += '</div></div>';
+        return html;
+    }
+
+    // =====================================================================
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

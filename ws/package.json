@@ -1,0 +1,12 @@
+{
+  "name": "elementstore-ws",
+  "version": "1.0.0",
+  "description": "ElementStore WebSocket real-time sync server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

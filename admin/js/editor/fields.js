@@ -237,13 +237,10 @@ async function geRelation(prop, value, path) {
         return `<option value="${esc(id)}" ${selected}>${esc(id)}${label !== id ? ` (${esc(label)})` : ''}</option>`;
     }).join('');
 
-    return `<div class="ge-rel">
-        <select data-path="${path}" data-type="relation" data-class="${cls}" ${ro}>
-            <option value="">-- Select ${cls} --</option>
-            ${opts}
-        </select>
-        <span class="ge-rel-info">${objects.length} available</span>
-    </div>`;
+    return `<select data-path="${path}" data-type="relation" data-class="${cls}" class="ge-class-select" ${ro}>
+        <option value="">--</option>
+        ${opts}
+    </select>`;
 }
 
 /**
@@ -368,6 +365,12 @@ async function geAddItem(path) {
 
     const html = await geArrayItem(itemProp, defaultVal, newPath, idx, 0, isNestedObjArr, isRelationArr, cls);
     container.insertAdjacentHTML('beforeend', html);
+
+    // Initialize Select2 on any new class-select elements
+    const newItem = container.querySelector(`.ge-arr-item[data-idx="${idx}"]`);
+    if (newItem) {
+        $(newItem).find('.ge-class-select').select2({ width: '100%', placeholder: 'Select...', allowClear: true });
+    }
 
     const countSpan = document.querySelector(`button[onclick="geAddItem('${path}')"]`)?.parentElement?.querySelector('.count');
     if (countSpan) countSpan.textContent = idx + 1;

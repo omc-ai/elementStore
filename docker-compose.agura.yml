@@ -5,6 +5,7 @@
 # Services:
 #   - php: PHP 8.3 + Phalcon 5.8 backend API (port 19007 -> 9000)
 #   - couchdb: CouchDB 3.3 document store (port 5984)
+#   - ws: Node.js WebSocket server for real-time sync (port 19008 -> 3100)
 
 services:
   php:
@@ -52,6 +53,21 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+  ws:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ws
+    container_name: elementstore_ws
+    restart: unless-stopped
+    ports:
+      - "19008:3100"
+    networks:
+      default:
+        aliases:
+          - elementstore-ws
+    environment:
+      - WS_PORT=3100
 
 volumes:
   code:

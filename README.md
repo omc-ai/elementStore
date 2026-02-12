@@ -27,17 +27,18 @@ This means you can:
 │  REST API (index.php / Phalcon Micro)                │
 │    ↓                                                 │
 │  ClassModel (validation, change detection, schema)   │
-│    ↓                                                 │
-│  IStorageProvider (pluggable persistence)             │
-│    ↓                                                 │
-│  JSON files / MongoDB / CouchDB                      │
+│    ↓              ↓ broadcast                        │
+│  IStorageProvider  BroadcastService → WS Server      │
+│    ↓                                   ↓ push        │
+│  JSON / MongoDB / CouchDB        Subscribed clients  │
 └──────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────┐
-│  Browser (element-store.js)                          │
+│  Browser (element-store.js + ws-client.js)           │
 │    ElementStore ←→ AtomObj ←→ AtomProp               │
+│    ElementStoreWS ←→ WebSocket (real-time sync)      │
 │    AtomElement (DOM-bound objects via ui-element.js)  │
-│    Syncs with REST API via XHR                       │
+│    Syncs with REST API via XHR + WS for live updates │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -88,11 +89,11 @@ docker compose -f docker-compose.agura.yml up -d
 docker compose -f docker-compose.staging.yml up -d
 ```
 
-| Environment | API | Admin UI |
-|---|---|---|
-| Standalone | `http://localhost:8080` | `http://localhost:8080/admin/` |
-| Local (Agura) | `http://arc3d.master.local/elementStore` | `http://arc3d.master.local/elementStore/admin/` |
-| Staging | `http://arc3d.dev.agura.tech/elementStore` | `http://arc3d.dev.agura.tech/elementStore/admin/` |
+| Environment | API | Admin UI | WebSocket |
+|---|---|---|---|
+| Standalone | `http://localhost:8080` | `http://localhost:8080/admin/` | `ws://localhost:19008` |
+| Local (Agura) | `http://arc3d.master.local/elementStore` | `http://arc3d.master.local/elementStore/admin/` | `ws://arc3d.master.local/elementStore/ws` |
+| Staging | `https://arc3d.dev.agura.tech/elementStore` | `https://arc3d.dev.agura.tech/elementStore/admin/` | `wss://arc3d.dev.agura.tech/elementStore/ws` |
 
 The admin UI auto-detects its `API_BASE` from the URL path, so it works at any mount point.
 
@@ -185,6 +186,75 @@ el.syncToDom();     // pushes x/y/width/height to CSS
 
 Open `admin/test.html` for an interactive demo.
 
+### WebSocket Real-Time Sync
+
+ElementStore includes a WebSocket server that pushes changes to all subscribed clients in real-time. When any client saves or deletes an object via the REST API, the change is broadcast to every other connected client.
+
+**How it works:**
+1. Client A saves an object via REST API (PUT/POST)
+2. PHP `ClassModel::onChange()` calls `BroadcastService::emitChange()` → HTTP POST to the WS server
+3. WS server fans out the change to all clients subscribed to that class/object
+4. Client B receives the message and calls `store.applyRemote()` for each item
+
+**Message protocol (server → client):**
+
+```json
+{
+  "type": "changes",
+  "items": [
+    {
+      "id": "john123",
+      "class_id": "user",
+      "name": "John Updated",
+      "email": "john@example.com",
+      "_old": { "id": "john123", "class_id": "user", "name": "John", "email": "john@example.com" }
+    }
+  ]
+}
+```
+
+- Each item IS the new object data (id, class_id, all fields)
+- `_old` contains previous values (omitted for new objects)
+- `_deleted: true` marks a deletion
+- Multiple items can be delivered in a single message
+
+**Connect and subscribe:**
+
+```html
+<script src="admin/element-store.js"></script>
+<script src="admin/ws-client.js"></script>
+```
+
+```javascript
+// Connect to WebSocket
+var esws = new ElementStoreWS(store, 'ws://' + location.host + '/elementStore/ws');
+esws.connect();
+
+// Subscribe to all changes for a class
+esws.subscribe('user');
+
+// Subscribe to a specific object
+esws.subscribeObject('user', 'john123');
+
+// Listen for events — each item from the items array
+esws.on('change', function(item) {
+    console.log('Changed:', item.class_id, item.id, item._old);
+});
+esws.on('delete', function(item) {
+    console.log('Deleted:', item.class_id, item.id);
+});
+```
+
+**Sender echo suppression:** The saving client automatically sends its WS connection ID via `X-WS-Connection-Id` header. The WS server skips that connection when broadcasting, so the saver doesn't receive its own change back.
+
+**Auto-reconnect:** The client reconnects automatically with exponential backoff (1s → 2s → 4s → max 30s) and re-subscribes to all tracked classes/objects.
+
+| Environment | WebSocket URL |
+|---|---|
+| Local (Agura) | `ws://arc3d.master.local/elementStore/ws` |
+| Staging | `wss://arc3d.dev.agura.tech/elementStore/ws` |
+| Standalone | `ws://elementstore.master.local/ws` |
+
 ## REST API Reference
 
 ### Health & Info
@@ -252,6 +322,13 @@ Configure via `@init.json`:
 }
 ```
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Migration Procedure](docs/MIGRATION_PROCEDURE.md) | How to migrate any project to ElementStore (`.es/` genesis files) |
+| [Docker Setup](docker/README.md) | Docker service configuration and troubleshooting |
+
 ## Project Structure
 
 ```
@@ -270,12 +347,16 @@ elementStore/
 │   ├── Prop.php           # Property definition with validation
 │   ├── ClassMeta.php      # Class definition metadata
 │   ├── Constants.php      # System constants (types, editors, validators)
+│   ├── BroadcastService.php       # WS broadcast (fire-and-forget POST)
 │   ├── IStorageProvider.php       # Storage interface
 │   ├── JsonStorageProvider.php    # JSON file storage
 │   ├── MongoStorageProvider.php   # MongoDB storage
 │   ├── CouchDbStorageProvider.php # CouchDB storage
 │   ├── StorageException.php       # Typed exceptions
 │   └── SystemClasses.php         # Bootstrap system class definitions
+├── ws/                    # WebSocket real-time sync server (Node.js)
+│   ├── server.js          # WS server + HTTP /broadcast endpoint
+│   └── package.json
 ├── genesis/               # Seed data and initialization
 │   ├── Genesis.php
 │   ├── init.php
@@ -283,13 +364,15 @@ elementStore/
 ├── admin/                 # Admin UI and JavaScript client
 │   ├── index.html         # Admin dashboard
 │   ├── element-store.js   # JavaScript client (browser + Node.js)
+│   ├── ws-client.js       # WebSocket client (ElementStoreWS)
 │   ├── ui-element.js      # DOM-bound AtomElement extension
 │   └── test.html          # Interactive browser demo
-└── docker/                # Docker setup (PHP + CouchDB)
+└── docker/                # Docker setup (PHP + CouchDB + WS)
     ├── docker-compose.yml
     ├── docker-compose.couchdb.yml  # CouchDB-specific compose
     ├── Dockerfile.php
     ├── Dockerfile.fpm             # PHP-FPM variant
+    ├── Dockerfile.ws              # Node.js WS server
     ├── Dockerfile.couchdb
     ├── apache-vhost.conf          # Apache virtual host config
     ├── couchdb-local.ini          # CouchDB local settings

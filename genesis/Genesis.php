@@ -323,6 +323,7 @@ class Genesis
 
                     // === Security ===
                     ['key' => 'server_only', 'label' => 'Server Only', 'description' => 'Property is stripped from API responses (backend-only)', 'data_type' => 'boolean', 'default_value' => false, 'display_order' => 60, 'group_name' => 'Security'],
+                    ['key' => 'create_only', 'label' => 'Create Only', 'description' => 'Only writable when creating new objects (readonly after first save)', 'data_type' => 'boolean', 'default_value' => false, 'display_order' => 61, 'group_name' => 'Security'],
                 ],
             ],
 
@@ -339,7 +340,7 @@ class Genesis
                 'props' => [
                     ['key' => 'name', 'label' => 'Name', 'description' => 'Display name of the class', 'data_type' => 'string', 'required' => true, 'display_order' => 1],
                     ['key' => 'description', 'label' => 'Description', 'description' => 'What this class represents', 'data_type' => 'string', 'editor' => 'textarea', 'display_order' => 2],
-                    ['key' => 'extends_id', 'label' => 'Extends', 'description' => 'Parent class for inheritance', 'data_type' => 'relation', 'object_class_id' => ['@class'], 'display_order' => 3],
+                    ['key' => 'extends_id', 'label' => 'Extends', 'description' => 'Parent class for inheritance', 'data_type' => 'string', 'object_class_id' => ['@class'], 'create_only' => true, 'display_order' => 3],
                     ['key' => 'props', 'label' => 'Properties', 'description' => 'Property definitions for this class', 'data_type' => 'object', 'is_array' => true, 'object_class_id' => ['@prop'], 'display_order' => 4],
                     ['key' => 'table_name', 'label' => 'Table Name', 'description' => 'Custom table/collection name for storage', 'data_type' => 'string', 'display_order' => 5, 'group_name' => 'Advanced'],
                     ['key' => 'is_system', 'label' => 'System Class', 'description' => 'Protected system class (cannot be deleted)', 'data_type' => 'boolean', 'readonly' => true, 'default_value' => false, 'display_order' => 6, 'group_name' => 'Advanced'],

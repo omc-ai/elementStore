@@ -10,6 +10,7 @@ Docker configuration for running ElementStore with PHP + Phalcon and CouchDB.
 |---------|-------------|------|
 | `php` | PHP 8.3 + Phalcon 5.x API server | 8080 |
 | `couchdb` | CouchDB 3.x document store | 5984 |
+| `ws` | Node.js WebSocket server (real-time sync) | 19008 → 3100 |
 
 ## Quick Start
 
@@ -174,6 +175,26 @@ Ensure data directories have proper permissions:
 docker exec elementstore_php chown -R www-data:www-data /var/www/data
 ```
 
+## WebSocket Server
+
+The `ws` service (defined in `docker-compose.agura.yml`) provides real-time sync between ElementStore clients.
+
+- **Internal**: `http://elementstore-ws:3100` (used by PHP to broadcast)
+- **External**: port `19008` on host, or via nginx proxy at `/elementStore/ws`
+
+The WS server is stateless — no persistence needed. It receives broadcast events from PHP via HTTP POST `/broadcast` and fans them out to subscribed WebSocket clients.
+
+```bash
+# Build and start the WS service
+docker compose -f docker-compose.agura.yml up -d --build ws
+
+# Check WS server health
+curl http://localhost:19008/health
+
+# Test with wscat
+wscat -c ws://arc3d.master.local/elementStore/ws
+```
+
 ## Compose Variants
 
 | File | Use Case | Volume |
@@ -183,6 +204,8 @@ docker exec elementstore_php chown -R www-data:www-data /var/www/data
 | `docker-compose.staging.yml` | Staging server | `/var/www` bind mount |
 
 The staging variant uses bind mounts because the staging server maps `/var/www` directly (not a Docker named volume).
+
+The `ws` service is included in `docker-compose.agura.yml` and `docker-compose.staging.yml`. It uses the `elementstore-ws` network alias so PHP can reach it at `http://elementstore-ws:3100`.
 
 ## Production Considerations
 

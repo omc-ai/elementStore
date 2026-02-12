@@ -49,8 +49,8 @@ function formatBytes(bytes) {
 // =====================
 // Data Type Constants
 // =====================
-const DATA_TYPES = ['string', 'boolean', 'float', 'integer', 'object', 'relation', 'function'];
-const LEGACY_DATA_TYPES = ['number', 'date', 'datetime', 'enum'];
+const DATA_TYPES = ['string', 'boolean', 'float', 'integer', 'datetime', 'object', 'relation', 'function'];
+const LEGACY_DATA_TYPES = ['number', 'date', 'enum'];
 const RELATION_TYPES = ['object', 'relation'];
 
 const OPTIONS_TYPES = {
@@ -58,9 +58,9 @@ const OPTIONS_TYPES = {
     'integer': 'number_options',
     'float': 'number_options',
     'boolean': 'boolean_options',
+    'datetime': 'datetime_options',
     'object': 'object_options',
     'relation': 'relation_options',
-    'unique': 'unique_options',
     'function': 'function_options'
 };
 

@@ -31,6 +31,13 @@
     .toolbar .btn-save:hover { background: #4caf50; color: #fff; }
     .toolbar .btn-arrange { border-color: #f0c040; color: #f0c040; }
     .toolbar .btn-arrange:hover { background: #f0c040; color: #1a1a2e; }
+    .toolbar .btn-load { border-color: #2196f3; color: #2196f3; }
+    .toolbar .btn-load:hover { background: #2196f3; color: #fff; }
+    .toolbar .btn-ws { border-color: #e040fb; color: #e040fb; }
+    .toolbar .btn-ws:hover { background: #e040fb; color: #fff; }
+    .toolbar .btn-ws.connected { background: #e040fb; color: #fff; }
+    .toolbar .btn-inject { border-color: #ff9800; color: #ff9800; }
+    .toolbar .btn-inject:hover { background: #ff9800; color: #1a1a2e; }
     .toolbar .btn-clear { margin-left: auto; border-color: #666; color: #888; font-size: 11px; }
     .toolbar .btn-clear:hover { background: #444; color: #ccc; }
 
@@ -115,6 +122,8 @@
     }
     .console-bar span { color: #0fb; }
     .console-bar .dirty { color: #f0c040; }
+    .console-bar .ws-status { color: #666; }
+    .console-bar .ws-status.on { color: #e040fb; }
 
     /* ─── Console Monitor ─── */
     #monitor {
@@ -159,7 +168,12 @@
       <button class="btn-button" onclick="addButton()">+ Button</button>
       <div class="sep"></div>
       <button class="btn-save" onclick="saveAll()">Save</button>
+      <button class="btn-load" onclick="loadAll()">Load</button>
       <button class="btn-arrange" onclick="arrangeAll()">Arrange</button>
+      <div class="sep"></div>
+      <button class="btn-ws" id="btn-ws" onclick="toggleWS()">WS Connect</button>
+      <button class="btn-inject" onclick="wsInjectDialog()">WS +Dialog</button>
+      <button class="btn-inject" onclick="wsInjectChange()">WS Change</button>
       <button class="btn-clear" onclick="clearAll()">Clear All</button>
     </div>
 
@@ -181,7 +195,8 @@
       <span id="dialog-count">0</span> dialogs |
       <span id="button-count">0</span> buttons |
       <span class="dirty" id="dirty-count">0</span> dirty |
-      workspace: <span id="ws-id">-</span>
+      workspace: <span id="ws-id">-</span> |
+      ws: <span class="ws-status" id="ws-status">off</span>
     </div>
   </div>
 
@@ -198,6 +213,7 @@
   <!-- Libraries -->
   <script src="element-store.js"></script>
   <script src="ui-element.js"></script>
+  <script src="ws-client.js"></script>
 
   <!-- Console Monitor -->
   <script>
@@ -534,45 +550,51 @@
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // SAVE — saves workspace + all dirty children
+    // SAVE — saves the entire design (workspace + all children)
+    // Collects ALL objects in the design tree and saves each one.
     // ═══════════════════════════════════════════════════════════════
 
-    function saveAll() {
-      var dirty = [];
+    function collectDesignObjects() {
+      var all = [];
+      if (!ws) return all;
+      all.push(ws);
 
-      // Check workspace
-      if (ws.hasChanges()) dirty.push(ws);
-
-      // Check all workspace children
       if (Array.isArray(ws.data.children)) {
         ws.data.children.forEach(function(childId) {
           var child = store.objects[childId];
-          if (child && child.hasChanges && child.hasChanges()) {
-            dirty.push(child);
-          }
-          // Also check dialog's nested children
-          if (child && Array.isArray(child.data.children)) {
-            child.data.children.forEach(function(nestedId) {
-              var nested = store.objects[nestedId];
-              if (nested && nested.hasChanges && nested.hasChanges()) {
-                dirty.push(nested);
-              }
-            });
+          if (child) {
+            all.push(child);
+            // Dialog's nested children (buttons inside dialogs)
+            if (Array.isArray(child.data.children)) {
+              child.data.children.forEach(function(nestedId) {
+                var nested = store.objects[nestedId];
+                if (nested) all.push(nested);
+              });
+            }
           }
         });
       }
+      return all;
+    }
+
+    function saveAll() {
+      var all = collectDesignObjects();
+      var dirty = all.filter(function(obj) {
+        return obj.hasChanges && obj.hasChanges();
+      });
 
       if (dirty.length === 0) {
         console.log('Nothing to save — all clean');
+        monitorLog('SAVE', { info: 'All clean, nothing to save' });
         return;
       }
 
-      console.group('Saving ' + dirty.length + ' dirty objects');
+      console.group('Saving design: ' + dirty.length + '/' + all.length + ' dirty objects');
       dirty.forEach(function(obj) {
         var changes = obj.getChanges();
         console.log(obj.id + ':', changes);
 
-        // Save to remote if storage configured
+        // Save to remote (each save triggers PHP broadcast to WS subscribers)
         if (store.storage) store.saveRemote(obj);
 
         // Mark clean
@@ -580,6 +602,7 @@
       });
       console.groupEnd();
 
+      monitorLog('SAVE', { info: 'Saved ' + dirty.length + ' objects in design ' + ws.id });
       updateCounts();
       if (selected) renderPanel();
     }
@@ -892,15 +915,255 @@
     initWorkspace();
 
     console.log('Classes:', store.find({class_id: '@class'}).map(function(c) { return c.id; }));
-    console.log('Factory: new AtomObj({class_id:"ui-button"}, store) instanceof AtomElement →',
-      new AtomObj({class_id: 'ui-button'}, store) instanceof AtomElement);
     console.log('Workspace:', ws.id, '| children:', ws.data.children);
-    console.log('');
-    console.log('Try:');
-    console.log('  store.find({class_id: "ui-dialog"})');
-    console.log('  store.applyRemote({id: "dlg-1", x: 50, y: 50, title: "Remote!"})');
-    console.log('  store.saveDirty()');
     updateCounts();
+
+    // ═══════════════════════════════════════════════════════════════
+    // LOAD — fetch workspace + children from server
+    // ═══════════════════════════════════════════════════════════════
+
+    function loadAll() {
+      // Clear current UI
+      var uiObjects = store.find({class_id: 'ui-dialog'}).concat(store.find({class_id: 'ui-button'}));
+      uiObjects.forEach(function(obj) {
+        if (obj.destroy) obj.destroy();
+        delete store.objects[obj.id];
+      });
+      selected = null;
+
+      // Delete workspace from local cache to force fresh fetch
+      delete store.objects['ws-1'];
+
+      // Re-init workspace (fetches from remote)
+      initWorkspace();
+      renderPanel();
+      updateCounts();
+      monitorLog('LOAD', { info: 'Loaded workspace + ' + (ws.data.children ? ws.data.children.length : 0) + ' children from server' });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // WEBSOCKET — connect, subscribe, receive real-time changes
+    // ═══════════════════════════════════════════════════════════════
+
+    var esws = null;
+
+    function getWsUrl() {
+      // Derive WS URL from current page location
+      var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      var basePath = API_BASE || '';
+      return proto + '//' + location.host + basePath + '/ws';
+    }
+
+    function toggleWS() {
+      if (esws && esws.ws && esws.ws.readyState <= 1) {
+        // Connected or connecting — disconnect
+        esws.disconnect();
+        esws = null;
+        updateWsUI(false);
+        monitorLog('WS', { info: 'Disconnected' });
+      } else {
+        // Connect
+        esws = new ElementStoreWS(store, getWsUrl());
+
+        esws.on('connected', function(msg) {
+          updateWsUI(true);
+          monitorLog('WS', { info: 'Connected as user=' + (msg.user_id || 'anonymous') });
+          // Subscribe to the design by workspace ID
+          esws.subscribeScope(ws.id);
+        });
+
+        esws.on('subscribed', function(msg) {
+          monitorLog('WS', { info: 'Subscribed: ' + (msg.scope_id || msg.class_id || msg.id) });
+        });
+
+        esws.on('change', function(item) {
+          monitorLog('WS-IN', { info: 'Change: ' + item.id + ' [' + item.class_id + ']' });
+          // If the changed object has a DOM element, update its content
+          var obj = store.objects[item.id];
+          if (obj) {
+            updateContent(obj);
+            // If new object without DOM, render it
+            if (!obj.el && (item.class_id === 'ui-dialog' || item.class_id === 'ui-button')) {
+              renderExistingChild(obj);
+            }
+          }
+          // If workspace changed, sync children list
+          if (item.id === 'ws-1' && item.class_id === 'ui-workspace') {
+            syncWorkspaceChildren();
+          }
+          updateCounts();
+          if (selected && selected.id === item.id) renderPanel();
+        });
+
+        esws.on('delete', function(item) {
+          monitorLog('WS-IN', { info: 'Deleted: ' + item.id + ' [' + item.class_id + ']' });
+          // Remove DOM if it exists
+          var obj = store.objects[item.id];
+          if (obj && obj.destroy) obj.destroy();
+          updateCounts();
+          if (selected && selected.id === item.id) {
+            selected = null;
+            renderPanel();
+          }
+        });
+
+        esws.on('close', function() {
+          updateWsUI(false);
+        });
+
+        // Connect (with JWT token if available, or anonymous)
+        var opts = {};
+        if (typeof getJwtToken === 'function' && getJwtToken()) {
+          opts.token = getJwtToken();
+        }
+        esws.connect(opts);
+      }
+    }
+
+    function updateWsUI(connected) {
+      var btn = document.getElementById('btn-ws');
+      var status = document.getElementById('ws-status');
+      if (connected) {
+        btn.textContent = 'WS Disconnect';
+        btn.classList.add('connected');
+        status.textContent = 'on';
+        status.classList.add('on');
+      } else {
+        btn.textContent = 'WS Connect';
+        btn.classList.remove('connected');
+        status.textContent = 'off';
+        status.classList.remove('on');
+      }
+    }
+
+    // When workspace children list changes from WS, render any new children
+    function syncWorkspaceChildren() {
+      if (!ws || !Array.isArray(ws.data.children)) return;
+      ws.data.children.forEach(function(childId) {
+        var obj = store.objects[childId];
+        if (!obj) {
+          // Try to fetch from remote
+          obj = store.getObject(childId);
+        }
+        if (obj && !obj.el) {
+          renderExistingChild(obj);
+        }
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // WS INJECT — simulate external changes via WS broadcast
+    // ═══════════════════════════════════════════════════════════════
+
+    var injectCounter = 0;
+
+    // Inject a new dialog via the WS broadcast endpoint (simulates another client saving)
+    function wsInjectDialog() {
+      injectCounter++;
+      var dlgId = 'ws-dlg-' + injectCounter;
+      var scopeId = ws.id; // tag all items with their parent scope
+      var dlgData = {
+        id: dlgId,
+        class_id: 'ui-dialog',
+        _scope_id: scopeId,
+        x: 50 + Math.random() * 300,
+        y: 50 + Math.random() * 200,
+        width: 280,
+        height: 180,
+        title: 'WS Dialog #' + injectCounter,
+        children: []
+      };
+
+      // Also add a button inside it
+      var btnId = 'ws-btn-' + injectCounter;
+      var btnData = {
+        id: btnId,
+        class_id: 'ui-button',
+        _scope_id: scopeId,
+        x: 10,
+        y: 10,
+        width: 120,
+        height: 36,
+        text: 'WS Button #' + injectCounter
+      };
+      dlgData.children = [btnId];
+
+      // Also update workspace children
+      var wsChildren = ws.data.children.slice();
+      wsChildren.push(dlgId);
+
+      var broadcast = {
+        type: 'changes',
+        items: [
+          dlgData,
+          btnData,
+          { id: 'ws-1', class_id: 'ui-workspace', _scope_id: scopeId, name: 'Main Workspace', children: wsChildren }
+        ]
+      };
+
+      postBroadcast(broadcast);
+      monitorLog('WS-OUT', { info: 'Injected dialog ' + dlgId + ' + button ' + btnId });
+    }
+
+    // Change a random existing element's position/title via WS broadcast
+    function wsInjectChange() {
+      var dialogs = store.find({class_id: 'ui-dialog'});
+      var buttons = store.find({class_id: 'ui-button'});
+      var all = dialogs.concat(buttons);
+
+      if (all.length === 0) {
+        monitorLog('WS-OUT', { info: 'No elements to change — add some first' });
+        return;
+      }
+
+      var target = all[Math.floor(Math.random() * all.length)];
+      var item = {
+        id: target.id,
+        class_id: target.data.class_id,
+        _scope_id: ws.id,
+        x: Math.round(20 + Math.random() * 400),
+        y: Math.round(20 + Math.random() * 300)
+      };
+
+      // Also change title/text
+      if (target.data.class_id === 'ui-dialog') {
+        item.title = 'Moved! ' + new Date().toLocaleTimeString();
+      } else {
+        item.text = 'Moved! ' + new Date().toLocaleTimeString();
+      }
+
+      var broadcast = {
+        type: 'changes',
+        items: [item]
+      };
+
+      postBroadcast(broadcast);
+      monitorLog('WS-OUT', { info: 'Changed ' + target.id + ' → x:' + item.x + ' y:' + item.y });
+    }
+
+    // POST directly to the WS server broadcast endpoint
+    function postBroadcast(msg) {
+      var wsServerUrl = (API_BASE || '') + '/ws-broadcast';
+      // In dev/local mode, try direct to WS server port
+      var url = location.protocol + '//' + location.hostname + ':19008/broadcast';
+
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      // Don't set X-Sender-User-Id so we DO receive the echo (for testing)
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          var resp = JSON.parse(xhr.responseText);
+          monitorLog('WS-OUT', { info: 'Broadcast sent → ' + resp.sent + ' clients received' });
+        } else {
+          monitorLog('WS-OUT', { info: 'Broadcast failed: HTTP ' + xhr.status });
+        }
+      };
+      xhr.onerror = function() {
+        monitorLog('WS-OUT', { info: 'Broadcast failed: network error (is WS server running on :19008?)' });
+      };
+      xhr.send(JSON.stringify(msg));
+    }
   </script>
 </body>
 </html>

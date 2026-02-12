@@ -22,7 +22,7 @@ const seedData = {
 
     // @class props (prop id = owning_class + '.' + key)
     '@class.name':       {id: '@class.name',       class_id: '@prop', key: 'name'},
-    '@class.extends_id': {id: '@class.extends_id', class_id: '@prop', key: 'extends_id', data_type: 'relation', object_class_id: '@class'},
+    '@class.extends_id': {id: '@class.extends_id', class_id: '@prop', key: 'extends_id', data_type: 'string', object_class_id: '@class', create_only: true},
     '@class.props': {
         id: '@class.props',
         class_id: '@prop',
