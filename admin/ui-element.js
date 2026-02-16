@@ -90,6 +90,11 @@ var uiSeedData = {
     'ui-workspace':          {id: 'ui-workspace',          class_id: '@class', name: 'Workspace'},
     'ui-workspace.name':     {id: 'ui-workspace.name',     class_id: '@prop', key: 'name',     data_type: 'string', default_value: 'Workspace'},
     'ui-workspace.children': {id: 'ui-workspace.children', class_id: '@prop', key: 'children', data_type: 'relation', is_array: true, object_class_id: 'ui-element'},
+
+    // ui-design (standalone container for saveable design trees)
+    'ui-design':          {id: 'ui-design',          class_id: '@class', name: 'Design'},
+    'ui-design.name':     {id: 'ui-design.name',     class_id: '@prop', key: 'name',     data_type: 'string', default_value: 'Untitled Design'},
+    'ui-design.children': {id: 'ui-design.children', class_id: '@prop', key: 'children', data_type: 'relation', is_array: true, object_class_id: 'ui-element'},
 };
 
 if (typeof window !== 'undefined' && typeof store !== 'undefined') {

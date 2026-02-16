@@ -471,46 +471,90 @@ For each class that needs initial/seed data, create `{class}.json`:
 
 ---
 
-### Phase 5: API Mapping — Document Access Patterns
+### Phase 5: Provider Objects — Define External API Access
 
-The `api_mapping` section in each genesis file documents how the original project accesses each model. This is critical for the migration agent to understand the integration points.
+Instead of inline `api_mapping` in genesis files, create **provider objects** that define how each class fetches/saves data via external APIs. Providers are stored as regular ElementStore objects of class `crud_provider` (which extends `@provider`).
 
-For each model, document:
+#### 5.1 Provider Class Hierarchy
 
-| Operation | Description | Example |
-|-----------|-------------|---------|
-| `get_one` | Fetch a single object by ID | `GET /api/users/{id}` |
-| `get_list` | Fetch a list/collection | `GET /api/users` |
-| `set_one` | Create or update an object | `POST /api/users` or `PUT /api/users/{id}` |
-| `paginator` | Pagination parameters and response format | See below |
-| `filters` | Available query parameters | `["status", "role", "created_after"]` |
-| `actions` | Custom operations | `POST /api/users/{id}/activate` |
+```
+@provider (abstract base — defines name, base_url, auth, params)
+  └── crud_provider (extends @provider — adds CRUD URLs, paginator, filters, mapping)
+```
 
-#### Paginator
+Both `@provider` and `crud_provider` are system classes defined in `Genesis.php`.
 
-Always document how the API paginates list responses. Different projects use different patterns:
+#### 5.2 Create Provider Seed Data
+
+For each class that has external API access, create a `crud_provider` object in `.es/crud_provider.json`:
 
 ```json
-"paginator": {
-  "type": "offset",
-  "params": {
-    "limit": "_limit",
-    "offset": "_offset"
-  },
-  "response": {
-    "items_field": "data",
-    "total_field": "total",
-    "limit_field": "limit",
-    "offset_field": "offset"
-  },
-  "defaults": {
-    "limit": 25,
-    "max_limit": 100
+[
+  {
+    "id": "my_model_crud",
+    "class_id": "crud_provider",
+    "name": "My Model API",
+    "base_url": "/api",
+    "params": { "tenant": "default" },
+    "get_one": "/models/{id}",
+    "get_list": "/models",
+    "create_one": "/models",
+    "update_one": "/models/{id}",
+    "delete_one": "/models/{id}",
+    "paginator": {
+      "type": "offset",
+      "params": { "limit": "_limit", "offset": "_offset" },
+      "response": { "items_field": "data", "total_field": "total" },
+      "defaults": { "limit": 25, "max_limit": 100 }
+    },
+    "filters": ["status", "category"],
+    "mapping": {}
   }
+]
+```
+
+#### 5.3 Link Providers to Classes
+
+In the genesis file, add `"providers": ["my_model_crud"]` to each class definition:
+
+```json
+{
+  "id": "my_model",
+  "class_id": "@class",
+  "name": "My Model",
+  "providers": ["my_model_crud"],
+  "props": [...]
 }
 ```
 
-Common paginator types:
+#### 5.4 Field Naming Principle
+
+Class property keys should use the **same field names as the source API**. This eliminates renaming and simplifies data flow. The `mapping` object is only needed for **computed/derived fields** that don't exist as-is in the API:
+
+```json
+"mapping": {
+  "isActive": { "class_id": "@function", "code": "(obj) => obj.status === 'active'" }
+}
+```
+
+#### 5.5 Provider Fields Reference
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Display name |
+| `base_url` | string | Base URL for API requests |
+| `params` | object | Default query parameters sent with every request |
+| `auth` | object | Authentication configuration |
+| `get_one` | string | URL pattern for fetching one object |
+| `get_list` | string | URL pattern for listing objects |
+| `create_one` | string | URL pattern for creating an object |
+| `update_one` | string | URL pattern for updating an object |
+| `delete_one` | string | URL pattern for deleting an object |
+| `paginator` | object | Pagination configuration (see below) |
+| `filters` | string[] | Available filter parameter names |
+| `mapping` | object | Field mapping — only for computed/transform fields |
+
+#### 5.6 Paginator Types
 
 | Type | Params | Description |
 |------|--------|-------------|
@@ -519,27 +563,26 @@ Common paginator types:
 | `cursor` | `cursor`, `limit` | Cursor-based. Use opaque token for next page. |
 | `none` | — | API returns all results, no pagination. |
 
-Example for a page-based API:
+#### 5.7 Null Endpoints
+
+Use `null` for CRUD operations that don't have standalone API endpoints. This is common for embedded/internal models:
 
 ```json
-"paginator": {
-  "type": "page",
-  "params": {
-    "page": "page",
-    "per_page": "per_page"
-  },
-  "response": {
-    "items_field": "results",
-    "total_field": "count",
-    "total_pages_field": "total_pages",
-    "current_page_field": "current_page"
-  },
-  "defaults": {
-    "per_page": 20,
-    "max_per_page": 100
-  }
+{
+  "id": "embedded_model_crud",
+  "class_id": "crud_provider",
+  "name": "Embedded Model",
+  "get_one": null,
+  "get_list": null,
+  "create_one": null,
+  "update_one": null,
+  "delete_one": null
 }
 ```
+
+#### 5.8 Legacy: Inline api_mapping (Deprecated)
+
+Older genesis files may contain an `api_mapping` section directly in the genesis JSON. This approach is **deprecated** in favor of provider objects. When migrating, convert `api_mapping` entries to `crud_provider` objects and add `providers` references to the class definitions.
 
 ---
 
@@ -561,6 +604,7 @@ For a simple blog project:
       "name": "Post",
       "description": "A blog post/article",
       "_version": 1707753600,
+      "providers": ["post_crud"],
       "props": [
         {"key": "title", "label": "Title", "data_type": "string", "required": true, "display_order": 1},
         {"key": "slug", "label": "Slug", "data_type": "string", "required": true, "display_order": 2},
@@ -577,6 +621,7 @@ For a simple blog project:
       "name": "Author",
       "description": "Content author",
       "_version": 1707753600,
+      "providers": ["author_crud"],
       "props": [
         {"key": "name", "label": "Name", "data_type": "string", "required": true, "display_order": 1},
         {"key": "email", "label": "Email", "data_type": "string", "display_order": 2},
@@ -589,40 +634,68 @@ For a simple blog project:
       "name": "Tag",
       "description": "Content tag for categorization",
       "_version": 1707753600,
+      "providers": ["tag_crud"],
       "props": [
         {"key": "name", "label": "Name", "data_type": "string", "required": true},
         {"key": "color", "label": "Color", "data_type": "string", "editor": "color"}
       ]
     }
-  ],
-  "api_mapping": {
-    "post": {
-      "get_one": "GET /api/posts/{id}",
-      "get_list": "GET /api/posts",
-      "set_one": "POST /api/posts | PUT /api/posts/{id}",
-      "paginator": {
-        "type": "offset",
-        "params": {"limit": "_limit", "offset": "_offset"},
-        "response": {"items_field": "data", "total_field": "total"},
-        "defaults": {"limit": 25, "max_limit": 100}
-      },
-      "filters": ["status", "author", "tag"],
-      "actions": ["POST /api/posts/{id}/publish"]
-    },
-    "author": {
-      "get_one": "GET /api/authors/{id}",
-      "get_list": "GET /api/authors",
-      "set_one": "POST /api/authors | PUT /api/authors/{id}",
-      "paginator": {"type": "none"}
-    },
-    "tag": {
-      "get_one": "GET /api/tags/{id}",
-      "get_list": "GET /api/tags",
-      "set_one": "POST /api/tags | PUT /api/tags/{id}",
-      "paginator": {"type": "none"}
-    }
-  }
+  ]
 }
+```
+
+### `.es/crud_provider.json` (provider objects)
+
+```json
+[
+  {
+    "id": "post_crud",
+    "class_id": "crud_provider",
+    "name": "Post API",
+    "base_url": "/api",
+    "get_one": "/posts/{id}",
+    "get_list": "/posts",
+    "create_one": "/posts",
+    "update_one": "/posts/{id}",
+    "delete_one": "/posts/{id}",
+    "paginator": {
+      "type": "offset",
+      "params": {"limit": "_limit", "offset": "_offset"},
+      "response": {"items_field": "data", "total_field": "total"},
+      "defaults": {"limit": 25, "max_limit": 100}
+    },
+    "filters": ["status", "author", "tag"],
+    "mapping": {}
+  },
+  {
+    "id": "author_crud",
+    "class_id": "crud_provider",
+    "name": "Author API",
+    "base_url": "/api",
+    "get_one": "/authors/{id}",
+    "get_list": "/authors",
+    "create_one": "/authors",
+    "update_one": "/authors/{id}",
+    "delete_one": "/authors/{id}",
+    "paginator": {"type": "none"},
+    "filters": [],
+    "mapping": {}
+  },
+  {
+    "id": "tag_crud",
+    "class_id": "crud_provider",
+    "name": "Tag API",
+    "base_url": "/api",
+    "get_one": "/tags/{id}",
+    "get_list": "/tags",
+    "create_one": "/tags",
+    "update_one": "/tags/{id}",
+    "delete_one": "/tags/{id}",
+    "paginator": {"type": "none"},
+    "filters": [],
+    "mapping": {}
+  }
+]
 ```
 
 ### `.es/tag.json` (seed data)
@@ -925,7 +998,7 @@ When performing a migration, follow this checklist:
 - [ ] **2. Find the base model** — Identify the central entity everything relates to
 - [ ] **3. Map all models** — List every model/entity with its properties
 - [ ] **4. Map relations** — Document how models connect (1:1, 1:N, N:M, embedded)
-- [ ] **5. Map API access** — For each model: get_one, get_list, set_one, paginator
+- [ ] **5. Create provider objects** — For each model with API access: create `crud_provider` object in `.es/crud_provider.json`
 - [ ] **6. Present summary** — Show NEW/EXTEND/UPDATE/MATCH/CONFLICT for each model, ask user to select
 - [ ] **7. Resolve conflicts** — For any CONFLICT models, present options and get user decision
 - [ ] **8. Create `.es/` directory** — Only after user approves model selection

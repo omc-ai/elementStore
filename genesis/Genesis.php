@@ -6,7 +6,7 @@
  * Uses the API endpoints to initialize all system classes and seed objects.
  *
  * GENESIS DATA STRUCTURE:
- * - System classes: @class, @prop, @action, @event, @editor, @function
+ * - System classes: @class, @prop, @action, @event, @editor, @function, @provider, crud_provider
  * - Seed editors: text, textarea, number, toggle, select, date, json, reference, javascript, etc.
  * - Seed functions: validators, generators, transformers
  *
@@ -107,7 +107,7 @@ class Genesis
         ];
 
         // Verify system classes
-        $expectedClasses = ['@class', '@prop', '@action', '@event', '@editor', '@function'];
+        $expectedClasses = ['@class', '@prop', '@action', '@event', '@editor', '@function', '@provider'];
         foreach ($expectedClasses as $classId) {
             $class = $this->apiGet("/class/{$classId}");
             if ($class && !isset($class['error'])) {
@@ -345,6 +345,7 @@ class Genesis
                     ['key' => 'table_name', 'label' => 'Table Name', 'description' => 'Custom table/collection name for storage', 'data_type' => 'string', 'display_order' => 5, 'group_name' => 'Advanced'],
                     ['key' => 'is_system', 'label' => 'System Class', 'description' => 'Protected system class (cannot be deleted)', 'data_type' => 'boolean', 'readonly' => true, 'default_value' => false, 'display_order' => 6, 'group_name' => 'Advanced'],
                     ['key' => 'is_abstract', 'label' => 'Abstract', 'description' => 'Cannot create instances directly (only via child classes)', 'data_type' => 'boolean', 'default_value' => false, 'display_order' => 7, 'group_name' => 'Advanced'],
+                    ['key' => 'providers', 'label' => 'Providers', 'description' => 'Data providers for external API integration', 'data_type' => 'relation', 'is_array' => true, 'object_class_id' => ['@provider'], 'display_order' => 8, 'group_name' => 'Advanced'],
                 ],
             ],
 
@@ -433,6 +434,50 @@ class Genesis
                     ['key' => 'code', 'label' => 'Code', 'description' => 'JavaScript function code: (obj, prop, value, params) => result', 'data_type' => 'function', 'editor' => 'javascript', 'required' => true, 'display_order' => 5],
                     ['key' => 'scope', 'label' => 'Scope', 'description' => 'Which data types this function applies to', 'data_type' => 'string', 'is_array' => true, 'display_order' => 6],
                     ['key' => 'is_system', 'label' => 'System Function', 'description' => 'Protected system function', 'data_type' => 'boolean', 'readonly' => true, 'default_value' => false, 'display_order' => 7],
+                ],
+            ],
+
+            // =========================================================================
+            // @provider - Provider Definition Schema (Abstract Base)
+            // Defines how a class fetches/saves data via external APIs
+            // =========================================================================
+            [
+                'id' => '@provider',
+                'class_id' => '@class',
+                'name' => 'Provider',
+                'description' => 'Abstract base for data providers — defines how to fetch/save data via external APIs',
+                'is_system' => true,
+                'is_abstract' => true,
+                'props' => [
+                    ['key' => 'name', 'label' => 'Name', 'description' => 'Provider display name', 'data_type' => 'string', 'required' => true, 'display_order' => 1],
+                    ['key' => 'description', 'label' => 'Description', 'description' => 'What this provider connects to', 'data_type' => 'string', 'editor' => 'textarea', 'display_order' => 2],
+                    ['key' => 'provider_type', 'label' => 'Provider Type', 'description' => 'Type of provider (crud, graphql, etc.)', 'data_type' => 'string', 'display_order' => 3],
+                    ['key' => 'base_url', 'label' => 'Base URL', 'description' => 'Base URL for API requests', 'data_type' => 'string', 'display_order' => 4],
+                    ['key' => 'auth', 'label' => 'Authentication', 'description' => 'Authentication configuration', 'data_type' => 'object', 'display_order' => 5],
+                    ['key' => 'params', 'label' => 'Default Parameters', 'description' => 'Default query parameters sent with every request', 'data_type' => 'object', 'display_order' => 6],
+                ],
+            ],
+
+            // =========================================================================
+            // crud_provider - CRUD Provider (extends @provider)
+            // Defines CRUD URLs, pagination, filters, and field mapping
+            // =========================================================================
+            [
+                'id' => 'crud_provider',
+                'class_id' => '@class',
+                'extends_id' => '@provider',
+                'name' => 'CRUD Provider',
+                'description' => 'Provider for standard CRUD operations — defines URLs, pagination, filters, and field mapping for external APIs',
+                'is_system' => true,
+                'props' => [
+                    ['key' => 'get_one', 'label' => 'Get One', 'description' => 'URL pattern for fetching one object', 'data_type' => 'string', 'display_order' => 10],
+                    ['key' => 'get_list', 'label' => 'Get List', 'description' => 'URL pattern for listing objects', 'data_type' => 'string', 'display_order' => 11],
+                    ['key' => 'create_one', 'label' => 'Create One', 'description' => 'URL pattern for creating an object', 'data_type' => 'string', 'display_order' => 12],
+                    ['key' => 'update_one', 'label' => 'Update One', 'description' => 'URL pattern for updating an object', 'data_type' => 'string', 'display_order' => 13],
+                    ['key' => 'delete_one', 'label' => 'Delete One', 'description' => 'URL pattern for deleting an object', 'data_type' => 'string', 'display_order' => 14],
+                    ['key' => 'paginator', 'label' => 'Paginator', 'description' => 'Pagination configuration', 'data_type' => 'object', 'display_order' => 15],
+                    ['key' => 'filters', 'label' => 'Filters', 'description' => 'Available filter parameter names', 'data_type' => 'string', 'is_array' => true, 'display_order' => 16],
+                    ['key' => 'mapping', 'label' => 'Field Mapping', 'description' => 'Field mapping: ES_key → API_field (string) or @function (transform)', 'data_type' => 'object', 'display_order' => 17],
                 ],
             ],
         ];

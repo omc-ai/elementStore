@@ -167,7 +167,7 @@
       <button class="btn-dialog" onclick="addDialog()">+ Dialog</button>
       <button class="btn-button" onclick="addButton()">+ Button</button>
       <div class="sep"></div>
-      <button class="btn-save" onclick="saveAll()">Save</button>
+      <button class="btn-save" onclick="saveDesign()">Save</button>
       <button class="btn-load" onclick="loadAll()">Load</button>
       <button class="btn-arrange" onclick="arrangeAll()">Arrange</button>
       <div class="sep"></div>
@@ -195,7 +195,7 @@
       <span id="dialog-count">0</span> dialogs |
       <span id="button-count">0</span> buttons |
       <span class="dirty" id="dirty-count">0</span> dirty |
-      workspace: <span id="ws-id">-</span> |
+      design: <span id="design-id">-</span> |
       ws: <span class="ws-status" id="ws-status">off</span>
     </div>
   </div>
@@ -341,30 +341,51 @@
     function genId(prefix) { return prefix + '-' + (++idCounter); }
 
     // ═══════════════════════════════════════════════════════════════
-    // WORKSPACE — the root container (an AtomObj, not AtomElement)
+    // DESIGN — the root container (an AtomObj with relation children)
+    // Uses setObject() (local only), design.save() for
+    // cascading save of all dirty children + design itself.
     // ═══════════════════════════════════════════════════════════════
 
-    var ws;  // workspace AtomObj
+    var design;  // design AtomObj (ui-design)
     var selected = null;
     var workspaceEl = document.getElementById('workspace');
 
-    function initWorkspace() {
-      // Try to load workspace from store (local → remote fetch)
-      ws = store.getObject('ws-1', 'ui-workspace');
+    function initDesign() {
+      // Try to load design from remote
+      design = store.getObject('design-1', 'ui-design');
 
-      if (ws) {
-        console.log('Loaded workspace from store:', ws.id, ws.data);
+      if (design) {
+        console.log('Loaded design from remote:', design.id, design.data);
         document.getElementById('hint').style.display = 'none';
 
-        // Load and render children (getObject fetches from remote if needed)
-        if (Array.isArray(ws.data.children)) {
-          // First pass: load all children from store
-          // Each stored object has class_id — fetchRemote uses /find/{id} to resolve
+        // Load and render children via the relation data
+        if (Array.isArray(design.data.children)) {
           var loaded = [];
-          ws.data.children.forEach(function(childId) {
+          design.data.children.forEach(function(childId) {
             var child = store.getObject(childId);
-            if (child) loaded.push(child);
+            if (child) {
+              // Register in design's relation system
+              design.addChild('children', child);
+              // Mark clean since just loaded from server
+              child._dirtyRelated = [];
+              loaded.push(child);
+
+              // If dialog, load its nested children too
+              if (child.data.class_id === 'ui-dialog' && Array.isArray(child.data.children)) {
+                child.data.children.forEach(function(nestedId) {
+                  var nested = store.getObject(nestedId);
+                  if (nested) {
+                    child.addChild('children', nested);
+                    nested._dirtyRelated = [];
+                    loaded.push(nested);
+                  }
+                });
+              }
+            }
           });
+
+          // Clear design's dirtyRelated — everything just loaded is clean
+          design._dirtyRelated = [];
 
           // Render dialogs first (buttons may nest inside them)
           loaded.filter(function(c) { return c.data.class_id === 'ui-dialog'; })
@@ -373,21 +394,21 @@
                 .forEach(function(c) { renderExistingChild(c); });
 
           // Sync idCounter so new ids don't collide
-          ws.data.children.forEach(function(childId) {
+          design.data.children.forEach(function(childId) {
             var num = parseInt(childId.split('-').pop(), 10);
             if (num >= idCounter) idCounter = num;
           });
         }
       } else {
-        // No workspace in store — create one (saves to remote via setObject)
-        ws = store.setObject({
-          id: 'ws-1', class_id: 'ui-workspace',
-          name: 'Main Workspace', children: []
+        // No design on server — create locally (no remote save yet)
+        design = store.setObject({
+          id: 'design-1', class_id: 'ui-design',
+          name: 'Main Design', children: []
         });
-        console.log('Created new workspace:', ws.id);
+        console.log('Created new design (local):', design.id);
       }
 
-      document.getElementById('ws-id').textContent = ws.id;
+      document.getElementById('design-id').textContent = design.id;
     }
 
     function renderExistingChild(obj) {
@@ -407,7 +428,7 @@
       updateContent(obj);
 
       // Check if this element is a child of a dialog
-      var parentDialog = findParentDialog(obj.id);
+      var parentDialog = findParentDialog(obj);
       if (parentDialog && parentDialog.el) {
         var body = parentDialog.el.querySelector('.dialog-body');
         el.classList.add('nested');
@@ -417,12 +438,22 @@
       }
     }
 
-    function findParentDialog(childId) {
+    /** Find dialog that owns this child (searches objects.children, not data) */
+    function findParentDialog(child) {
+      var childKey = child.id || child._id;
       var dialogs = store.find({class_id: 'ui-dialog'});
       for (var i = 0; i < dialogs.length; i++) {
-        if (Array.isArray(dialogs[i].data.children) &&
-            dialogs[i].data.children.indexOf(childId) >= 0) {
-          return dialogs[i];
+        var dlg = dialogs[i];
+        // Check objects.children (relation objects) first
+        if (Array.isArray(dlg.objects.children)) {
+          for (var j = 0; j < dlg.objects.children.length; j++) {
+            var c = dlg.objects.children[j];
+            if (c === child || c.id === childKey || c._id === childKey) return dlg;
+          }
+        }
+        // Fallback: check data.children (IDs)
+        if (Array.isArray(dlg.data.children) && dlg.data.children.indexOf(childKey) >= 0) {
+          return dlg;
         }
       }
       return null;
@@ -482,7 +513,8 @@
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ADD ELEMENTS — creates model + DOM, adds to workspace
+    // ADD ELEMENTS — setObject is local only, addChild for relations
+    // No remote save until user clicks Save.
     // ═══════════════════════════════════════════════════════════════
 
     function addDialog() {
@@ -503,8 +535,8 @@
       obj.syncToDom();
       workspaceEl.appendChild(el);
 
-      // Add to workspace children
-      ws.data.children.push(obj.id);
+      // Register in design's relation system
+      design.addChild('children', obj);
 
       selectObj(obj);
       updateCounts();
@@ -527,22 +559,30 @@
       obj.syncToDom();
       workspaceEl.appendChild(el);
 
-      // Add to workspace children
-      ws.data.children.push(obj.id);
+      // Register in design's relation system
+      design.addChild('children', obj);
 
       selectObj(obj);
       updateCounts();
     }
 
     function clearAll() {
-      // Destroy all UI elements
-      var uiObjects = store.find({class_id: 'ui-dialog'}).concat(store.find({class_id: 'ui-button'}));
-      uiObjects.forEach(function(obj) {
-        if (obj.destroy) obj.destroy();
-        delete store.objects[obj.id];
+      // Remove all children from design via removeChild
+      var children = (design.objects.children || []).slice();
+      children.forEach(function(child) {
+        // If dialog, remove its nested children first
+        if (Array.isArray(child.objects.children)) {
+          var nested = child.objects.children.slice();
+          nested.forEach(function(btn) {
+            child.removeChild('children', btn);
+            if (btn.destroy) btn.destroy();
+            delete store.objects[btn.id || btn._id];
+          });
+        }
+        design.removeChild('children', child);
+        if (child.destroy) child.destroy();
+        delete store.objects[child.id || child._id];
       });
-      // Clear workspace children
-      ws.data.children = [];
       selected = null;
       renderPanel();
       updateCounts();
@@ -550,59 +590,22 @@
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // SAVE — saves the entire design (workspace + all children)
-    // Collects ALL objects in the design tree and saves each one.
+    // SAVE — cascading save via design.save()
+    // Saves dirty children first, then design itself.
     // ═══════════════════════════════════════════════════════════════
 
-    function collectDesignObjects() {
-      var all = [];
-      if (!ws) return all;
-      all.push(ws);
-
-      if (Array.isArray(ws.data.children)) {
-        ws.data.children.forEach(function(childId) {
-          var child = store.objects[childId];
-          if (child) {
-            all.push(child);
-            // Dialog's nested children (buttons inside dialogs)
-            if (Array.isArray(child.data.children)) {
-              child.data.children.forEach(function(nestedId) {
-                var nested = store.objects[nestedId];
-                if (nested) all.push(nested);
-              });
-            }
-          }
-        });
-      }
-      return all;
-    }
-
-    function saveAll() {
-      var all = collectDesignObjects();
-      var dirty = all.filter(function(obj) {
-        return obj.hasChanges && obj.hasChanges();
-      });
-
-      if (dirty.length === 0) {
+    function saveDesign() {
+      if (!design.hasChanges() && design._dirtyRelated.length === 0) {
         console.log('Nothing to save — all clean');
         monitorLog('SAVE', { info: 'All clean, nothing to save' });
         return;
       }
 
-      console.group('Saving design: ' + dirty.length + '/' + all.length + ' dirty objects');
-      dirty.forEach(function(obj) {
-        var changes = obj.getChanges();
-        console.log(obj.id + ':', changes);
+      var dirtyCount = design._dirtyRelated.length + (design.hasChanges() ? 1 : 0);
+      console.log('Saving design via cascade: ' + dirtyCount + ' dirty objects');
+      design.save();  // cascades: saves dirty children first, then design
 
-        // Save to remote (each save triggers PHP broadcast to WS subscribers)
-        if (store.storage) store.saveRemote(obj);
-
-        // Mark clean
-        obj._snapshot = JSON.parse(JSON.stringify(obj.data));
-      });
-      console.groupEnd();
-
-      monitorLog('SAVE', { info: 'Saved ' + dirty.length + ' objects in design ' + ws.id });
+      monitorLog('SAVE', { info: 'Design saved via cascade (' + dirtyCount + ' objects)' });
       updateCounts();
       if (selected) renderPanel();
     }
@@ -643,7 +646,7 @@
 
       // Also arrange free-standing buttons
       var freeButtons = store.find({class_id: 'ui-button'}).filter(function(btn) {
-        return !findParentDialog(btn.id);
+        return !findParentDialog(btn);
       });
       freeButtons.forEach(function(btn, i) {
         changes.push({
@@ -683,7 +686,7 @@
     });
 
     // ═══════════════════════════════════════════════════════════════
-    // DRAG & DROP
+    // DRAG & DROP — uses addChild/removeChild for relation transfers
     // ═══════════════════════════════════════════════════════════════
 
     function startDrag(e, atom, canDrop) {
@@ -741,7 +744,14 @@
         var dlgRect = dlgBody.getBoundingClientRect();
 
         if (isNested && currentParent === dlgBody) return;
-        if (isNested) unnestButton(btnAtom);
+
+        // Remove from current parent via relation system
+        if (isNested) {
+          var oldParent = findParentDialog(btnAtom);
+          if (oldParent) oldParent.removeChild('children', btnAtom);
+        } else {
+          design.removeChild('children', btnAtom);
+        }
 
         // Convert to relative coords
         var wsRect = workspaceEl.getBoundingClientRect();
@@ -749,11 +759,8 @@
         btnAtom.data.y = Math.max(0, btnAtom.data.y - (dlgRect.top - wsRect.top));
         btnAtom.syncToDom();
 
-        // Add to dialog children
-        if (!Array.isArray(targetDialog.data.children)) targetDialog.data.children = [];
-        if (targetDialog.data.children.indexOf(btnAtom.id) === -1) {
-          targetDialog.data.children.push(btnAtom.id);
-        }
+        // Add to dialog children via relation system
+        targetDialog.addChild('children', btnAtom);
 
         btnEl.classList.add('nested');
         dlgBody.appendChild(btnEl);
@@ -764,27 +771,20 @@
         var wsRect = workspaceEl.getBoundingClientRect();
         var absX = btnRect.left - wsRect.left;
         var absY = btnRect.top - wsRect.top;
-        unnestButton(btnAtom);
+
+        // Remove from dialog via relation system
+        var oldParent = findParentDialog(btnAtom);
+        if (oldParent) oldParent.removeChild('children', btnAtom);
+
+        // Add back to design
+        design.addChild('children', btnAtom);
+
         btnAtom.data.x = absX;
         btnAtom.data.y = absY;
         btnAtom.syncToDom();
         workspaceEl.appendChild(btnEl);
         btnEl.classList.remove('nested');
         if (selected) updatePanelValues();
-      }
-    }
-
-    function unnestButton(btnAtom) {
-      var dialogs = store.find({class_id: 'ui-dialog'});
-      for (var i = 0; i < dialogs.length; i++) {
-        var dlg = dialogs[i];
-        if (Array.isArray(dlg.data.children)) {
-          var idx = dlg.data.children.indexOf(btnAtom.id);
-          if (idx >= 0) {
-            dlg.data.children.splice(idx, 1);
-            break;
-          }
-        }
       }
     }
 
@@ -804,7 +804,7 @@
 
       // Identity
       html += '<div class="panel-section"><h3>Identity</h3>';
-      html += propRowReadonly('id', obj.id);
+      html += propRowReadonly('id', obj.id || obj._id);
       html += propRowReadonly('class', obj.class_id);
       var classObj = store.objects[obj.class_id];
       if (classObj && classObj.data.extends_id) {
@@ -899,9 +899,9 @@
       document.getElementById('dialog-count').textContent = dialogs.length;
       document.getElementById('button-count').textContent = buttons.length;
 
-      // Count dirty objects (workspace + all UI elements)
+      // Count dirty objects (design + all UI elements)
       var dirtyCount = 0;
-      if (ws && ws.hasChanges()) dirtyCount++;
+      if (design && design.hasChanges()) dirtyCount++;
       dialogs.concat(buttons).forEach(function(obj) {
         if (obj.hasChanges()) dirtyCount++;
       });
@@ -912,14 +912,14 @@
     // INIT
     // ═══════════════════════════════════════════════════════════════
 
-    initWorkspace();
+    initDesign();
 
     console.log('Classes:', store.find({class_id: '@class'}).map(function(c) { return c.id; }));
-    console.log('Workspace:', ws.id, '| children:', ws.data.children);
+    console.log('Design:', design.id, '| children:', design.data.children);
     updateCounts();
 
     // ═══════════════════════════════════════════════════════════════
-    // LOAD — fetch workspace + children from server
+    // LOAD — fetch design + children from server
     // ═══════════════════════════════════════════════════════════════
 
     function loadAll() {
@@ -927,18 +927,18 @@
       var uiObjects = store.find({class_id: 'ui-dialog'}).concat(store.find({class_id: 'ui-button'}));
       uiObjects.forEach(function(obj) {
         if (obj.destroy) obj.destroy();
-        delete store.objects[obj.id];
+        delete store.objects[obj.id || obj._id];
       });
       selected = null;
 
-      // Delete workspace from local cache to force fresh fetch
-      delete store.objects['ws-1'];
+      // Delete design from local cache to force fresh fetch
+      delete store.objects['design-1'];
 
-      // Re-init workspace (fetches from remote)
-      initWorkspace();
+      // Re-init design (fetches from remote)
+      initDesign();
       renderPanel();
       updateCounts();
-      monitorLog('LOAD', { info: 'Loaded workspace + ' + (ws.data.children ? ws.data.children.length : 0) + ' children from server' });
+      monitorLog('LOAD', { info: 'Loaded design + ' + (design.data.children ? design.data.children.length : 0) + ' children from server' });
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -968,8 +968,8 @@
         esws.on('connected', function(msg) {
           updateWsUI(true);
           monitorLog('WS', { info: 'Connected as user=' + (msg.user_id || 'anonymous') });
-          // Subscribe to the design by workspace ID
-          esws.subscribeScope(ws.id);
+          // Subscribe to the design by design ID
+          esws.subscribeScope(design.id);
         });
 
         esws.on('subscribed', function(msg) {
@@ -987,9 +987,9 @@
               renderExistingChild(obj);
             }
           }
-          // If workspace changed, sync children list
-          if (item.id === 'ws-1' && item.class_id === 'ui-workspace') {
-            syncWorkspaceChildren();
+          // If design changed, sync children list
+          if (item.id === 'design-1' && item.class_id === 'ui-design') {
+            syncDesignChildren();
           }
           updateCounts();
           if (selected && selected.id === item.id) renderPanel();
@@ -1036,16 +1036,18 @@
       }
     }
 
-    // When workspace children list changes from WS, render any new children
-    function syncWorkspaceChildren() {
-      if (!ws || !Array.isArray(ws.data.children)) return;
-      ws.data.children.forEach(function(childId) {
+    // When design children list changes from WS, render any new children
+    function syncDesignChildren() {
+      if (!design || !Array.isArray(design.data.children)) return;
+      design.data.children.forEach(function(childId) {
         var obj = store.objects[childId];
         if (!obj) {
           // Try to fetch from remote
           obj = store.getObject(childId);
         }
         if (obj && !obj.el) {
+          // Register in relation system if not already
+          design.addChild('children', obj);
           renderExistingChild(obj);
         }
       });
@@ -1061,7 +1063,7 @@
     function wsInjectDialog() {
       injectCounter++;
       var dlgId = 'ws-dlg-' + injectCounter;
-      var scopeId = ws.id; // tag all items with their parent scope
+      var scopeId = design.id; // tag all items with their parent scope
       var dlgData = {
         id: dlgId,
         class_id: 'ui-dialog',
@@ -1088,16 +1090,16 @@
       };
       dlgData.children = [btnId];
 
-      // Also update workspace children
-      var wsChildren = ws.data.children.slice();
-      wsChildren.push(dlgId);
+      // Also update design children
+      var designChildren = design.data.children.slice();
+      designChildren.push(dlgId);
 
       var broadcast = {
         type: 'changes',
         items: [
           dlgData,
           btnData,
-          { id: 'ws-1', class_id: 'ui-workspace', _scope_id: scopeId, name: 'Main Workspace', children: wsChildren }
+          { id: 'design-1', class_id: 'ui-design', _scope_id: scopeId, name: 'Main Design', children: designChildren }
         ]
       };
 
@@ -1120,7 +1122,7 @@
       var item = {
         id: target.id,
         class_id: target.data.class_id,
-        _scope_id: ws.id,
+        _scope_id: design.id,
         x: Math.round(20 + Math.random() * 400),
         y: Math.round(20 + Math.random() * 300)
       };

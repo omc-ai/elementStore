@@ -23,6 +23,7 @@ const seedData = {
     // @class props (prop id = owning_class + '.' + key)
     '@class.name':       {id: '@class.name',       class_id: '@prop', key: 'name'},
     '@class.extends_id': {id: '@class.extends_id', class_id: '@prop', key: 'extends_id', data_type: 'string', object_class_id: '@class', create_only: true},
+    '@class.storage_id': {id: '@class.storage_id', class_id: '@prop', key: 'storage_id', data_type: 'relation', object_class_id: '@storage'},
     '@class.props': {
         id: '@class.props',
         class_id: '@prop',
@@ -56,6 +57,9 @@ const seedData = {
     // @storage props
     '@storage.url':  {id: '@storage.url',  class_id: '@prop', key: 'url'},
     '@storage.type': {id: '@storage.type', class_id: '@prop', key: 'type'},
+
+    // Built-in storage types
+    'local': {id: 'local', class_id: '@storage', type: 'local'},
 };
 
 
@@ -488,8 +492,16 @@ class AtomObj {
         // 2. Rebuild raw ID arrays for relation properties from _related objects
         this._syncRelationIds();
 
-        // 3. Save self
-        this.store.setObject(this);
+        // 3. Register locally
+        var key = this.id || this._id;
+        this.store.objects[key] = this;
+
+        // 4. Persist via class-resolved storage
+        var storage = this.store._resolveStorage(this.data.class_id);
+        if (storage && storage.url) {
+            this.store.saveRemote(this, storage);
+        }
+
         this._snapshot = JSON.parse(JSON.stringify(this.data));
     }
 
@@ -511,6 +523,60 @@ class AtomObj {
                 data[key] = relObjs.id || relObjs._id;
             }
         });
+    }
+
+    /**
+     * Add a child object to an array-relation property.
+     * Registers in objects[propName], _related, _belongsTo, _dirtyRelated, and data[propName].
+     * @param {string} propName - Relation property key (e.g. 'children')
+     * @param {AtomObj} child - The child object to add
+     */
+    addChild(propName, child) {
+        // Init objects array if needed
+        if (!this.objects[propName]) this.objects[propName] = [];
+        // Avoid duplicates
+        var childKey = child.id || child._id;
+        for (var i = 0; i < this.objects[propName].length; i++) {
+            var existing = this.objects[propName][i];
+            if (existing === child || existing.id === childKey || existing._id === childKey) return;
+        }
+        this.objects[propName].push(child);
+        // Register relation links
+        if (this._related.indexOf(child) === -1) this._related.push(child);
+        if (child._belongsTo.indexOf(this) === -1) child._belongsTo.push(this);
+        if (this._dirtyRelated.indexOf(child) === -1) this._dirtyRelated.push(child);
+        // Keep data array in sync (will be rebuilt by _syncRelationIds on save, but useful for UI reads)
+        if (!this.data[propName]) this.data[propName] = [];
+        if (this.data[propName].indexOf(childKey) === -1) this.data[propName].push(childKey);
+    }
+
+    /**
+     * Remove a child object from an array-relation property.
+     * @param {string} propName - Relation property key
+     * @param {AtomObj} child - The child to remove
+     */
+    removeChild(propName, child) {
+        var childKey = child.id || child._id;
+        // Remove from objects array
+        if (this.objects[propName]) {
+            this.objects[propName] = this.objects[propName].filter(function(o) {
+                return o !== child && o.id !== childKey && o._id !== childKey;
+            });
+        }
+        // Remove from _related
+        var idx = this._related.indexOf(child);
+        if (idx >= 0) this._related.splice(idx, 1);
+        // Remove from child's _belongsTo
+        idx = child._belongsTo.indexOf(this);
+        if (idx >= 0) child._belongsTo.splice(idx, 1);
+        // Remove from _dirtyRelated
+        idx = this._dirtyRelated.indexOf(child);
+        if (idx >= 0) this._dirtyRelated.splice(idx, 1);
+        // Remove from data array
+        if (this.data[propName]) {
+            idx = this.data[propName].indexOf(childKey);
+            if (idx >= 0) this.data[propName].splice(idx, 1);
+        }
     }
 
     /** Get related objects that have unsaved changes */
@@ -888,7 +954,7 @@ class ElementStore {
         return obj;
     }
 
-    // Save object to store (local + remote)
+    // Register object in store (local memory only — use obj.save() to persist)
     setObject(obj) {
         if (!(obj instanceof AtomObj)) {
             if (!obj.class_id) {
@@ -901,12 +967,28 @@ class ElementStore {
         var key = obj.id || obj._id;
         this.objects[key] = obj;
 
-        // Save to remote if storage configured
-        if (this.storage) {
-            this.saveRemote(obj);
-        }
-
         return obj;
+    }
+
+    /**
+     * Resolve the storage for a class by walking the extends_id chain.
+     * Returns the class-level storage if set, otherwise falls back to store.storage.
+     * @param {string} classId
+     * @returns {AtomStorage|null}
+     */
+    _resolveStorage(classId) {
+        var visited = {};
+        var cid = classId;
+        while (cid && !visited[cid]) {
+            visited[cid] = true;
+            var classObj = this.objects[cid];
+            if (!classObj) break;
+            if (classObj.data && classObj.data.storage_id) {
+                return this.objects[classObj.data.storage_id] || null;
+            }
+            cid = (classObj.data) ? classObj.data.extends_id || null : null;
+        }
+        return this.storage; // default store-level storage
     }
 
     // Find objects by filter
@@ -971,7 +1053,8 @@ class ElementStore {
         var self = this;
         Object.values(this.objects).forEach(function (obj) {
             if (obj.hasChanges && obj.hasChanges()) {
-                if (self.storage) self.saveRemote(obj);
+                var storage = self._resolveStorage(obj.data ? obj.data.class_id : obj.class_id);
+                if (storage && storage.url) self.saveRemote(obj, storage);
                 obj._snapshot = JSON.parse(JSON.stringify(obj.data));
                 saved.push(obj.id || obj._id);
             }
@@ -1019,9 +1102,13 @@ class ElementStore {
         return null;
     }
 
-    /** @param {AtomObj} obj */
-    saveRemote(obj) {
-        if (!this.storage || !this.storage.url) return;
+    /**
+     * @param {AtomObj} obj
+     * @param {AtomStorage} [storage] - Storage to use (defaults to store.storage)
+     */
+    saveRemote(obj, storage) {
+        var st = storage || this.storage;
+        if (!st || !st.url) return;
 
         var classId = obj.class_id;
         var id = obj.id;
@@ -1029,10 +1116,10 @@ class ElementStore {
         var url, method;
 
         if (isNew) {
-            url = this.storage.url + '/store/' + encodeURIComponent(classId);
+            url = st.url + '/store/' + encodeURIComponent(classId);
             method = 'POST';
         } else {
-            url = this.storage.url + '/store/' + encodeURIComponent(classId) + '/' + encodeURIComponent(id);
+            url = st.url + '/store/' + encodeURIComponent(classId) + '/' + encodeURIComponent(id);
             method = 'PUT';
         }
 
