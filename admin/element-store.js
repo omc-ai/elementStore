@@ -16,50 +16,57 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 const seedData = {
-    '@class': {id: '@class', class_id: '@class'},
-    '@prop':  {id: '@prop',  class_id: '@class'},
-    '@storage': {id: '@storage', class_id: '@class'},
+    // System classes
+    '@class':   {id: '@class',   class_id: '@class', name: 'Class', is_system: true},
+    '@prop':    {id: '@prop',    class_id: '@class', name: 'Property', is_system: true},
+    '@storage': {id: '@storage', class_id: '@class', name: 'Storage', is_system: true},
+    '@editor':  {id: '@editor',  class_id: '@class', name: 'Editor', is_system: true},
 
-    // @class props (prop id = owning_class + '.' + key)
-    '@class.name':       {id: '@class.name',       class_id: '@prop', key: 'name'},
-    '@class.extends_id': {id: '@class.extends_id', class_id: '@prop', key: 'extends_id', data_type: 'string', object_class_id: '@class', create_only: true},
-    '@class.storage_id': {id: '@class.storage_id', class_id: '@prop', key: 'storage_id', data_type: 'relation', object_class_id: '@storage'},
-    '@class.props': {
-        id: '@class.props',
-        class_id: '@prop',
-        key: 'props',
-        data_type: 'object',
-        is_array: true,
-        object_class_id: '@prop',
-    },
+    // ── @class props ──
+    '@class.name':        {id: '@class.name',        class_id: '@prop', key: 'name', required: true, display_order: 1},
+    '@class.description': {id: '@class.description', class_id: '@prop', key: 'description', field_type: 'textarea', display_order: 2},
+    '@class.extends_id':  {id: '@class.extends_id',  class_id: '@prop', key: 'extends_id', data_type: 'relation', object_class_id: ['@class'], create_only: true, display_order: 3},
+    '@class.props':       {id: '@class.props',       class_id: '@prop', key: 'props', data_type: 'object', is_array: true, object_class_id: ['@prop'], display_order: 4},
+    '@class.storage_id':  {id: '@class.storage_id',  class_id: '@prop', key: 'storage_id', data_type: 'relation', object_class_id: ['@storage'], display_order: 5},
+    '@class.table_name':  {id: '@class.table_name',  class_id: '@prop', key: 'table_name', display_order: 6},
+    '@class.is_system':   {id: '@class.is_system',   class_id: '@prop', key: 'is_system', data_type: 'boolean', readonly: true, default_value: false, display_order: 7},
 
-    // @prop props
-    '@prop.id':                  {id: '@prop.id',                  class_id: '@prop', key: 'id'},
-    '@prop.key':                 {id: '@prop.key',                 class_id: '@prop', key: 'key', required: true},
-    '@prop.name':                {id: '@prop.name',                class_id: '@prop', key: 'name'},
-    '@prop.description':         {id: '@prop.description',         class_id: '@prop', key: 'description'},
-    '@prop.data_type':           {id: '@prop.data_type',           class_id: '@prop', key: 'data_type'},
-    '@prop.is_array':            {id: '@prop.is_array',            class_id: '@prop', key: 'is_array', data_type: 'boolean'},
-    '@prop.object_class_id':     {id: '@prop.object_class_id',     class_id: '@prop', key: 'object_class_id', data_type: 'relation', object_class_id: '@class'},
-    '@prop.object_class_strict': {id: '@prop.object_class_strict', class_id: '@prop', key: 'object_class_strict', data_type: 'boolean'},
-    '@prop.on_orphan':           {id: '@prop.on_orphan',           class_id: '@prop', key: 'on_orphan'},
-    '@prop.options':             {id: '@prop.options',             class_id: '@prop', key: 'options', data_type: 'object', is_array: true},
-    '@prop.editor':              {id: '@prop.editor',              class_id: '@prop', key: 'editor', data_type: 'object'},
-    '@prop.validators':          {id: '@prop.validators',          class_id: '@prop', key: 'validators', data_type: 'object', is_array: true},
-    '@prop.required':            {id: '@prop.required',            class_id: '@prop', key: 'required', data_type: 'boolean'},
-    '@prop.readonly':            {id: '@prop.readonly',            class_id: '@prop', key: 'readonly', data_type: 'boolean'},
-    '@prop.default_value':       {id: '@prop.default_value',       class_id: '@prop', key: 'default_value'},
-    '@prop.display_order':       {id: '@prop.display_order',       class_id: '@prop', key: 'display_order', data_type: 'integer'},
-    '@prop.group_name':          {id: '@prop.group_name',          class_id: '@prop', key: 'group_name'},
-    '@prop.hidden':              {id: '@prop.hidden',              class_id: '@prop', key: 'hidden', data_type: 'boolean'},
-    '@prop.server_only':         {id: '@prop.server_only',         class_id: '@prop', key: 'server_only', data_type: 'boolean'},
+    // ── @prop props ──
+    '@prop.key':                 {id: '@prop.key',                 class_id: '@prop', key: 'key', required: true, display_order: 1},
+    '@prop.label':               {id: '@prop.label',               class_id: '@prop', key: 'label', display_order: 1.5},
+    '@prop.name':                {id: '@prop.name',                class_id: '@prop', key: 'name', display_order: 2},
+    '@prop.description':         {id: '@prop.description',         class_id: '@prop', key: 'description', field_type: 'textarea', display_order: 3},
+    '@prop.data_type':           {id: '@prop.data_type',           class_id: '@prop', key: 'data_type', options: {values: ['string','boolean','integer','float','datetime','object','relation','function']}, default_value: 'string', display_order: 4},
+    '@prop.is_array':            {id: '@prop.is_array',            class_id: '@prop', key: 'is_array', data_type: 'boolean', default_value: false, display_order: 5},
+    '@prop.object_class_id':     {id: '@prop.object_class_id',     class_id: '@prop', key: 'object_class_id', data_type: 'relation', is_array: true, object_class_id: ['@class'], display_order: 6},
+    '@prop.object_class_strict': {id: '@prop.object_class_strict', class_id: '@prop', key: 'object_class_strict', data_type: 'boolean', default_value: false, display_order: 7},
+    '@prop.on_orphan':           {id: '@prop.on_orphan',           class_id: '@prop', key: 'on_orphan', options: {values: ['keep', 'delete']}, default_value: 'keep', display_order: 8},
+    '@prop.options':             {id: '@prop.options',             class_id: '@prop', key: 'options', data_type: 'object', display_order: 7},
+    '@prop.field_type':          {id: '@prop.field_type',          class_id: '@prop', key: 'field_type', data_type: 'relation', object_class_id: ['@editor'], display_order: 8},
+    '@prop.required':            {id: '@prop.required',            class_id: '@prop', key: 'required', data_type: 'boolean', default_value: false, display_order: 9},
+    '@prop.readonly':            {id: '@prop.readonly',            class_id: '@prop', key: 'readonly', data_type: 'boolean', default_value: false, display_order: 10},
+    '@prop.create_only':         {id: '@prop.create_only',         class_id: '@prop', key: 'create_only', data_type: 'boolean', default_value: false, display_order: 11},
+    '@prop.default_value':       {id: '@prop.default_value',       class_id: '@prop', key: 'default_value', display_order: 12},
+    '@prop.display_order':       {id: '@prop.display_order',       class_id: '@prop', key: 'display_order', data_type: 'integer', default_value: 0, display_order: 13},
+    '@prop.group_name':          {id: '@prop.group_name',          class_id: '@prop', key: 'group_name', display_order: 14},
+    '@prop.hidden':              {id: '@prop.hidden',              class_id: '@prop', key: 'hidden', data_type: 'boolean', default_value: false, display_order: 15},
+    '@prop.server_only':         {id: '@prop.server_only',         class_id: '@prop', key: 'server_only', data_type: 'boolean', default_value: false, display_order: 16},
+    '@prop.master_only':         {id: '@prop.master_only',         class_id: '@prop', key: 'master_only', data_type: 'boolean', default_value: false, display_order: 17},
 
-    // @storage props
-    '@storage.url':  {id: '@storage.url',  class_id: '@prop', key: 'url'},
-    '@storage.type': {id: '@storage.type', class_id: '@prop', key: 'type'},
+    // ── @storage props ──
+    '@storage.name': {id: '@storage.name', class_id: '@prop', key: 'name', required: true, display_order: 1},
+    '@storage.url':  {id: '@storage.url',  class_id: '@prop', key: 'url', field_type: 'url', display_order: 2},
+    '@storage.type': {id: '@storage.type', class_id: '@prop', key: 'type', options: {values: ['local', 'rest', 'couchdb', 'mysql', 'json']}, default_value: 'rest', display_order: 3},
+
+    // ── @editor props ──
+    '@editor.name':        {id: '@editor.name',        class_id: '@prop', key: 'name', required: true, display_order: 1},
+    '@editor.description': {id: '@editor.description', class_id: '@prop', key: 'description', field_type: 'textarea', display_order: 2},
+    '@editor.data_types':  {id: '@editor.data_types',  class_id: '@prop', key: 'data_types', is_array: true, options: {values: ['string','boolean','integer','float','datetime','object','relation','function']}, required: true, display_order: 3},
+    '@editor.is_default':  {id: '@editor.is_default',  class_id: '@prop', key: 'is_default', data_type: 'boolean', default_value: false, display_order: 4},
+    '@editor.props':       {id: '@editor.props',       class_id: '@prop', key: 'props', data_type: 'object', is_array: true, object_class_id: ['@prop'], display_order: 5},
 
     // Built-in storage types
-    'local': {id: 'local', class_id: '@storage', type: 'local'},
+    'local': {id: 'local', class_id: '@storage', name: 'Local', type: 'local'},
 };
 
 
@@ -71,6 +78,79 @@ var _localIdCounter = 0;
 function generateLocalId() {
     return '_' + (++_localIdCounter) + '_' + Math.random().toString(36).substr(2, 6);
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NORMALIZE CLASS IDS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Normalize object_class_id to array|null.
+ * Accepts string, array, null/undefined. Always returns array or null.
+ * @param {*} val
+ * @returns {string[]|null}
+ */
+function normalizeClassIds(val) {
+    if (val === null || val === undefined) return null;
+    if (Array.isArray(val)) return val.length > 0 ? val : null;
+    if (typeof val === 'string' && val) return [val];
+    return null;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BUILT-IN VALIDATORS
+// ═══════════════════════════════════════════════════════════════════════════
+
+var _validators = {
+    email: function(val) {
+        if (!val) return null;
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) ? null : 'Invalid email address';
+    },
+    url: function(val) {
+        if (!val) return null;
+        try { new URL(val); return null; } catch (e) { return 'Invalid URL'; }
+    },
+    phone: function(val) {
+        if (!val) return null;
+        return /^[+]?[\d\s\-().]{7,20}$/.test(val) ? null : 'Invalid phone number';
+    },
+    json: function(val) {
+        if (!val) return null;
+        try { JSON.parse(val); return null; } catch (e) { return 'Invalid JSON'; }
+    },
+    regex: function(val, params) {
+        if (!val || !params || !params.pattern) return null;
+        try {
+            return new RegExp(params.pattern).test(val) ? null : 'Does not match pattern';
+        } catch (e) { return null; }
+    },
+    range: function(val, params) {
+        if (val === null || val === undefined || !params) return null;
+        var num = parseFloat(val);
+        if (isNaN(num)) return null;
+        if (params.min !== undefined && num < params.min) return 'Minimum is ' + params.min;
+        if (params.max !== undefined && num > params.max) return 'Maximum is ' + params.max;
+        return null;
+    },
+    length: function(val, params) {
+        if (!val || !params) return null;
+        var len = String(val).length;
+        if (params.min_length !== undefined && len < params.min_length) return 'Minimum length is ' + params.min_length;
+        if (params.max_length !== undefined && len > params.max_length) return 'Maximum length is ' + params.max_length;
+        return null;
+    },
+    date_range: function(val, params) {
+        if (!val || !params) return null;
+        if (params.min_date && val < params.min_date) return 'Date must be after ' + params.min_date;
+        if (params.max_date && val > params.max_date) return 'Date must be before ' + params.max_date;
+        return null;
+    },
+    enum_value: function(val, params) {
+        if (!val || !params || !params.values) return null;
+        return params.values.indexOf(val) >= 0 ? null : 'Must be one of: ' + params.values.join(', ');
+    }
+};
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -121,7 +201,15 @@ class AtomCollection {
         this._items = items;    // same reference as parent data
         this._store = store;
         this._classId = classId || null;
+        this._onAdd = [];
+        this._onRemove = [];
     }
+
+    /** Register callback for item additions */
+    onAdd(fn) { this._onAdd.push(fn); return this; }
+
+    /** Register callback for item removals */
+    onRemove(fn) { this._onRemove.push(fn); return this; }
 
     get length() {
         return this._items.length;
@@ -188,6 +276,9 @@ class AtomCollection {
             obj = new AtomObj(obj, this._store);
         }
         this._items.push(obj);
+        // Fire onAdd hooks
+        var hooks = this._onAdd;
+        for (var h = 0; h < hooks.length; h++) hooks[h](obj);
         return obj;
     }
 
@@ -195,7 +286,9 @@ class AtomCollection {
     remove(key) {
         for (var i = 0; i < this._items.length; i++) {
             if (this._items[i].key === key) {
-                this._items.splice(i, 1);
+                var removed = this._items.splice(i, 1)[0];
+                var hooks = this._onRemove;
+                for (var h = 0; h < hooks.length; h++) hooks[h](removed);
                 return true;
             }
         }
@@ -206,7 +299,9 @@ class AtomCollection {
     removeById(id) {
         for (var i = 0; i < this._items.length; i++) {
             if (this._items[i].id === id) {
-                this._items.splice(i, 1);
+                var removed = this._items.splice(i, 1)[0];
+                var hooks = this._onRemove;
+                for (var h = 0; h < hooks.length; h++) hooks[h](removed);
                 return true;
             }
         }
@@ -346,6 +441,11 @@ class AtomObj {
 
         // Use raw as data by reference
         this.data = raw;
+
+        // Normalize object_class_id to array|null
+        if (raw.object_class_id !== undefined) {
+            raw.object_class_id = normalizeClassIds(raw.object_class_id);
+        }
 
         // Load class definition from store (null during seed bootstrap)
         this._class = this.store ? (this.store.getObject(raw.class_id) || null) : null;
@@ -596,6 +696,99 @@ class AtomObj {
         return dirty;
     }
 
+    /**
+     * Validate all props on this object (advisory — server is final authority).
+     * Returns null if valid, or { propKey: ['error', ...], ... } if invalid.
+     * @returns {Object|null}
+     */
+    validate() {
+        if (!this.store) return null;
+        var props = this.store.collectClassProps(this.data.class_id);
+        if (!props || props.length === 0) return null;
+        var data = this.data;
+        var errors = {};
+        props.forEach(function(propObj) {
+            var key = propObj.data ? propObj.data.key : propObj.key;
+            if (!key) {
+                var dotIdx = (propObj.data ? propObj.data.id : propObj.id || '').lastIndexOf('.');
+                key = dotIdx >= 0 ? (propObj.data ? propObj.data.id : propObj.id).substring(dotIdx + 1) : null;
+            }
+            if (!key) return;
+            var propErrors = [];
+            var val = data[key];
+            var pData = propObj.data || propObj;
+
+            // Required check
+            if (pData.required && (val === null || val === undefined || val === '')) {
+                propErrors.push(key + ' is required');
+            }
+
+            // Type check (only if value is present)
+            if (val !== null && val !== undefined && val !== '') {
+                switch (pData.data_type) {
+                    case 'integer':
+                        if (typeof val === 'string') val = parseInt(val, 10);
+                        if (typeof val !== 'number' || isNaN(val) || !isFinite(val)) {
+                            propErrors.push(key + ' must be an integer');
+                        }
+                        break;
+                    case 'float':
+                        if (typeof val === 'string') val = parseFloat(val);
+                        if (typeof val !== 'number' || isNaN(val)) {
+                            propErrors.push(key + ' must be a number');
+                        }
+                        break;
+                    case 'boolean':
+                        // Coerce — no error for truthy/falsy
+                        break;
+                    case 'string':
+                        if (typeof val !== 'string') {
+                            propErrors.push(key + ' must be a string');
+                        }
+                        break;
+                }
+
+                // Options.values check (enum constraint)
+                var opts = pData.options;
+                if (opts && opts.values && Array.isArray(opts.values) && opts.values.length > 0) {
+                    if (opts.values.indexOf(val) < 0 && !(opts.allow_custom)) {
+                        propErrors.push(key + ' must be one of: ' + opts.values.join(', '));
+                    }
+                }
+
+                // String length checks
+                if (pData.data_type === 'string' && typeof val === 'string') {
+                    if (opts && opts.min_length !== undefined && val.length < opts.min_length) {
+                        propErrors.push(key + ' minimum length is ' + opts.min_length);
+                    }
+                    if (opts && opts.max_length !== undefined && val.length > opts.max_length) {
+                        propErrors.push(key + ' maximum length is ' + opts.max_length);
+                    }
+                    if (opts && opts.pattern) {
+                        try {
+                            if (!new RegExp(opts.pattern).test(val)) {
+                                propErrors.push(key + ' does not match pattern');
+                            }
+                        } catch (e) { /* ignore invalid regex */ }
+                    }
+                }
+
+                // Number range checks
+                if ((pData.data_type === 'integer' || pData.data_type === 'float') && typeof val === 'number') {
+                    if (opts && opts.min !== undefined && val < opts.min) {
+                        propErrors.push(key + ' minimum is ' + opts.min);
+                    }
+                    if (opts && opts.max !== undefined && val > opts.max) {
+                        propErrors.push(key + ' maximum is ' + opts.max);
+                    }
+                }
+            }
+
+            if (propErrors.length > 0) errors[key] = propErrors;
+        });
+        return Object.keys(errors).length > 0 ? errors : null;
+    }
+
     /** Serialize to plain object */
     toJSON() {
         return this.data;
@@ -637,14 +830,15 @@ class AtomProp extends AtomObj {
     object_class_strict = false;
     on_orphan = null;
     options = null;
-    editor = null;
-    validators = null;
+    field_type = null;
     required = false;
     readonly = false;
+    create_only = false;
     default_value = null;
     display_order = 0;
     group_name = null;
     hidden = false;
+    master_only = false;
     server_only = false;
 
     /**
@@ -694,10 +888,12 @@ class AtomProp extends AtomObj {
                 return parseFloat(val) || 0;
             case 'object':
                 if (this.is_array && Array.isArray(val)) {
-                    return new AtomCollection(val, store, this.object_class_id);
+                    var arrCls = Array.isArray(this.data.object_class_id) ? this.data.object_class_id[0] : this.data.object_class_id;
+                    return new AtomCollection(val, store, arrCls);
                 }
-                if (typeof val === 'object' && this.object_class_id && store) {
-                    if (!val.class_id) val.class_id = this.object_class_id;
+                if (typeof val === 'object' && this.data.object_class_id && store) {
+                    var objCls = val._class_id || (Array.isArray(this.data.object_class_id) ? this.data.object_class_id[0] : this.data.object_class_id);
+                    if (!val.class_id) val.class_id = objCls;
                     return new AtomObj(val, store);
                 }
                 return val;
@@ -991,13 +1187,25 @@ class ElementStore {
         return this.storage; // default store-level storage
     }
 
-    // Find objects by filter
+    /**
+     * Find objects by filter.
+     * Supports simple equality and $in operator for array matching.
+     * @example store.find({ class_id: '@class' })
+     * @example store.find({ class_id: { $in: ['@editor-input', '@editor-selector'] } })
+     */
     find(filter) {
         var results = [];
         Object.values(this.objects).forEach(function (obj) {
             var match = true;
+            var objData = obj.data || obj;
             Object.keys(filter).forEach(function (k) {
-                if (obj[k] !== filter[k]) match = false;
+                var filterVal = filter[k];
+                var objVal = objData[k] !== undefined ? objData[k] : obj[k];
+                if (filterVal && typeof filterVal === 'object' && filterVal.$in) {
+                    if (filterVal.$in.indexOf(objVal) < 0) match = false;
+                } else {
+                    if (objVal !== filterVal) match = false;
+                }
             });
             if (match) results.push(obj);
         });
@@ -1176,6 +1384,7 @@ if (typeof module !== 'undefined' && module.exports) {
         classRegistry,
         registerClass,
         generateLocalId,
+        normalizeClassIds,
         setJwtToken,
         getJwtToken,
         AtomObj,
@@ -1192,6 +1401,7 @@ if (typeof window !== 'undefined') {
     window.classRegistry = classRegistry;
     window.registerClass = registerClass;
     window.generateLocalId = generateLocalId;
+    window.normalizeClassIds = normalizeClassIds;
     window.setJwtToken = setJwtToken;
     window.getJwtToken = getJwtToken;
     window.AtomObj = AtomObj;

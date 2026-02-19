@@ -7,6 +7,9 @@ const elementStore = {
     /** Whether the object being edited is new (no id yet) */
     _isNewObject: true,
 
+    /** Registry: path → { prop, lvl } for typed object Create/Null re-rendering */
+    _typedObjRegistry: {},
+
     /** Extract class ID from prop (handles array format) */
     getCls(prop) {
         return Array.isArray(prop.object_class_id) ? prop.object_class_id[0] : prop.object_class_id;
@@ -66,28 +69,51 @@ const elementStore = {
         return esc(String(value ?? ''));
     },
 
-    /** Render a single editor row (ge-key + ge-val cells) */
-    renderRow(label, req, metaBtn, typeLabel, content) {
+    /** Colgroup defining the 4-column structure for all .ge tables */
+    getColgroup() {
+        return `<colgroup><col class="ge-col-indent"><col class="ge-col-key"><col class="ge-col-val"><col class="ge-col-act"></colgroup>`;
+    },
+
+    /** Render a single editor row — optional actContent for action column */
+    renderRow(label, req, metaBtn, typeLabel, content, actContent) {
+        const valSpan = actContent ? '' : ' colspan="2"';
+        const actCell = actContent
+            ? `<td class="ge-act"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div>${actContent}</td>`
+            : '';
         return `<tr>
+            <td class="ge-indent"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
             <td class="ge-key">${esc(label)} ${req}${metaBtn}<span class="t">${typeLabel}</span><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
-            <td class="ge-val">${content}</td>
+            <td class="ge-val"${valSpan}>${content}</td>
+            ${actCell}
         </tr>`;
     },
 
-    /** Render nested content row (for arrays/objects) */
-    renderNestRow(lvl, foldId, content) {
-        return `<tr class="ge-nest-row">
-            <td class="ge-nest-indent l${Math.min(lvl + 1, 3)}">
-                <button type="button" class="ge-fold" onclick="elementStore.fold(this)" data-target="${foldId}" title="Collapse/Expand">\u2212</button>
-            </td>
-            <td class="ge-nest-content" id="${foldId}">${content}</td>
+    /** Render section header row — optional actContent for action column */
+    renderSectionHeader(label, req, metaBtn, typeLabel, foldId, valContent, actContent, foldDisabled) {
+        const valSpan = actContent ? '' : ' colspan="2"';
+        const actCell = actContent
+            ? `<td class="ge-act"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div>${actContent}</td>`
+            : '';
+        const foldDis = foldDisabled ? ' disabled' : '';
+        return `<tr class="ge-section-hdr">
+            <td class="ge-indent"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
+            <td class="ge-key"><button type="button" class="ge-fold"${foldDis} onclick="elementStore.fold(this)" data-target="${foldId}" title="Collapse/Expand">\u2212</button> ${esc(label)} ${req}${metaBtn}<span class="t">${typeLabel}</span><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
+            <td class="ge-val"${valSpan}>${valContent}</td>
+            ${actCell}
+        </tr>`;
+    },
+
+    /** Render section body row — full width (colspan=4) */
+    renderSectionBody(lvl, foldId, content) {
+        return `<tr class="ge-section-body">
+            <td colspan="4" class="ge-nest-content" id="${foldId}">${content}</td>
         </tr>`;
     },
 
     /** Render props table for object */
     async getPropsTable(meta, obj, path, lvl, cls) {
         const sorted = this.getSortedProps(meta);
-        let html = `<table class="ge" data-path="${path}" data-class="${cls || ''}"><tbody>`;
+        let html = `<table class="ge" data-path="${path}" data-class="${cls || ''}" data-level="${lvl + 1}">${this.getColgroup()}<tbody>`;
         for (const p of sorted) {
             html += await geField(p, obj[p.key], `${path}.${p.key}`, lvl + 1);
         }
@@ -95,20 +121,13 @@ const elementStore = {
         return html;
     },
 
-    /** Unified fold toggle */
+    /** Unified fold toggle — all folds use data-target */
     fold(btn) {
         const targetId = btn.dataset.target;
-        if (targetId) {
-            const content = document.getElementById(targetId);
-            if (!content) return;
-            const isCollapsed = content.classList.toggle('collapsed');
-            btn.classList.toggle('collapsed', isCollapsed);
-            btn.textContent = isCollapsed ? '+' : '\u2212';
-            return;
-        }
-        const item = btn.closest('.ge-arr-item');
-        if (!item) return;
-        const isCollapsed = item.classList.toggle('collapsed');
+        if (!targetId) return;
+        const content = document.getElementById(targetId);
+        if (!content) return;
+        const isCollapsed = content.classList.toggle('collapsed');
         btn.classList.toggle('collapsed', isCollapsed);
         btn.textContent = isCollapsed ? '+' : '\u2212';
     },
@@ -158,8 +177,20 @@ const elementStore = {
     /** Collect data from editor container */
     collectData(container) {
         const data = {};
+
+        // Collect top-level freeform objects (recursive — handles nested objects/arrays)
+        container.querySelectorAll('.ge-free-obj').forEach(freeObj => {
+            // Only process top-level freeform tables (not nested ones inside other freeform tables)
+            if (freeObj.closest('.ge-free-obj') !== freeObj && freeObj.parentElement.closest('.ge-free-obj')) return;
+            const basePath = freeObj.dataset.path;
+            if (!basePath || basePath === '_nested') return;
+            setNestedValue(data, basePath, _geFreeCollectObj(freeObj));
+        });
+
         container.querySelectorAll('[data-path]').forEach(el => {
             if (el.disabled) return; // Skip disabled (readonly/create_only) fields
+            // Skip elements inside freeform objects (already collected above)
+            if (el.closest('.ge-free-obj')) return;
             const path = el.dataset.path;
             const type = el.dataset.type;
             let val;
@@ -182,7 +213,7 @@ const elementStore = {
                 case 'relation':
                     val = el.value || null;
                     break;
-                case 'enum':
+                case 'select':
                     if (el.value === '__custom__' && el.dataset.customValue) {
                         val = el.dataset.customValue;
                     } else {
@@ -337,6 +368,46 @@ const elementStore = {
     },
 
     /**
+     * Group props by group_name, maintaining display_order within groups.
+     * Returns: [ { name: null, props: [...] }, { name: 'GroupA', props: [...] }, ... ]
+     */
+    groupProps(sorted) {
+        const groups = [];
+        const groupMap = {};
+
+        for (const prop of sorted) {
+            const gn = prop.group_name || null;
+            if (!groupMap[gn]) {
+                const group = { name: gn, props: [] };
+                groupMap[gn] = group;
+                groups.push(group);
+            }
+            groupMap[gn].props.push(prop);
+        }
+
+        // Ungrouped (null) props come first
+        groups.sort((a, b) => {
+            if (a.name === null) return -1;
+            if (b.name === null) return 1;
+            return 0;
+        });
+
+        return groups;
+    },
+
+    /**
+     * Render a group header row (4-column, foldable)
+     */
+    renderGroupHeader(groupName, foldId) {
+        return `<tr class="ge-group-hdr">
+            <td colspan="4" class="ge-group-cell">
+                <button type="button" class="ge-fold" onclick="elementStore.fold(this)" data-target="${foldId}" title="Collapse/Expand group">\u2212</button>
+                <span class="ge-group-name">${esc(groupName)}</span>
+            </td>
+        </tr>`;
+    },
+
+    /**
      * Render complete editor for a class (main entry point)
      */
     async renderEditor(classId, data) {
@@ -344,18 +415,47 @@ const elementStore = {
         if (!meta) return `<div class="form-hint">Class "${classId}" not found</div>`;
 
         this._isNewObject = !data?.id;
+        this._typedObjRegistry = {}; // Reset for new editor session
         const sorted = this.getSortedProps(meta);
+        const groups = this.groupProps(sorted);
+        const hasGroups = groups.some(g => g.name !== null);
 
-        let html = `<table class="ge"><tbody>`;
+        let html = `<table class="ge" data-level="0">${this.getColgroup()}<tbody>`;
         if (!sorted.find(p => p.key === 'id')) {
             html += `<tr>
+                <td class="ge-indent"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
                 <td class="ge-key">id <span class="t">string</span></td>
-                <td class="ge-val"><input type="text" data-path="id" value="${esc(data?.id || '')}" ${data?.id ? 'readonly' : ''} placeholder="Auto-generated"></td>
+                <td class="ge-val" colspan="2"><input type="text" data-path="id" value="${esc(data?.id || '')}" ${data?.id ? 'readonly' : ''} placeholder="Auto-generated"></td>
             </tr>`;
         }
-        for (const prop of sorted) {
-            html += await geField(prop, data?.[prop.key], prop.key, 0);
+
+        if (hasGroups) {
+            // Render with group headers
+            let groupIdx = 0;
+            for (const group of groups) {
+                if (group.name !== null) {
+                    const foldId = `grp_${groupIdx++}`;
+                    html += this.renderGroupHeader(group.name, foldId);
+                    // Wrap group props in a section body
+                    let groupContent = '';
+                    for (const prop of group.props) {
+                        groupContent += await geField(prop, data?.[prop.key], prop.key, 0);
+                    }
+                    html += `<tr class="ge-section-body"><td colspan="4" class="ge-nest-content" id="${foldId}">${groupContent}</td></tr>`;
+                } else {
+                    // Ungrouped props render directly
+                    for (const prop of group.props) {
+                        html += await geField(prop, data?.[prop.key], prop.key, 0);
+                    }
+                }
+            }
+        } else {
+            // No groups — flat rendering
+            for (const prop of sorted) {
+                html += await geField(prop, data?.[prop.key], prop.key, 0);
+            }
         }
+
         html += `</tbody></table>`;
         return html;
     }

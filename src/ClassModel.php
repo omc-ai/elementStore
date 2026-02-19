@@ -1019,28 +1019,65 @@ class ClassModel
         }
 
         return match ($prop->data_type) {
-            Constants::DT_NUMBER, Constants::DT_FLOAT => !is_numeric($checkValue) ? "{$label} must be a number" : null,
+            Constants::DT_INTEGER => (!is_numeric($checkValue) || (int)$checkValue != $checkValue) ? "{$label} must be an integer" : null,
+            Constants::DT_FLOAT => !is_numeric($checkValue) ? "{$label} must be a number" : null,
             Constants::DT_BOOLEAN => (!is_bool($checkValue) && !in_array($checkValue, [0, 1, '0', '1'], true)) ? "{$label} must be a boolean" : null,
-            Constants::DT_ENUM => $this->validateEnum($checkValue, $prop, $label),
+            Constants::DT_DATETIME => $this->validateDatetime($checkValue, $label),
             Constants::DT_OBJECT => (!is_array($checkValue) && !is_object($checkValue)) ? "{$label} must be an object" : null,
             Constants::DT_RELATION => $this->validateRelation($checkValue, $prop, $label),
+            Constants::DT_STRING => $this->validateStringOptions($checkValue, $prop, $label),
             default => null,
         };
     }
 
-    private function validateEnum(mixed $value, Prop $prop, string $label): ?string
+    /**
+     * Validate string with options.values constraint
+     */
+    private function validateStringOptions(mixed $value, Prop $prop, string $label): ?string
     {
-        // Check options array
-        $options = array_column($prop->options ?? [], 'value');
-        if (!empty($options) && !in_array($value, $options)) {
-            return "{$label} must be one of: " . implode(', ', $options);
+        $options = $prop->options ?? [];
+        $values = $options['values'] ?? [];
+
+        if (!empty($values) && !in_array($value, $values)) {
+            $allowCustom = $options['allow_custom'] ?? false;
+            if (!$allowCustom) {
+                return "{$label} must be one of: " . implode(', ', $values);
+            }
         }
 
-        // Check enum_values array
-        if (!empty($prop->enum_values) && !in_array($value, $prop->enum_values)) {
-            return "{$label} must be one of: " . implode(', ', $prop->enum_values);
+        // Check min_length / max_length
+        if (is_string($value)) {
+            $minLen = $options['min_length'] ?? null;
+            $maxLen = $options['max_length'] ?? null;
+            if ($minLen !== null && strlen($value) < $minLen) {
+                return "{$label} minimum length is {$minLen}";
+            }
+            if ($maxLen !== null && strlen($value) > $maxLen) {
+                return "{$label} maximum length is {$maxLen}";
+            }
+
+            // Check pattern
+            $pattern = $options['pattern'] ?? null;
+            if ($pattern !== null && !preg_match('/' . $pattern . '/', $value)) {
+                return "{$label} does not match required pattern";
+            }
         }
 
+        return null;
+    }
+
+    /**
+     * Validate datetime value
+     */
+    private function validateDatetime(mixed $value, string $label): ?string
+    {
+        if (!is_string($value)) {
+            return "{$label} must be a datetime string";
+        }
+        // Accept ISO datetime formats
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?)?$/', $value)) {
+            return "{$label} must be a valid datetime (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)";
+        }
         return null;
     }
 
@@ -1221,9 +1258,10 @@ class ClassModel
         }
 
         return match ($dataType) {
-            Constants::DT_NUMBER, Constants::DT_FLOAT => $this->castToNumber($value),
+            Constants::DT_INTEGER => is_numeric($value) ? (int)$value : $value,
+            Constants::DT_FLOAT => is_numeric($value) ? (float)$value : $value,
             Constants::DT_BOOLEAN => $this->castToBoolean($value),
-            Constants::DT_STRING => is_scalar($value) ? (string)$value : $value,
+            Constants::DT_STRING, Constants::DT_DATETIME => is_scalar($value) ? (string)$value : $value,
             default => $value,
         };
     }
@@ -1461,7 +1499,7 @@ class ClassModel
     private function guessDataType(mixed $value): string
     {
         if (is_bool($value)) return Constants::DT_BOOLEAN;
-        if (is_int($value)) return Constants::DT_NUMBER;
+        if (is_int($value)) return Constants::DT_INTEGER;
         if (is_float($value)) return Constants::DT_FLOAT;
         if (is_array($value)) return Constants::DT_OBJECT;
         return Constants::DT_STRING;

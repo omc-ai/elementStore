@@ -34,8 +34,25 @@ async function api(method, endpoint, data = null) {
     return json;
 }
 
+/**
+ * Get class metadata (props included). Seeds the store as a side effect.
+ * Returns { id, name, ..., props: [...] } or null.
+ */
 async function getClassMeta(classId) {
     if (classesCache[classId]) return classesCache[classId];
+
+    // Check if store already has the class with props loaded
+    if (typeof store !== 'undefined' && store.objects[classId]) {
+        const storeProps = store.collectClassProps(classId);
+        if (storeProps.length > 0) {
+            const classData = store.objects[classId].data || store.objects[classId];
+            const meta = Object.assign({}, classData);
+            meta.props = storeProps.map(function(p) { return p.data || p; });
+            classesCache[classId] = meta;
+            return meta;
+        }
+    }
+
     try {
         const [meta, inheritedProps] = await Promise.all([
             api('GET', `/class/${classId}`),
@@ -43,9 +60,63 @@ async function getClassMeta(classId) {
         ]);
         meta.props = inheritedProps;
         classesCache[classId] = meta;
+
+        // Seed into element-store for unified access
+        if (typeof store !== 'undefined') {
+            _seedClassIntoStore(classId, meta, inheritedProps);
+        }
+
         return meta;
     } catch (e) {
         return null;
+    }
+}
+
+/**
+ * Seed a class and its props into the element store.
+ * Called by getClassMeta after fetching from API.
+ */
+function _seedClassIntoStore(classId, meta, props) {
+    try {
+        // Seed the class definition
+        if (!store.objects[classId]) {
+            const classData = Object.assign({}, meta);
+            delete classData.props; // props are stored separately
+            classData.class_id = '@class';
+            store.setObject(classData);
+        }
+
+        // Seed each prop
+        if (Array.isArray(props)) {
+            for (const prop of props) {
+                const propId = classId + '.' + prop.key;
+                if (!store.objects[propId]) {
+                    store.setObject(Object.assign({}, prop, {
+                        id: propId,
+                        class_id: '@prop'
+                    }));
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('_seedClassIntoStore failed for', classId, e.message);
+    }
+}
+
+/**
+ * Invalidate class cache (both classesCache and store props).
+ * Call after saving a class definition.
+ */
+function invalidateClassCache(classId) {
+    delete classesCache[classId];
+    // Remove store props for this class so they'll be re-fetched
+    if (typeof store !== 'undefined') {
+        const prefix = classId + '.';
+        Object.keys(store.objects).forEach(function(k) {
+            if (k.indexOf(prefix) === 0) {
+                delete store.objects[k];
+            }
+        });
     }
 }
 

@@ -36,10 +36,7 @@ class Prop extends EntityObj
     const PF_OBJECT_CLASS_STRICT = 'object_class_strict';
     const PF_ON_ORPHAN = 'on_orphan';
     const PF_OPTIONS = 'options';
-    const PF_EDITOR = 'editor';
-    const PF_VALIDATORS = 'validators';
-    const PF_ENUM_VALUES = 'enum_values';
-    const PF_ENUM_ALLOW_CUSTOM = 'enum_allow_custom';
+    const PF_FIELD_TYPE = 'field_type';
     const PF_REQUIRED = 'required';
     const PF_READONLY = 'readonly';
     const PF_DEFAULT_VALUE = 'default_value';
@@ -48,40 +45,13 @@ class Prop extends EntityObj
     const PF_HIDDEN = 'hidden';
     const PF_SERVER_ONLY = 'server_only';
     const PF_CREATE_ONLY = 'create_only';
+    const PF_MASTER_ONLY = 'master_only';
 
     // =========================================================================
     // ORPHAN ACTION CONSTANTS
     // =========================================================================
     const ORPHAN_KEEP = 'keep';      // Keep orphaned objects (default)
     const ORPHAN_DELETE = 'delete';  // Delete when no references remain
-
-    // =========================================================================
-    // AVAILABLE EDITOR TYPES
-    // =========================================================================
-
-    /**
-     * Available editor types with descriptions
-     */
-    const EDITORS = [
-        'text' => 'Single line text input',
-        'textarea' => 'Multi-line text input',
-        'number' => 'Numeric input with step',
-        'slider' => 'Slider for numeric ranges',
-        'toggle' => 'Boolean on/off toggle',
-        'checkbox' => 'Boolean checkbox',
-        'select' => 'Dropdown select from options',
-        'multi-select' => 'Multiple selection from options',
-        'date' => 'Date picker',
-        'datetime' => 'Date and time picker',
-        'color' => 'Color picker',
-        'icon' => 'Icon selector',
-        'code' => 'Code editor with syntax',
-        'json' => 'JSON editor',
-        'reference' => 'Reference to single object',
-        'references' => 'Reference to multiple objects',
-        'file' => 'File upload',
-        'image' => 'Image upload with preview',
-    ];
 
     // =========================================================================
     // PROPERTY FIELDS
@@ -113,28 +83,18 @@ class Prop extends EntityObj
 
     /**
      * @var array|null Type-specific options (varies by data_type)
-     * Always has a 'type' field to identify the format:
-     * - string_options: values[], allow_custom, min_length, max_length, pattern
-     * - relation_options: filter{}, sort_by, display_field, on_orphan, strict_class
-     * - object_options: embedded, strict_class
-     * - number_options: min, max, step, values[]
-     * - boolean_options: true_label, false_label
-     * - function_options: function_type, function_name, parameters{}, bindings{}, code
-     * - unique_options: generator (uuid|auto_increment|custom), prefix, custom_function
+     * - string: values[], allow_custom, min_length, max_length, pattern
+     * - integer/float: min, max, step, values[]
+     * - boolean: true_label, false_label
+     * - datetime: min_date, max_date, min_time, max_time
+     * - object: (none — behavior driven by object_class_id)
+     * - relation: filter{}, sort_by, display_field
+     * - function: function_type, function_name, parameters{}, bindings{}, code
      */
     public ?array $options = null;
 
-    /** @var array|string|null Editor configuration {type, ...options} or @editor reference ID */
-    public array|string|null $editor = ['type' => 'text'];
-
-    /** @var array Validation rules - array of @function references or inline validators */
-    public array $validators = [];
-
-    /** @var array|null Enum values for enum type (simple string array) @deprecated Use options.values instead */
-    public ?array $enum_values = null;
-
-    /** @var bool Allow custom values in addition to enum values @deprecated Use options.allow_custom instead */
-    public bool $enum_allow_custom = false;
+    /** @var string|null Relation to field type instance (e.g. 'text', 'email', 'select'). Determines editor and validator. */
+    public ?string $field_type = null;
 
     /** @var bool Is this field required */
     public bool $required = false;
@@ -160,6 +120,9 @@ class Prop extends EntityObj
     /** @var bool Only writable when creating (readonly after first save) */
     public bool $create_only = false;
 
+    /** @var bool Property only visible on master/admin interface */
+    public bool $master_only = false;
+
     /**
      * Constructor with data normalization
      *
@@ -176,9 +139,17 @@ class Prop extends EntityObj
             $data['object_class_id'] = self::normalizeClassIds($data['object_class_id']);
         }
 
-        // Normalize editor: if it's an object with 'type', convert to just the type string for @editor relation
-        // Keep as object for now - the UI will handle both formats
-        // Future: editor should be a reference ID to @editor object
+        // Backward compat: editor → field_type
+        // If legacy 'editor' field is set but 'field_type' is not, migrate
+        if (isset($data['editor']) && !isset($data['field_type'])) {
+            if (is_array($data['editor']) && isset($data['editor']['type'])) {
+                // Legacy format: {type: 'textarea'} → 'textarea'
+                $data['field_type'] = $data['editor']['type'];
+            } elseif (is_string($data['editor'])) {
+                // Already a string reference
+                $data['field_type'] = $data['editor'];
+            }
+        }
 
         parent::__construct($class_id ?? Constants::K_PROP, $data, $di);
     }

@@ -32,7 +32,32 @@ async function viewObject(classId, objectId) {
     }
 }
 
+/**
+ * Connect the element store to the API.
+ * Sets the storage URL (API_BASE is defined in api.js, loaded after element-store.js).
+ */
+function initStore() {
+    if (typeof store === 'undefined' || typeof API_BASE === 'undefined') return;
+
+    // Update storage URL — element-store.js creates storage with empty URL
+    // because API_BASE isn't defined when it loads
+    if (store.storage) {
+        store.storage.data.url = API_BASE;
+    } else {
+        const storage = new AtomStorage({
+            id: 'root.storage',
+            class_id: '@storage',
+            url: API_BASE
+        }, store);
+        store.storage = storage;
+    }
+    console.log('Store connected to API:', API_BASE);
+}
+
 async function init() {
+    // Connect store to API first
+    initStore();
+
     await loadFunctions();
 
     tabManager = new TabManager(

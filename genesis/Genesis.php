@@ -25,12 +25,11 @@
  *   group_name: string,    // Form section grouping
  *
  *   // Type-specific options:
- *   options: object,       // Type-specific options (replaces enum_values for flexibility)
+ *   options: object,       // Type-specific options (values, min, max, pattern, etc.)
  *   object_class_id: string[], // For object/relation types (array of class IDs)
  *   object_class_strict: boolean,
- *   on_orphan: 'keep'|'delete'|'nullify',
- *   editor: {type, ...options},
- *   validators: [{type, ...params}],
+ *   on_orphan: 'keep'|'delete',
+ *   field_type: string,   // Relation to @editor instance (e.g. 'text', 'email', 'select')
  * }
  *
  * @package ElementStore
@@ -273,7 +272,7 @@ class Genesis
      * PROPERTY FORMAT:
      * All props use consistent format with only relevant fields:
      * - key (required), label, description, data_type
-     * - Type-specific: enum_values, object_class_id, is_array, editor
+     * - Type-specific: options, object_class_id, is_array, field_type
      * - Behavior: required, readonly, hidden, default_value, display_order, group_name
      * - Functions: computed, visible_if, enabled_if, options_fn, validate_fn, transform, on_change
      */

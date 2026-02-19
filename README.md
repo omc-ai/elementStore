@@ -48,7 +48,7 @@ This means you can:
 
 | Class | Purpose |
 |-------|---------|
-| `@class` | Class definitions — has `name`, `extends_id`, `props` |
+| `@class` | Class definitions — has `name`, `extends_id`, `storage_id`, `props` |
 | `@prop` | Property definitions — has `key`, `data_type`, `required`, `validators`, etc. |
 | `@storage` | Storage configuration — has `type`, `url` |
 
@@ -154,9 +154,9 @@ Include the scripts and you get a live store connected to the API:
 var user = store.getClass('user');
 console.log(user.getProps());  // all prop definitions (including inherited)
 
-// Create and save an object
-var obj = new AtomObj({class_id: 'user', name: 'Alice'}, store);
-obj.save();
+// Create an object (local only — not saved remotely yet)
+var obj = store.setObject({class_id: 'user', name: 'Alice'});
+obj.save();  // persists to the class's resolved storage
 
 // Objects are proxied — property access goes through type coercion
 obj.name;    // → String (via AtomProp.getPropValue)
@@ -169,6 +169,12 @@ obj.name = 'Carol';
 obj.hasChanges();   // true
 obj.getChanges();   // {name: 'Carol'}
 
+// Relations — parent/child with cascade save
+var design = store.setObject({id: 'design-1', class_id: 'ui-design'});
+var button = store.setObject({class_id: 'ui-button', text: 'OK'});
+design.addChild('children', button);
+design.save();  // cascades: saves button first, then design
+
 // Relations resolve to actual objects
 var order = store.getObject('order-1');
 order.customer;     // → AtomObj (fetched via relation)
@@ -179,7 +185,7 @@ cls.props;          // → AtomCollection (iterable, filterable)
 cls.props.get('email');  // → AtomProp by key
 
 // DOM-bound elements (ui-element.js)
-var el = new AtomObj({class_id: 'ui-element', x: 100, y: 50, width: 200, height: 100}, store);
+var el = store.setObject({class_id: 'ui-element', x: 100, y: 50, width: 200, height: 100});
 el.bind(document.getElementById('my-div'));
 el.syncToDom();     // pushes x/y/width/height to CSS
 ```
@@ -302,7 +308,7 @@ Query parameters: `_sort`, `_order` (asc/desc), `_limit`, `_offset`
 
 ## Storage Providers
 
-ElementStore ships with three storage backends:
+ElementStore ships with three server-side storage backends:
 
 | Provider | Best For | Config |
 |----------|----------|--------|
@@ -322,10 +328,26 @@ Configure via `@init.json`:
 }
 ```
 
+### Class-Level Storage Routing (JS Client)
+
+On the JavaScript client side, each `@class` can set a `storage_id` pointing to an `@storage` object. When `save()` is called, it resolves the storage by walking the class's `extends_id` chain. If no class in the chain has a `storage_id`, the store's default storage is used.
+
+```javascript
+// Route billing classes to a separate API
+store.setObject({ id: 'billing-api', class_id: '@storage', url: 'https://billing.example.com/api' });
+store.setObject({ id: 'bl_invoice', class_id: '@class', storage_id: 'billing-api' });
+
+// Use built-in 'local' storage for memory-only objects
+store.setObject({ id: 'ui-element', class_id: '@class', storage_id: 'local' });
+```
+
+See [Architecture](docs/ARCHITECTURE.md) for the full storage resolution mechanism.
+
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
+| [Architecture](docs/ARCHITECTURE.md) | Storage resolution, object lifecycle, relation system, cascade save, multi-app design |
 | [Migration Procedure](docs/MIGRATION_PROCEDURE.md) | How to migrate any project to ElementStore (`.es/` genesis files) |
 | [Docker Setup](docker/README.md) | Docker service configuration and troubleshooting |
 

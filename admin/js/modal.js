@@ -4,6 +4,8 @@
 
 let editingClassId = null;
 let editingObject = null;
+/** @type {AtomObj|null} The wrapped AtomObj for the object being edited */
+let editingAtomObj = null;
 
 // =====================
 // Drag functionality
@@ -44,6 +46,54 @@ function stopDrag() {
 }
 
 // =====================
+// Resize functionality
+// =====================
+let resizeState = { active: false, modal: null, startX: 0, startY: 0, startW: 0, startH: 0 };
+
+function startModalResize(e, modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    e.preventDefault();
+    e.stopPropagation();
+    resizeState.active = true;
+    resizeState.modal = modal;
+    resizeState.startX = e.clientX;
+    resizeState.startY = e.clientY;
+    resizeState.startW = modal.offsetWidth;
+    resizeState.startH = modal.offsetHeight;
+    // Ensure modal is positioned for resize
+    if (!modal.style.position || modal.style.position !== 'fixed') {
+        const rect = modal.getBoundingClientRect();
+        modal.style.position = 'fixed';
+        modal.style.left = rect.left + 'px';
+        modal.style.top = rect.top + 'px';
+        modal.style.margin = '0';
+    }
+    modal.style.maxWidth = 'none';
+    modal.style.maxHeight = 'none';
+    modal.style.width = resizeState.startW + 'px';
+    modal.style.height = resizeState.startH + 'px';
+    document.addEventListener('mousemove', onModalResize);
+    document.addEventListener('mouseup', stopModalResize);
+}
+
+function onModalResize(e) {
+    if (!resizeState.active) return;
+    const dx = e.clientX - resizeState.startX;
+    const dy = e.clientY - resizeState.startY;
+    const newW = Math.max(400, resizeState.startW + dx);
+    const newH = Math.max(300, resizeState.startH + dy);
+    resizeState.modal.style.width = newW + 'px';
+    resizeState.modal.style.height = newH + 'px';
+}
+
+function stopModalResize() {
+    resizeState.active = false;
+    document.removeEventListener('mousemove', onModalResize);
+    document.removeEventListener('mouseup', stopModalResize);
+}
+
+// =====================
 // Modal open/close
 // =====================
 function openModal() {
@@ -55,6 +105,10 @@ function openModal() {
         content.style.left = '';
         content.style.top = '';
         content.style.margin = '';
+        content.style.width = '';
+        content.style.height = '';
+        content.style.maxWidth = '';
+        content.style.maxHeight = '';
     }
 }
 
@@ -62,6 +116,7 @@ function closeModal() {
     document.getElementById('editModal').classList.remove('active');
     editingObject = null;
     editingClassId = null;
+    editingAtomObj = null;
 }
 
 // =====================
@@ -70,6 +125,18 @@ function closeModal() {
 async function renderModalForClass(classId, data) {
     editingClassId = classId;
     editingObject = data || { id: '' };
+
+    // Wrap in AtomObj through the store for proxy access and validation
+    if (typeof store !== 'undefined') {
+        try {
+            const raw = Object.assign({}, editingObject);
+            if (!raw.class_id) raw.class_id = classId;
+            editingAtomObj = store.setObject(raw);
+        } catch (e) {
+            console.warn('Failed to wrap editingObject in store:', e.message);
+            editingAtomObj = null;
+        }
+    }
 
     const meta = await getClassMeta(classId);
     const displayName = meta?.name || classId;
@@ -97,6 +164,7 @@ async function renderModalForClass(classId, data) {
         <div id="metaViewerContent" style="display:none;margin-bottom:12px;padding:12px;background:#1e1e1e;border-radius:6px;max-height:200px;overflow:auto">
             <pre style="margin:0;font-size:11px;color:#9cdcfe;white-space:pre-wrap">${esc(JSON.stringify(meta, null, 2))}</pre>
         </div>
+        <div id="validationSummary" class="ge-validation-summary" style="display:none"></div>
         <div id="geContainer">${editorHtml}</div>
     `;
 
@@ -149,6 +217,71 @@ function toggleAllPropJson(show) {
 }
 
 // =====================
+// Client-side validation (advisory — shows inline errors)
+// =====================
+
+/**
+ * Validate collected data against class props.
+ * Shows inline errors on fields and a summary banner.
+ * @returns {boolean} true if valid (or no validation available)
+ */
+function validateBeforeSave(data, classId) {
+    // Clear previous validation
+    document.querySelectorAll('.ge-field-error').forEach(el => el.remove());
+    document.querySelectorAll('.ge-invalid').forEach(el => el.classList.remove('ge-invalid'));
+    const summary = document.getElementById('validationSummary');
+    if (summary) { summary.style.display = 'none'; summary.innerHTML = ''; }
+
+    // Use AtomObj.validate() if available
+    if (typeof store !== 'undefined' && classId) {
+        try {
+            const tempRaw = Object.assign({ class_id: classId }, data);
+            const tempObj = new AtomObj(tempRaw, store);
+            const errors = tempObj.validate();
+            if (errors) {
+                _showValidationErrors(errors);
+                return false;
+            }
+        } catch (e) {
+            console.warn('Validation failed:', e.message);
+        }
+    }
+    return true;
+}
+
+/**
+ * Show validation errors inline on fields and in summary banner.
+ */
+function _showValidationErrors(errors) {
+    const keys = Object.keys(errors);
+    let summaryHtml = '<strong>Validation issues:</strong><ul>';
+
+    keys.forEach(function(key) {
+        const msgs = errors[key];
+        msgs.forEach(function(msg) {
+            summaryHtml += '<li>' + esc(msg) + '</li>';
+        });
+
+        // Find the field input by data-path
+        const input = document.querySelector(`[data-path="${key}"]`);
+        if (input) {
+            input.classList.add('ge-invalid');
+            const errorEl = document.createElement('div');
+            errorEl.className = 'ge-field-error';
+            errorEl.textContent = msgs[0];
+            input.parentElement.appendChild(errorEl);
+        }
+    });
+
+    summaryHtml += '</ul>';
+    const summary = document.getElementById('validationSummary');
+    if (summary) {
+        summary.innerHTML = summaryHtml;
+        summary.style.display = 'block';
+    }
+}
+
+// =====================
 // Save Object (from modal)
 // =====================
 async function saveCurrentObject() {
@@ -164,6 +297,16 @@ async function saveCurrentObject() {
             data.unique = uniqueConstraints;
         }
 
+        // Client-side validation (advisory — continues on failure with warning)
+        if (!isClassEdit) {
+            const isValid = validateBeforeSave(data, editingClassId);
+            if (!isValid) {
+                // Show toast but don't block — validation is advisory
+                showToast('Some fields have validation issues — check before saving', 'error');
+                return;
+            }
+        }
+
         if (isClassEdit) {
             if (!data.id) {
                 showToast('Class ID is required', 'error');
@@ -171,7 +314,7 @@ async function saveCurrentObject() {
             }
             await api('POST', '/class', data);
             showToast(`Class "${data.id}" saved successfully`);
-            classesCache[data.id] = data;
+            invalidateClassCache(data.id);
         } else {
             if (!isUpdate) {
                 data.class_id = editingClassId;

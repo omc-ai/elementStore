@@ -47,11 +47,26 @@ function formatBytes(bytes) {
 }
 
 // =====================
-// Data Type Constants
+// Data Type Constants (closed set — 8 types)
 // =====================
-const DATA_TYPES = ['string', 'boolean', 'float', 'integer', 'datetime', 'object', 'relation', 'function'];
-const LEGACY_DATA_TYPES = ['number', 'date', 'enum'];
+const DATA_TYPES = ['string', 'boolean', 'integer', 'float', 'datetime', 'object', 'relation', 'function'];
+
+// Legacy types — mapped to canonical types for backward compatibility
+const LEGACY_TYPE_MAP = {
+    'number': 'float',
+    'date': 'datetime',
+    'enum': 'string'
+};
+const LEGACY_DATA_TYPES = Object.keys(LEGACY_TYPE_MAP);
 const RELATION_TYPES = ['object', 'relation'];
+
+/**
+ * Resolve a data_type to its canonical form.
+ * Handles legacy types: number→float, date→datetime, enum→string
+ */
+function resolveDataType(dt) {
+    return LEGACY_TYPE_MAP[dt] || dt || 'string';
+}
 
 const OPTIONS_TYPES = {
     'string': 'string_options',
@@ -64,47 +79,93 @@ const OPTIONS_TYPES = {
     'function': 'function_options'
 };
 
+/**
+ * Default field type resolution (per plan §2.7).
+ * Returns field type instance ID string.
+ */
+function resolveFieldType(prop) {
+    // 1. Explicit field_type set
+    if (prop.field_type) return prop.field_type;
+
+    const dt = resolveDataType(prop.data_type);
+    const opts = prop.options || {};
+    const cls = Array.isArray(prop.object_class_id) ? prop.object_class_id[0] : prop.object_class_id;
+
+    // 2. Options.values → select
+    if (opts.values && Array.isArray(opts.values) && opts.values.length > 0) return 'select';
+
+    // 3. Object class references
+    if (cls) {
+        if (dt === 'relation') return prop.is_array ? 'references' : 'reference';
+        if (dt === 'object') return 'nested';
+        if (dt === 'string') return 'select'; // string + class = load instances
+    }
+
+    // 4. Data type defaults
+    switch (dt) {
+        case 'string':   return 'text';
+        case 'boolean':  return 'toggle';
+        case 'integer':  return 'number';
+        case 'float':    return 'number';
+        case 'datetime': return 'datetime';
+        case 'object':   return 'keyvalue';
+        case 'relation': return 'reference';
+        case 'function': return 'code';
+        default:         return 'text';
+    }
+}
+
 const EDITOR_CONFIG = {
     data_types: {
-        string: { default: 'text', editors: ['text', 'textarea', 'code', 'json'] },
-        number: { default: 'number', editors: ['number', 'slider'] },
-        float: { default: 'number', editors: ['number', 'slider'] },
-        boolean: { default: 'toggle', editors: ['toggle', 'checkbox'] },
-        date: { default: 'date', editors: ['date'] },
-        datetime: { default: 'datetime', editors: ['datetime'] },
-        enum: { default: 'select', editors: ['select'] },
-        object: { default: 'json', editors: ['json', 'keyvalue'] },
-        relation: { default: 'reference', editors: ['reference'] }
+        string:   { default: 'text',      editors: ['text', 'email', 'url', 'phone', 'password', 'color', 'textarea', 'code', 'richtext', 'select', 'radio', 'autocomplete'] },
+        integer:  { default: 'number',    editors: ['number', 'slider'] },
+        float:    { default: 'number',    editors: ['number', 'slider', 'currency'] },
+        boolean:  { default: 'toggle',    editors: ['toggle', 'checkbox'] },
+        datetime: { default: 'datetime',  editors: ['date', 'datetime', 'time'] },
+        object:   { default: 'nested',    editors: ['nested', 'keyvalue', 'json'] },
+        relation: { default: 'reference', editors: ['reference', 'references', 'select', 'multiselect', 'autocomplete'] },
+        function: { default: 'code',      editors: ['code', 'textarea'] }
     },
     editors: {
-        text: { label: 'Text Input' },
-        textarea: { label: 'Text Area' },
-        number: { label: 'Number' },
-        slider: { label: 'Slider' },
-        toggle: { label: 'Toggle' },
-        checkbox: { label: 'Checkbox' },
-        select: { label: 'Select' },
-        date: { label: 'Date' },
-        datetime: { label: 'DateTime' },
-        code: { label: 'Code' },
-        json: { label: 'JSON' },
-        keyvalue: { label: 'Key-Value' },
-        reference: { label: 'Reference' }
+        text:         { label: 'Text Input',       category: '@editor-input' },
+        email:        { label: 'Email',             category: '@editor-input' },
+        url:          { label: 'URL',               category: '@editor-input' },
+        phone:        { label: 'Phone',             category: '@editor-input' },
+        password:     { label: 'Password',          category: '@editor-input' },
+        number:       { label: 'Number',            category: '@editor-input' },
+        slider:       { label: 'Slider',            category: '@editor-input' },
+        currency:     { label: 'Currency',          category: '@editor-input' },
+        color:        { label: 'Color',             category: '@editor-input' },
+        textarea:     { label: 'Text Area',         category: '@editor-multiline' },
+        code:         { label: 'Code',              category: '@editor-multiline' },
+        richtext:     { label: 'Rich Text',         category: '@editor-multiline' },
+        json:         { label: 'JSON',              category: '@editor-multiline' },
+        select:       { label: 'Select',            category: '@editor-selector' },
+        multiselect:  { label: 'Multi-Select',      category: '@editor-selector' },
+        radio:        { label: 'Radio',             category: '@editor-selector' },
+        autocomplete: { label: 'Autocomplete',      category: '@editor-selector' },
+        reference:    { label: 'Reference',         category: '@editor-selector' },
+        references:   { label: 'References (multi)', category: '@editor-selector' },
+        toggle:       { label: 'Toggle',            category: '@editor-toggle' },
+        checkbox:     { label: 'Checkbox',          category: '@editor-toggle' },
+        date:         { label: 'Date',              category: '@editor-picker' },
+        datetime:     { label: 'DateTime',          category: '@editor-picker' },
+        time:         { label: 'Time',              category: '@editor-picker' },
+        nested:       { label: 'Nested Editor',     category: '@editor-composite' },
+        keyvalue:     { label: 'Key-Value',         category: '@editor-composite' }
     }
 };
 
 function getEditorsForDataType(dataType) {
-    const config = EDITOR_CONFIG.data_types[dataType];
+    const resolved = resolveDataType(dataType);
+    const config = EDITOR_CONFIG.data_types[resolved];
     return config ? config.editors : ['text'];
 }
 
 function getDefaultEditor(dataType) {
-    const map = {
-        'string': 'text', 'number': 'number', 'float': 'number',
-        'boolean': 'toggle', 'date': 'date', 'datetime': 'datetime',
-        'enum': 'select', 'object': 'json', 'relation': 'reference'
-    };
-    return map[dataType] || 'text';
+    const resolved = resolveDataType(dataType);
+    const config = EDITOR_CONFIG.data_types[resolved];
+    return config ? config.default : 'text';
 }
 
 // =====================
@@ -131,52 +192,61 @@ function validateField(input) {
         return true;
     }
 
-    const validators = prop.validators || [];
-    if (validators.some(v => v.type === 'email') || propKey === 'email') {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(value)) {
+    const dt = resolveDataType(prop.data_type);
+    const opts = prop.options || {};
+
+    // Field type-driven validation (validator lives in the field type instance)
+    const ft = prop.field_type;
+    if (ft === 'email' || propKey === 'email') {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
             errors.push('Invalid email address');
         }
     }
-
-    if (validators.some(v => v.type === 'url')) {
+    if (ft === 'url') {
         try { new URL(value); } catch { errors.push('Invalid URL'); }
     }
-
-    if (prop.data_type === 'enum' && prop.enum_values?.length > 0) {
-        if (!prop.enum_values.includes(value)) {
-            errors.push(`Must be one of: ${prop.enum_values.join(', ')}`);
-        }
-    }
-    const enumValidator = validators.find(v => v.type === 'enum');
-    if (enumValidator?.values?.length > 0) {
-        if (!enumValidator.values.includes(value)) {
-            errors.push(`Must be one of: ${enumValidator.values.join(', ')}`);
+    if (ft === 'phone') {
+        if (!/^[+]?[\d\s\-().]{7,20}$/.test(value)) {
+            errors.push('Invalid phone number');
         }
     }
 
-    if ((prop.data_type === 'number' || prop.data_type === 'float') && value !== '') {
+    // Options.values constraint (string + options.values = select)
+    if (opts.values && Array.isArray(opts.values) && opts.values.length > 0) {
+        if (!opts.values.includes(value) && !opts.allow_custom) {
+            errors.push(`Must be one of: ${opts.values.join(', ')}`);
+        }
+    }
+
+    // Number type checks
+    if ((dt === 'integer' || dt === 'float') && value !== '') {
         if (isNaN(parseFloat(value))) {
             errors.push('Must be a number');
+        } else {
+            const num = parseFloat(value);
+            if (opts.min !== undefined && num < opts.min) {
+                errors.push(`Minimum value is ${opts.min}`);
+            }
+            if (opts.max !== undefined && num > opts.max) {
+                errors.push(`Maximum value is ${opts.max}`);
+            }
         }
     }
 
-    const minValidator = validators.find(v => v.type === 'min' || v.type === 'range');
-    const maxValidator = validators.find(v => v.type === 'max' || v.type === 'range');
-    if (minValidator?.min !== undefined && parseFloat(value) < minValidator.min) {
-        errors.push(`Minimum value is ${minValidator.min}`);
-    }
-    if (maxValidator?.max !== undefined && parseFloat(value) > maxValidator.max) {
-        errors.push(`Maximum value is ${maxValidator.max}`);
-    }
-
-    const lengthValidator = validators.find(v => v.type === 'length');
-    if (lengthValidator) {
-        if (lengthValidator.min && value.length < lengthValidator.min) {
-            errors.push(`Minimum length is ${lengthValidator.min}`);
+    // String length checks
+    if (dt === 'string' && typeof value === 'string') {
+        if (opts.min_length !== undefined && value.length < opts.min_length) {
+            errors.push(`Minimum length is ${opts.min_length}`);
         }
-        if (lengthValidator.max && value.length > lengthValidator.max) {
-            errors.push(`Maximum length is ${lengthValidator.max}`);
+        if (opts.max_length !== undefined && value.length > opts.max_length) {
+            errors.push(`Maximum length is ${opts.max_length}`);
+        }
+        if (opts.pattern) {
+            try {
+                if (!new RegExp(opts.pattern).test(value)) {
+                    errors.push('Does not match required pattern');
+                }
+            } catch (e) { /* ignore invalid regex */ }
         }
     }
 

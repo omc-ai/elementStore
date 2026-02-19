@@ -151,12 +151,25 @@
             width: 90%;
             max-width: 900px;
             max-height: calc(100vh - 100px);
+            min-width: 400px;
+            min-height: 300px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             position: relative;
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
         }
+        .modal-resize-handle {
+            position: absolute;
+            right: 0; bottom: 0;
+            width: 18px; height: 18px;
+            cursor: nwse-resize;
+            z-index: 20;
+            background: linear-gradient(135deg, transparent 50%, #9ca3af 50%, transparent 55%, #9ca3af 65%, transparent 65%);
+            border-radius: 0 0 12px 0;
+            opacity: 0.5;
+        }
+        .modal-resize-handle:hover { opacity: 1; }
         .modal-header {
             padding: 16px 20px;
             border-bottom: 1px solid #e5e7eb;
@@ -716,15 +729,30 @@
         }
 
         /* =====================================================
-           GENERIC EDITOR (GE) - Minimal table-based layout
+           GENERIC EDITOR (GE) - 4-column table layout
+           All tables: ge-indent | ge-key/ge-idx | ge-val | ge-act
+           Column widths controlled via <colgroup>/<col> elements
            ===================================================== */
         .ge { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .ge td { padding: 4px 8px; vertical-align: top; border-bottom: 1px solid #eee; }
+        .ge td { padding: 1px 4px; vertical-align: top; border-bottom: 1px solid #eee; }
+        /* Colgroup column widths */
+        .ge-col-indent { width: 48px; }
+        .ge-col-key { width: 180px; }
+        /* .ge-col-val — auto (remaining space) */
+        .ge-col-act { width: 60px; }
+        /* Level-based indent widths on col elements */
+        .ge[data-level="0"] > colgroup > .ge-col-indent { width: 0; }
+        .ge[data-level="1"] > colgroup > .ge-col-indent { width: 16px; }
+        .ge[data-level="2"] > colgroup > .ge-col-indent { width: 32px; }
+        .ge[data-level="3"] > colgroup > .ge-col-indent { width: 48px; }
+        /* Indent cell styling (borders, not width) */
+        .ge-indent { padding: 0 !important; border-bottom: 1px solid #eee; border-left: 3px solid #f59e0b; position: relative; }
+        .ge[data-level="0"] > tbody > tr > .ge-indent { border-left: none; border-bottom: none; }
+        .ge[data-level="1"] > tbody > tr > .ge-indent { border-left: 3px solid #667eea; }
+        .ge[data-level="2"] > tbody > tr > .ge-indent { border-left: 3px solid #10b981; }
+        .ge[data-level="3"] > tbody > tr > .ge-indent { border-left: 3px solid #f59e0b; }
         .ge-key {
-            padding-top: 8px;
-            width: 180px;
-            min-width: 100px;
-            background: #fafafa;
+            background: #dbeafe; /* DEBUG: light blue */
             font-size: 12px;
             font-weight: 500;
             color: #374151;
@@ -736,7 +764,14 @@
         }
         .ge-key .t { color: #9ca3af; font-weight: 400; font-size: 10px; margin-left: 4px; }
         .ge-key .req { color: #ef4444; }
-        .ge-val { font-size: 13px; }
+        .ge-val { font-size: 13px; background: #dcfce7; /* DEBUG: light green */ }
+        .ge-act { text-align: left; position: relative; background: #fce7f3; /* DEBUG: light pink */ }
+        .ge-act .ge-resizer { right: auto; left: 0; }
+        /* Column highlighting during resize */
+        .ge.ge-resizing[data-resize-col="0"] > tbody > tr > .ge-indent,
+        .ge.ge-resizing[data-resize-col="1"] > tbody > tr > .ge-key,
+        .ge.ge-resizing[data-resize-col="1"] > tbody > tr > .ge-idx,
+        .ge.ge-resizing[data-resize-col="3"] > tbody > tr > .ge-act { background: rgba(102,126,234,0.15) !important; }
         .ge-resizer {
             position: absolute;
             right: 0;
@@ -750,7 +785,7 @@
         .ge-resizer:hover, .ge-resizer.active { background: #667eea; }
         .ge-val input, .ge-val select, .ge-val textarea {
             width: 100%;
-            padding: 6px 8px;
+            padding: 2px 4px;
             border: none;
             background: transparent;
             font-size: 13px;
@@ -781,20 +816,46 @@
             color: #d4d4d4;
             min-height: 100px;
         }
-        .ge-nest-row td { padding: 0 !important; border-bottom: none; }
-        .ge-nest-indent {
-            width: 28px;
-            min-width: 28px;
-            background: #f8fafc;
-            border-right: 3px solid #667eea;
-            text-align: center;
-            padding-top: 6px !important;
-        }
-        .ge-nest-indent.l1 { border-right-color: #667eea; }
-        .ge-nest-indent.l2 { border-right-color: #10b981; }
-        .ge-nest-indent.l3 { border-right-color: #f59e0b; }
-        .ge-nest-content { padding: 0 !important; background: #fafbfc; }
+        .ge-section-body > td { padding: 0 !important; border-bottom: none; }
+        .ge-nest-content { padding: 0 !important; }
         .ge-nest-content.collapsed { display: none; }
+        /* Section layout — full-width nested content */
+        .ge-section-hdr .ge-key { white-space: nowrap; }
+        .ge-section-hdr .ge-key .ge-fold { margin-right: 4px; vertical-align: middle; }
+        .ge-section-body td.ge-nest-content { border-left: none; }
+        /* 4-column layout: indent | key/idx | val | act */
+        .ge-idx {
+            position: relative;
+            white-space: nowrap;
+            font-size: 11px;
+            background: #ffedd5; /* DEBUG: light orange */
+        }
+        .ge-idx .idx {
+            font-weight: 600; color: #6b7280; background: #e5e7eb;
+            padding: 1px 6px; border-radius: 3px; font-size: 11px;
+        }
+        .ge-idx .cls {
+            font-size: 10px; color: #4338ca; background: #e0e7ff;
+            padding: 1px 6px; border-radius: 3px; margin-left: 4px;
+        }
+        .ge-idx .ge-free-item-type {
+            width: 70px; padding: 2px 4px; border: 1px solid #d1d5db; border-radius: 4px;
+            font-size: 10px; color: #6b7280; background: #f3f4f6; cursor: pointer; margin-left: 4px;
+        }
+        .ge-idx .ge-fold { margin-right: 4px; }
+        /* Freeform object editor (table-based, same as .ge) */
+        .ge-free-obj { border-collapse: collapse; }
+        .ge-free-row .ge-key { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; }
+        .ge-free-row .ge-free-key {
+            flex: 1; min-width: 60px;
+            padding: 2px 4px; border: 1px solid #d1d5db; border-radius: 4px;
+            font-size: 12px; font-family: 'Monaco','Menlo',monospace; background: #fff;
+        }
+        .ge-free-row .ge-free-type {
+            width: 70px; padding: 2px 4px; border: 1px solid #d1d5db; border-radius: 4px;
+            font-size: 10px; color: #6b7280; background: #f3f4f6; cursor: pointer;
+        }
+        /* All tables use same 4-column layout: indent | key/idx | val | act */
         .ge-fold {
             display: inline-flex;
             align-items: center;
@@ -811,6 +872,7 @@
             line-height: 1;
         }
         .ge-fold:hover { background: #343a40; }
+        .ge-fold[disabled] { opacity: 0.35; cursor: default; pointer-events: none; }
         .ge-fold.collapsed { background: #667eea; border-color: #5a6fd6; }
         .ge-arr-inline {
             display: inline-flex;
@@ -838,37 +900,7 @@
             border-radius: 10px;
             font-weight: 600;
         }
-        .ge-arr-item {
-            margin: 4px 0;
-            border: 1px solid #e5e7eb;
-            border-radius: 4px;
-            background: #fff;
-        }
-        .ge-arr-item-hdr {
-            padding: 4px 10px;
-            background: #f9fafb;
-            border-bottom: 1px solid #e5e7eb;
-            font-size: 11px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .ge-arr-item-hdr .left {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .ge-arr-item-hdr .idx {
-            font-weight: 600;
-            color: #6b7280;
-            background: #e5e7eb;
-            padding: 1px 6px;
-            border-radius: 3px;
-        }
-        .ge-arr-item-body { padding: 0; }
-        .ge-arr-item-body .ge { margin: 0; }
-        .ge-arr-item.collapsed .ge-arr-item-body { display: none; }
-        .ge-arr-item.collapsed .ge-arr-item-hdr { border-bottom: none; }
+        /* Array items use table rows (ge-arr-row / ge-free-arr-row) with 4-column layout */
         .ge-btn {
             padding: 2px 8px;
             border: none;
@@ -880,6 +912,8 @@
         .ge-btn-add:hover { background: #bbf7d0; }
         .ge-btn-del { background: #fee2e2; color: #dc2626; }
         .ge-btn-del:hover { background: #fecaca; }
+        .ge-null { color: #9ca3af; font-style: italic; font-size: 11px; }
+        .ge-obj-cls-sel { padding: 2px 4px; border: 1px solid #d1d5db; border-radius: 3px; font-size: 10px; margin-right: 4px; }
         .ge-toggle { display: inline-flex; align-items: center; gap: 8px; }
         .ge-toggle input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
         .ge-toggle-label { font-size: 12px; color: #6b7280; }
@@ -912,6 +946,49 @@
         .ge-val .select2-container { width:100% !important; }
         .ge-val .select2-container .select2-selection--single { border:none; background:transparent; height:30px; }
         .ge-val .select2-container .select2-selection--single:focus { background:#f8fafc; }
+
+        /* =====================================================
+           PROPERTY GROUPS
+           ===================================================== */
+        .ge-group-hdr { background: linear-gradient(135deg, #f0f4ff 0%, #f5f3ff 100%); }
+        .ge-group-cell {
+            padding: 6px 10px !important;
+            font-weight: 600;
+            font-size: 12px;
+            color: #4338ca;
+            border-top: 1px solid #e0e7ff;
+            border-bottom: 1px solid #e0e7ff;
+            cursor: pointer;
+            user-select: none;
+        }
+        .ge-group-cell:hover { background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%); }
+        .ge-group-cell .ge-fold { margin-right: 6px; }
+        .ge-group-name { vertical-align: middle; }
+
+        /* =====================================================
+           INLINE VALIDATION
+           ===================================================== */
+        .ge-invalid {
+            border: 1px solid #ef4444 !important;
+            background: #fef2f2 !important;
+        }
+        .ge-field-error {
+            color: #ef4444;
+            font-size: 10px;
+            margin-top: 2px;
+            padding: 1px 4px;
+        }
+        .ge-validation-summary {
+            margin-bottom: 12px;
+            padding: 10px 14px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #991b1b;
+        }
+        .ge-validation-summary ul { margin: 4px 0 0 16px; padding: 0; }
+        .ge-validation-summary li { margin-bottom: 2px; }
     </style>
 </head>
 <body>
@@ -945,6 +1022,7 @@
                 <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
                 <button type="button" class="btn btn-success" id="saveBtn" onclick="saveCurrentObject()">Save</button>
             </div>
+            <div class="modal-resize-handle" onmousedown="startModalResize(event, 'editModalContent')"></div>
         </div>
     </div>
 
@@ -961,6 +1039,7 @@
             <div class="modal-footer">
                 <button class="btn btn-ghost" onclick="closeHistoryModal()">Close</button>
             </div>
+            <div class="modal-resize-handle" onmousedown="startModalResize(event, 'historyModalContent')"></div>
         </div>
     </div>
 
@@ -1007,6 +1086,9 @@
     <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31/dist/ag-grid-community.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <!-- Element Store (object model — loads first, creates window.store) -->
+    <script src="element-store.js"></script>
 
     <!-- Admin UI modules (order matters) -->
     <script src="js/utils.js"></script>

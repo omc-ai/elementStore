@@ -82,9 +82,8 @@ class Constants
     const F_DOMAIN = 'domain';
 
     // =========================================================================
-    // DATA TYPES (DT_*)
-    // Types for property values - used for validation and storage
-    // Core types: string, boolean, float, integer, object, relation, unique, function
+    // DATA TYPES (DT_*) — CLOSED SET: 8 canonical types
+    // Types for property values - used for validation, storage, and editor resolution
     // =========================================================================
 
     /** @var string String/text value */
@@ -93,11 +92,14 @@ class Constants
     /** @var string Boolean true/false */
     const DT_BOOLEAN = 'boolean';
 
+    /** @var string Integer (whole number) */
+    const DT_INTEGER = 'integer';
+
     /** @var string Floating point number */
     const DT_FLOAT = 'float';
 
-    /** @var string Integer number */
-    const DT_INTEGER = 'integer';
+    /** @var string ISO datetime string. Picker widget controls granularity (date/datetime/time). */
+    const DT_DATETIME = 'datetime';
 
     /** @var string Nested object/array */
     const DT_OBJECT = 'object';
@@ -105,27 +107,19 @@ class Constants
     /** @var string Reference to another object (foreign key) */
     const DT_RELATION = 'relation';
 
-    /** @var string Unique/primary key field (auto-generated) */
-    const DT_UNIQUE = 'unique';
-
     /** @var string JavaScript function/code */
     const DT_FUNCTION = 'function';
 
     // =========================================================================
-    // DEPRECATED DATA TYPES (kept for backward compatibility)
+    // LEGACY TYPE ALIASES (for migration/backward compat in existing data)
+    // These map to canonical types. New code should use canonical types directly.
+    // number → float, date → datetime, enum → string + options.values, unique → string
     // =========================================================================
 
-    /** @var string Integer number @deprecated Use DT_INTEGER instead */
-    const DT_NUMBER = 'number';
-
-    /** @var string Date only (no time) @deprecated Use DT_STRING with date editor */
-    const DT_DATE = 'date';
-
-    /** @var string Date and time @deprecated Use DT_STRING with datetime editor */
-    const DT_DATETIME = 'datetime';
-
-    /** @var string Enumerated value @deprecated Use DT_STRING with options.values */
-    const DT_ENUM = 'enum';
+    const DT_NUMBER = 'number';    // → DT_FLOAT or DT_INTEGER
+    const DT_DATE = 'date';        // → DT_DATETIME
+    const DT_ENUM = 'enum';        // → DT_STRING + options.values
+    const DT_UNIQUE = 'unique';    // → DT_STRING (id auto-generation is storage concern)
 
     // =========================================================================
     // EDITOR TYPES (ET_*)
