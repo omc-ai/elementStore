@@ -337,7 +337,7 @@ async function geArrayItem(prop, value, path, idx, lvl, isNestedObjArr, isRelati
             <td class="ge-indent"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
             <td class="ge-idx"><button type="button" class="ge-fold" onclick="elementStore.fold(this)" data-target="${foldId}">\u2212</button> <span class="idx">[${idx}]</span> <span class="cls">${esc(cls)}</span><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
             <td class="ge-val"></td>
-            <td class="ge-act"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div><button type="button" class="ge-btn ge-btn-del" onclick="geDelItem(this)">Delete</button></td>
+            <td class="ge-act"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div><button type="button" class="ge-btn ge-btn-move" onclick="geMoveItem(this,-1)" title="Move up">\u2191</button><button type="button" class="ge-btn ge-btn-move" onclick="geMoveItem(this,1)" title="Move down">\u2193</button><button type="button" class="ge-btn ge-btn-del" onclick="geDelItem(this)">Delete</button></td>
         </tr>`;
         html += `<tr class="ge-section-body" data-row-id="${rowId}">
             <td colspan="4" class="ge-nest-content" id="${foldId}">${nestedHtml}</td>
@@ -356,7 +356,7 @@ async function geArrayItem(prop, value, path, idx, lvl, isNestedObjArr, isRelati
         <td class="ge-indent"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
         <td class="ge-idx"><span class="idx">[${idx}]</span><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
         <td class="ge-val">${valHtml}</td>
-        <td class="ge-act"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div><button type="button" class="ge-btn ge-btn-del" onclick="geDelItem(this)">Delete</button></td>
+        <td class="ge-act"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div><button type="button" class="ge-btn ge-btn-move" onclick="geMoveItem(this,-1)" title="Move up">\u2191</button><button type="button" class="ge-btn ge-btn-move" onclick="geMoveItem(this,1)" title="Move down">\u2193</button><button type="button" class="ge-btn ge-btn-del" onclick="geDelItem(this)">Delete</button></td>
     </tr>`;
 }
 
@@ -488,7 +488,6 @@ function geDelItem(btn) {
     const row = btn.closest('tr.ge-arr-row');
     const tbody = row.closest('tbody');
     const table = row.closest('.ge-arr-tbl');
-    const path = table.dataset.arrPath;
     const rowId = row.dataset.rowId;
 
     // Remove body row if exists
@@ -497,6 +496,45 @@ function geDelItem(btn) {
     row.remove();
 
     // Re-index remaining rows
+    geReindexItems(table);
+}
+
+// Move array item up or down
+function geMoveItem(btn, direction) {
+    const row = btn.closest('tr.ge-arr-row');
+    const tbody = row.closest('tbody');
+    const table = row.closest('.ge-arr-tbl');
+    const items = Array.from(tbody.querySelectorAll(':scope > tr.ge-arr-row'));
+    const idx = items.indexOf(row);
+    const newIdx = idx + direction;
+
+    if (newIdx < 0 || newIdx >= items.length) return;
+
+    const rowId = row.dataset.rowId;
+    const bodyRow = tbody.querySelector(`:scope > tr.ge-section-body[data-row-id="${rowId}"]`);
+
+    const targetRow = items[newIdx];
+    const targetRowId = targetRow.dataset.rowId;
+    const targetBodyRow = tbody.querySelector(`:scope > tr.ge-section-body[data-row-id="${targetRowId}"]`);
+
+    if (direction === -1) {
+        // Move up: insert before target's header row
+        tbody.insertBefore(row, targetRow);
+        if (bodyRow) tbody.insertBefore(bodyRow, row.nextSibling);
+    } else {
+        // Move down: insert after target's last row
+        const afterEl = targetBodyRow || targetRow;
+        tbody.insertBefore(row, afterEl.nextSibling);
+        if (bodyRow) tbody.insertBefore(bodyRow, row.nextSibling);
+    }
+
+    geReindexItems(table);
+}
+
+// Re-index all array items (paths, index badges, display_order, count)
+function geReindexItems(table) {
+    const tbody = table.querySelector('tbody');
+    const path = table.dataset.arrPath;
     const rows = tbody.querySelectorAll(':scope > tr.ge-arr-row');
     rows.forEach((el, i) => {
         el.dataset.idx = i;
@@ -516,6 +554,9 @@ function geDelItem(btn) {
             bRow.querySelectorAll('table[data-path]').forEach(t => {
                 t.dataset.path = t.dataset.path.replace(/\[\d+\]/, `[${i}]`);
             });
+            // Auto-update display_order field if present
+            const displayOrderInput = bRow.querySelector('[data-path$=".display_order"]');
+            if (displayOrderInput) displayOrderInput.value = i + 1;
         }
     });
 

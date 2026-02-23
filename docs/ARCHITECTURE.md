@@ -469,3 +469,48 @@ setObject({ class_id: 'ui-button' })
   → check extends_id 'ui-element' → AtomElement registered
   → new AtomElement(data, store)
 ```
+
+## Collection Ordering
+
+Array properties (e.g., `props` on `@class`) support ordering through several complementary mechanisms.
+
+### Ordering Concepts
+
+| Concept | Where | Purpose |
+|---------|-------|---------|
+| **Array position** | `data.props[i]` | Physical index in the data array; determines save order |
+| **`display_order`** | `@prop.display_order` | Canonical sort field; used by `getSortedProps()` for rendering |
+| **`order_id`** | Runtime value | Computed by `AtomProp.getPropValue()`; equals index in parent collection |
+| **`AtomCollection.setItemIndex()`** | `element-store.js` | Programmatic API — splices item to a new position in the array |
+
+### How Array Position Works
+
+The admin editor stores array items as DOM rows (`<tr class="ge-arr-row">`). At save time, `collectData()` walks the DOM top-to-bottom to rebuild the data object. **DOM order = saved order** — there is no separate position field for the array itself.
+
+### display_order Auto-Sync
+
+When items are reordered via the editor's move up/down buttons, `geReindexItems()` automatically sets each item's `display_order` field to match its new position (1-based: 1, 2, 3, ...). This keeps `display_order` consistent with array position without manual entry.
+
+### UI Reordering Flow
+
+```
+User clicks ↑/↓ on array item
+  → geMoveItem(btn, direction)
+    → Swap DOM rows (header + body if nested object)
+    → geReindexItems(table)
+      → Update data-idx, index badges [0], [1], ...
+      → Update data-path attributes on all inputs
+      → Set display_order = position + 1 (if field exists)
+      → Update item count
+```
+
+### Programmatic Reordering
+
+`AtomCollection.setItemIndex(item, newIndex)` provides the same capability at the object model level — it splices the item from its current position to `newIndex` in the underlying array. This is used by non-UI code (e.g., drag-and-drop in the architect canvas).
+
+### Rules
+
+1. **Array position is authoritative** — the physical order in `data.props[]` is what gets saved
+2. **`display_order` follows position** — when items are reordered in the editor, `display_order` is auto-assigned to match
+3. **`getSortedProps()` uses `display_order`** — rendering sorts by this field, so auto-sync keeps display consistent
+4. **`order_id` is computed, never stored** — it reflects the current index at access time
