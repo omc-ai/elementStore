@@ -3,6 +3,29 @@
 // =====================================================================
 
 /**
+ * Generate a read-only preview of an object's first few properties.
+ * Shows id first, excludes _class_id, takes up to maxProps keys.
+ */
+function geObjPreview(obj, maxProps = 4) {
+    if (!obj || typeof obj !== 'object') return '';
+    const keys = Object.keys(obj).filter(k => k !== '_class_id');
+    // Put 'id' first if present
+    const idx = keys.indexOf('id');
+    if (idx > 0) { keys.splice(idx, 1); keys.unshift('id'); }
+    const shown = keys.slice(0, maxProps);
+    if (!shown.length) return '';
+    const parts = shown.map(k => {
+        let v = obj[k];
+        if (v === null || v === undefined) v = '';
+        if (typeof v === 'object') v = Array.isArray(v) ? `[${v.length}]` : '{…}';
+        const sv = String(v);
+        const display = sv.length > 24 ? sv.slice(0, 24) + '\u2026' : sv;
+        return `<span class="ge-preview-kv"><span class="ge-preview-k">${esc(k)}</span>${esc(display)}</span>`;
+    });
+    return `<span class="ge-obj-preview">${parts.join('')}</span>`;
+}
+
+/**
  * Render a single field (recursive)
  */
 async function geField(prop, value, path, lvl) {
@@ -47,7 +70,7 @@ async function geField(prop, value, path, lvl) {
         } else {
             // EXISTING STATE: fold + props + Null in act
             const activeClass = obj._class_id || cls;
-            const valContent = `<span class="ge-obj-inline"><span class="cls">${esc(activeClass)}</span></span>`;
+            const valContent = `<span class="ge-obj-inline"><span class="cls">${esc(activeClass)}</span></span> ${geObjPreview(obj)}`;
             const actContent = `<button type="button" class="ge-btn ge-btn-del" onclick="geNullTypedObj('${path}')">Null</button>`;
             const nestedContent = `<input type="hidden" data-path="${path}._class_id" value="${esc(activeClass)}">` +
                 await geObject(prop, value, path, lvl, activeClass);
@@ -336,7 +359,7 @@ async function geArrayItem(prop, value, path, idx, lvl, isNestedObjArr, isRelati
         let html = `<tr class="ge-arr-row ge-section-hdr" data-idx="${idx}" data-row-id="${rowId}">
             <td class="ge-indent"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
             <td class="ge-idx"><button type="button" class="ge-fold" onclick="elementStore.fold(this)" data-target="${foldId}">\u2212</button> <span class="idx">[${idx}]</span> <span class="cls">${esc(cls)}</span><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
-            <td class="ge-val"></td>
+            <td class="ge-val">${geObjPreview(obj)}</td>
             <td class="ge-act"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div><button type="button" class="ge-btn ge-btn-move" onclick="geMoveItem(this,-1)" title="Move up">\u2191</button><button type="button" class="ge-btn ge-btn-move" onclick="geMoveItem(this,1)" title="Move down">\u2193</button><button type="button" class="ge-btn ge-btn-del" onclick="geDelItem(this)">Delete</button></td>
         </tr>`;
         html += `<tr class="ge-section-body" data-row-id="${rowId}">
