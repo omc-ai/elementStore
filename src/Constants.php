@@ -46,6 +46,15 @@ class Constants
     /** @var string Storage configuration class */
     const K_STORAGE = '@storage';
 
+    /** @var string Auth-service connection config class */
+    const K_AUTH_CONFIG = 'auth_config';
+
+    /** @var string Auth app registration credentials class */
+    const K_AUTH_APP = 'auth_app';
+
+    /** @var string Auth machine registration class */
+    const K_AUTH_MACHINE = 'auth_machine';
+
     // =========================================================================
     // STANDARD FIELDS (F_*)
     // Common field names used across all objects

@@ -55,6 +55,7 @@ use ElementStore\Constants;
 use ElementStore\ClassModel;
 use ElementStore\ClassMeta;
 use ElementStore\StorageException;
+use ElementStore\AuthService;
 
 if (!extension_loaded('phalcon')) {
     http_response_code(500);
@@ -63,72 +64,31 @@ if (!extension_loaded('phalcon')) {
 }
 
 // =============================================================================
-// AUTHENTICATION — JWT or legacy X-User-Id fallback
+// MODEL BOOT
 // =============================================================================
 
-$userId = null;
-$appId = null;
-$domain = null;
-$jwtPublicKey = getenv('ES_JWT_PUBLIC_KEY') ?: null;
+$model = ClassModel::boot(__DIR__);
 
-if ($jwtPublicKey) {
-    // JWT mode: parse Authorization: Bearer <token>
-    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    if (preg_match('/^Bearer\s+(.+)$/i', $authHeader, $matches)) {
-        $token = $matches[1];
-        try {
-            // Load firebase/php-jwt if composer autoload exists
-            $composerAutoload = __DIR__ . '/vendor/autoload.php';
-            if (file_exists($composerAutoload)) {
-                require_once $composerAutoload;
-            }
-            $decoded = \Firebase\JWT\JWT::decode($token, new \Firebase\JWT\Key($jwtPublicKey, 'RS256'));
-            $userId = $decoded->sub ?? $decoded->user_id ?? null;
-            $appId = $decoded->app_id ?? null;
-            $domain = $decoded->domain ?? null;
-        } catch (\Exception $e) {
-            http_response_code(401);
-            echo json_encode(['error' => 'Invalid or expired token', 'detail' => $e->getMessage()]);
-            exit;
-        }
-    } else {
-        // No token provided when JWT is configured
-        http_response_code(401);
-        echo json_encode(['error' => 'Authorization header with Bearer token is required']);
-        exit;
-    }
-} else {
-    // Legacy fallback (dev mode) — X-User-Id header
-    // Log deprecation warning
-    $userId = $_SERVER['HTTP_X_USER_ID'] ?? null;
-    if ($userId !== null) {
-        error_log('[ElementStore] DEPRECATED: X-User-Id header used. Migrate to JWT authentication.');
-    }
-}
-
-$model = ClassModel::boot(__DIR__, $userId);
-
-// Set full security context if JWT provided app_id/domain
-if ($appId !== null || $domain !== null) {
-    $model->setSecurityContext($userId, $appId, $domain);
-}
-
-// Allow custom IDs for seeding/testing (can be controlled via header)
+// Allow custom IDs for seeding/testing (controlled via header)
 if (isset($_SERVER['HTTP_X_ALLOW_CUSTOM_IDS']) && $_SERVER['HTTP_X_ALLOW_CUSTOM_IDS'] === 'true') {
     $model->setAllowCustomIds(true);
 }
 
-// Legacy: Disable ownership enforcement (only in dev/no-JWT mode)
-if (!$jwtPublicKey && isset($_SERVER['HTTP_X_DISABLE_OWNERSHIP']) && $_SERVER['HTTP_X_DISABLE_OWNERSHIP'] === 'true') {
+// Disable ownership enforcement (dev only — header-controlled)
+if (isset($_SERVER['HTTP_X_DISABLE_OWNERSHIP']) && $_SERVER['HTTP_X_DISABLE_OWNERSHIP'] === 'true') {
     $model->setEnforceOwnership(false);
 }
+
+// Bootstrap auth-service: reads auth_config from store, registers app+machine, warms JWKS cache.
+// NOOP if no auth_config object exists in the store (auth enforcement disabled).
+AuthService::bootstrap($model);
 
 $di = new FactoryDefault();
 $di->setShared('model', $model);
 
 $app = new Micro($di);
 
-// CORS
+// CORS (runs first — handles OPTIONS preflight before auth check)
 $app->before(function () use ($app) {
     $app->response->setHeader('Access-Control-Allow-Origin', '*');
     $app->response->setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -141,6 +101,10 @@ $app->before(function () use ($app) {
     }
     return true;
 });
+
+// Auth middleware — verify JWT Bearer token and inject user/app/domain into model.
+// Skipped automatically if no auth_config object exists in the store.
+$app->before(AuthService::getMiddleware($model));
 
 // Response helpers - return data directly
 function json($data, $code = 200): Response
