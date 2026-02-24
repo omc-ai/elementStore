@@ -453,7 +453,7 @@ class AtomObj {
         var proxy = new Proxy(this, {
             get: function (target, prop, receiver) {
                 // internal fields — bypass data
-                if (prop === 'store' || prop === 'data' || prop === 'objects' || prop === '_class' || prop === '_snapshot' || prop === '_id' || prop === '_related' || prop === '_dirtyRelated' || prop === '_belongsTo' || prop === '_onChange' || prop === 'el') return target[prop];
+                if (prop === 'store' || prop === 'data' || prop === 'objects' || prop === '_class' || prop === '_snapshot' || prop === '_id' || prop === '_related' || prop === '_dirtyRelated' || prop === '_belongsTo' || prop === '_onChange' || prop === 'el' || prop === 'auth' || prop === 'authUrl' || prop === 'onAuthRequired' || prop === '_refreshing' || prop === '_refreshPromise') return target[prop];
                 // methods — bind to proxy so 'this' resolves through proxy
                 if (typeof target[prop] === 'function') return target[prop].bind(receiver);
                 // data fields — delegate to propDef if available
@@ -471,7 +471,7 @@ class AtomObj {
             },
             set: function (target, prop, val) {
                 // internal fields — bypass data
-                if (prop === 'store' || prop === 'data' || prop === 'objects' || prop === '_class' || prop === '_snapshot' || prop === '_id' || prop === '_related' || prop === '_dirtyRelated' || prop === '_belongsTo' || prop === '_onChange' || prop === 'el') {
+                if (prop === 'store' || prop === 'data' || prop === 'objects' || prop === '_class' || prop === '_snapshot' || prop === '_id' || prop === '_related' || prop === '_dirtyRelated' || prop === '_belongsTo' || prop === '_onChange' || prop === 'el' || prop === 'auth' || prop === 'authUrl' || prop === 'onAuthRequired' || prop === '_refreshing' || prop === '_refreshPromise') {
                     target[prop] = val;
                     return true;
                 }
@@ -1048,6 +1048,102 @@ class AtomStorage extends AtomObj {
     class_id = '@storage';
     url = null;
     type = null;
+
+    // ── Auth state ──
+    auth = null;            // { user, tokens: {accessToken, refreshToken}, app }
+    authUrl = null;         // Auth service base URL (e.g., '/api/auth')
+    onAuthRequired = null;  // Callback: () => void — shows login dialog
+    _refreshing = false;
+    _refreshPromise = null;
+
+    /** Store auth data from login/refresh response. Syncs _jwtToken + localStorage. */
+    setAuth(data) {
+        this.auth = data;
+        _jwtToken = data && data.tokens ? data.tokens.accessToken : null;
+        if (data) {
+            try { localStorage.setItem('es_auth', JSON.stringify(data)); } catch(e) {}
+        } else {
+            localStorage.removeItem('es_auth');
+        }
+    }
+
+    /** Get current access token */
+    getToken() {
+        return this.auth && this.auth.tokens ? this.auth.tokens.accessToken : null;
+    }
+
+    /** Clear all auth state */
+    clearAuth() {
+        this.auth = null;
+        _jwtToken = null;
+        localStorage.removeItem('es_auth');
+    }
+
+    /** Restore auth from localStorage (call on startup) */
+    restoreAuth() {
+        try {
+            var raw = localStorage.getItem('es_auth');
+            if (raw) {
+                this.auth = JSON.parse(raw);
+                _jwtToken = this.auth && this.auth.tokens ? this.auth.tokens.accessToken : null;
+                return true;
+            }
+        } catch(e) {}
+        return false;
+    }
+
+    /** Async token refresh with deduplication (used by api.js) */
+    refreshAuth() {
+        if (this._refreshing && this._refreshPromise) return this._refreshPromise;
+        var self = this;
+        this._refreshing = true;
+        this._refreshPromise = this._doRefreshAsync().finally(function() {
+            self._refreshing = false;
+            self._refreshPromise = null;
+        });
+        return this._refreshPromise;
+    }
+
+    _doRefreshAsync() {
+        var rt = this.auth && this.auth.tokens ? this.auth.tokens.refreshToken : null;
+        if (!rt || !this.authUrl) return Promise.resolve(false);
+        var self = this;
+        return fetch(self.authUrl + '/refresh', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({refreshToken: rt})
+        }).then(function(res) {
+            if (!res.ok) return false;
+            return res.json().then(function(data) {
+                self.auth.tokens.accessToken = data.accessToken;
+                self.auth.tokens.refreshToken = data.refreshToken;
+                _jwtToken = data.accessToken;
+                try { localStorage.setItem('es_auth', JSON.stringify(self.auth)); } catch(e) {}
+                return true;
+            });
+        }).catch(function() { return false; });
+    }
+
+    /** Sync token refresh (used by fetchRemote/saveRemote) */
+    _syncRefreshAuth() {
+        var rt = this.auth && this.auth.tokens ? this.auth.tokens.refreshToken : null;
+        if (!rt || !this.authUrl) return false;
+        try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', this.authUrl + '/refresh', false);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.send(JSON.stringify({refreshToken: rt}));
+            if (xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText);
+                this.auth.tokens.accessToken = data.accessToken;
+                this.auth.tokens.refreshToken = data.refreshToken;
+                _jwtToken = data.accessToken;
+                try { localStorage.setItem('es_auth', JSON.stringify(this.auth)); } catch(e) {}
+                return true;
+            }
+        } catch(e) {}
+        return false;
+    }
 }
 
 
@@ -1301,6 +1397,21 @@ class ElementStore {
                 xhr.setRequestHeader('Authorization', 'Bearer ' + _jwtToken);
             }
             xhr.send();
+
+            // 401 → try refresh + retry once
+            if (xhr.status === 401 && this.storage && this.storage.auth) {
+                if (this.storage._syncRefreshAuth()) {
+                    xhr = new XMLHttpRequest();
+                    xhr.open('GET', url, false);
+                    xhr.setRequestHeader('Content-Type', 'application/json');
+                    xhr.setRequestHeader('Authorization', 'Bearer ' + _jwtToken);
+                    xhr.send();
+                } else if (this.storage.onAuthRequired) {
+                    this.storage.onAuthRequired();
+                    return null;
+                }
+            }
+
             if (xhr.status === 200) {
                 return JSON.parse(xhr.responseText);
             }
@@ -1340,6 +1451,21 @@ class ElementStore {
             }
             if (!isNew) xhr.setRequestHeader('X-Allow-Custom-Ids', 'true');
             xhr.send(JSON.stringify(obj.data));
+
+            // 401 → try refresh + retry once
+            if (xhr.status === 401 && this.storage && this.storage.auth) {
+                if (this.storage._syncRefreshAuth()) {
+                    xhr = new XMLHttpRequest();
+                    xhr.open(method, url, false);
+                    xhr.setRequestHeader('Content-Type', 'application/json');
+                    xhr.setRequestHeader('Authorization', 'Bearer ' + _jwtToken);
+                    if (!isNew) xhr.setRequestHeader('X-Allow-Custom-Ids', 'true');
+                    xhr.send(JSON.stringify(obj.data));
+                } else if (this.storage.onAuthRequired) {
+                    this.storage.onAuthRequired();
+                    return;
+                }
+            }
 
             if (xhr.status >= 200 && xhr.status < 300) {
                 var response = JSON.parse(xhr.responseText);

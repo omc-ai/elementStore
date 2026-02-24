@@ -27,8 +27,32 @@ async function api(method, endpoint, data = null) {
             'X-Allow-Custom-Ids': 'true'
         }
     };
+
+    // Auth token from storage
+    var token = (typeof store !== 'undefined' && store.storage) ? store.storage.getToken() : null;
+    if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+
+    // App filter
+    var appId = typeof getSelectedAppId === 'function' ? getSelectedAppId() : null;
+    if (appId) opts.headers['X-App-Id'] = appId;
+
     if (data) opts.body = JSON.stringify(data);
     const res = await fetch(API_BASE + endpoint, opts);
+
+    // 401 → try refresh + retry once
+    if (res.status === 401 && typeof store !== 'undefined' && store.storage && store.storage.auth) {
+        var refreshed = await store.storage.refreshAuth();
+        if (refreshed) {
+            opts.headers['Authorization'] = 'Bearer ' + store.storage.getToken();
+            var retry = await fetch(API_BASE + endpoint, opts);
+            var retryJson = await retry.json();
+            if (retryJson.error) throw new Error(retryJson.error);
+            return retryJson;
+        }
+        if (store.storage.onAuthRequired) store.storage.onAuthRequired();
+        throw new Error('Session expired');
+    }
+
     const json = await res.json();
     if (json.error) throw new Error(json.error);
     return json;

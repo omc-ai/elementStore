@@ -54,19 +54,42 @@ function initStore() {
     console.log('Store connected to API:', API_BASE);
 }
 
+/**
+ * Initialize the dashboard UI (called after successful auth).
+ */
+async function initDashboard() {
+    showDashboard();
+    renderUserInfo();
+    renderAppSelector();
+
+    await loadFunctions();
+
+    if (!tabManager) {
+        tabManager = new TabManager(
+            document.getElementById('tabBar'),
+            document.getElementById('tabContent')
+        );
+        tabManager.add('classes', 'Classes (@class)', false, ClassListPanel);
+    } else {
+        refreshData();
+    }
+}
+
 async function init() {
     // Connect store to API first
     initStore();
 
-    await loadFunctions();
+    // Wire up auth config
+    store.storage.authUrl = '/api/auth';
+    store.storage.onAuthRequired = showLoginScreen;
 
-    tabManager = new TabManager(
-        document.getElementById('tabBar'),
-        document.getElementById('tabContent')
-    );
+    var authed = await checkAuth();
+    if (!authed) {
+        showLoginScreen();
+        return;
+    }
 
-    // Add the permanent "Classes" tab
-    tabManager.add('classes', 'Classes (@class)', false, ClassListPanel);
+    await initDashboard();
 }
 
 init();
