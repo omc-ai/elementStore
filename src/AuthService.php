@@ -81,7 +81,7 @@ class AuthService
         }
 
         // Load auth_config from store
-        $configs = $model->query('auth_config', ['is_enabled' => true]);
+        $configs = $model->query(Constants::K_AUTH_CONFIG, ['is_enabled' => true]);
         if (empty($configs)) {
             // Not configured — auth enforcement disabled
             self::$bootstrapped = true;
@@ -458,7 +458,7 @@ class AuthService
         }
 
         // If an auth_app record already exists in the store, skip
-        $existing = $model->query('auth_app', []);
+        $existing = $model->query(Constants::K_AUTH_APP, []);
         if (!empty($existing)) {
             return;
         }
@@ -467,7 +467,7 @@ class AuthService
         $remoteApp = self::getApp($appId);
         if ($remoteApp && empty($remoteApp['error'])) {
             // Already registered — persist to store
-            $model->setObject('auth_app', [
+            $model->setObject(Constants::K_AUTH_APP, [
                 'name'          => 'app_' . $appId,
                 'config_id'     => $config['id'] ?? null,
                 'client_id'     => $remoteApp['client_id'] ?? null,
@@ -486,7 +486,7 @@ class AuthService
             'allowed_origins' => $config['allowed_origins'] ?? [],
         ]);
         if ($result && empty($result['error'])) {
-            $model->setObject('auth_app', [
+            $model->setObject(Constants::K_AUTH_APP, [
                 'name'          => 'app_' . $appId,
                 'config_id'     => $config['id'] ?? null,
                 'client_id'     => $result['client_id'] ?? null,
@@ -506,7 +506,7 @@ class AuthService
         $config = self::$cachedConfig;
         $appId = $config['app_id'] ?? null;
 
-        $machines = $model->query('auth_machine', []);
+        $machines = $model->query(Constants::K_AUTH_MACHINE, []);
         $storedMachine = $machines[0] ?? null;
         $instanceId = $storedMachine ? ($storedMachine->instance_id ?? self::generateUuid()) : self::generateUuid();
 
@@ -529,9 +529,9 @@ class AuthService
                 if (!empty($result['machine_id'])) {
                     $data['machine_id'] = $result['machine_id'];
                 }
-                $model->setObject('auth_machine', $data);
+                $model->setObject(Constants::K_AUTH_MACHINE, $data);
             } else {
-                $model->setObject('auth_machine', [
+                $model->setObject(Constants::K_AUTH_MACHINE, [
                     'name'          => 'machine_' . substr($instanceId, 0, 8),
                     'config_id'     => $config['id'] ?? null,
                     'instance_id'   => $instanceId,
@@ -582,13 +582,13 @@ class AuthService
         self::$keyFetchedAt = time();
 
         // Persist JWKS back to auth_config store object for cold-start warm-up
-        $configs = $model->query('auth_config', []);
+        $configs = $model->query(Constants::K_AUTH_CONFIG, []);
         if (!empty($configs)) {
             $cfgData = $configs[0]->toArray();
             $cfgData['public_key']            = json_encode($jwks);
             $cfgData['public_key_kid']        = $jwks['keys'][0]['kid'] ?? '';
             $cfgData['public_key_fetched_at'] = date('c');
-            $model->setObject('auth_config', $cfgData);
+            $model->setObject(Constants::K_AUTH_CONFIG, $cfgData);
         }
     }
 
