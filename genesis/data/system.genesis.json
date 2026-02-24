@@ -166,5 +166,68 @@
         {"key": "mapping",    "label": "Field Mapping",  "description": "ES_key → API_field (string or @function transform)", "data_type": "object", "display_order": 17}
       ]
     }
+  ,
+    {
+      "id": "auth_config",
+      "class_id": "@class",
+      "name": "Auth Config",
+      "description": "Auth-service connection configuration for this elementStore installation. One object per installation. All endpoint paths are configurable here.",
+      "is_system": true,
+      "props": [
+        {"key": "app_id",               "label": "App ID",                "description": "Identifier for this app in the auth-service (e.g. 'elementStore')",         "data_type": "string",   "required": true,  "create_only": true, "display_order": 1,  "group_name": "Identity"},
+        {"key": "app_name",             "label": "App Name",              "description": "Human-readable display name registered in auth-service",                    "data_type": "string",   "required": true,              "display_order": 2,  "group_name": "Identity"},
+        {"key": "service_url",          "label": "Auth Service URL",      "description": "Base URL of the auth-service (e.g. http://agura-auth:3100)",               "data_type": "string",   "required": true,  "field_type": "url", "display_order": 3,  "group_name": "Connection"},
+        {"key": "is_enabled",           "label": "Enabled",               "description": "Enable auth enforcement on all API requests",                              "data_type": "boolean",  "default_value": true,                          "display_order": 4,  "group_name": "Connection"},
+        {"key": "scopes",               "label": "Scopes",                "description": "Permission scopes this app requests (e.g. read, write, admin)",            "data_type": "string",   "is_array": true,              "display_order": 5,  "group_name": "Identity"},
+        {"key": "allowed_origins",      "label": "Allowed Origins",       "description": "Browser origins allowed to use tokens issued for this app",                "data_type": "string",   "is_array": true,              "display_order": 6,  "group_name": "Identity"},
+
+        {"key": "ep_login",             "label": "Login Endpoint",        "description": "POST — authenticate user, returns JWT",                                    "data_type": "string",   "default_value": "/api/auth/login",                         "display_order": 20, "group_name": "Endpoints"},
+        {"key": "ep_logout",            "label": "Logout Endpoint",       "description": "POST — invalidate token",                                                  "data_type": "string",   "default_value": "/api/auth/logout",                        "display_order": 21, "group_name": "Endpoints"},
+        {"key": "ep_verify",            "label": "Verify Endpoint",       "description": "GET — verify a token (remote check, optional)",                            "data_type": "string",   "default_value": "/api/auth/verify",                        "display_order": 22, "group_name": "Endpoints"},
+        {"key": "ep_refresh",           "label": "Refresh Endpoint",      "description": "POST — refresh an expiring JWT",                                           "data_type": "string",   "default_value": "/api/auth/refresh",                       "display_order": 23, "group_name": "Endpoints"},
+        {"key": "ep_jwks",              "label": "JWKS Endpoint",         "description": "GET — fetch public keys for local JWT verification",                       "data_type": "string",   "default_value": "/.well-known/jwks.json",                  "display_order": 24, "group_name": "Endpoints"},
+        {"key": "ep_register_app",      "label": "Register App Endpoint", "description": "POST — register this app with auth-service on first boot",                "data_type": "string",   "default_value": "/api/auth/apps",                          "display_order": 25, "group_name": "Endpoints"},
+        {"key": "ep_get_app",           "label": "Get App Endpoint",      "description": "GET — check if app is already registered (appended with /{app_id})",      "data_type": "string",   "default_value": "/api/auth/apps",                          "display_order": 26, "group_name": "Endpoints"},
+        {"key": "ep_register_machine",  "label": "Register Machine",      "description": "POST — register this machine/instance (appended with /{app_id}/machines)","data_type": "string",   "default_value": "/api/auth/apps",                          "display_order": 27, "group_name": "Endpoints"},
+        {"key": "ep_list_machines",     "label": "List Machines",         "description": "GET — list registered machines for this app",                             "data_type": "string",   "default_value": "/api/auth/apps",                          "display_order": 28, "group_name": "Endpoints"},
+        {"key": "ep_revoke_machine",    "label": "Revoke Machine",        "description": "DELETE — revoke a specific machine registration",                         "data_type": "string",   "default_value": "/api/auth/apps",                          "display_order": 29, "group_name": "Endpoints"},
+
+        {"key": "public_key",           "label": "Public Key (cached)",   "description": "Cached JWT public key fetched from JWKS endpoint at boot",                "data_type": "string",   "server_only": true, "readonly": true,   "display_order": 40, "group_name": "Keys"},
+        {"key": "public_key_kid",       "label": "Key ID (kid)",          "description": "Key identifier from JWKS — used to select key for verification",          "data_type": "string",   "server_only": true, "readonly": true,   "display_order": 41, "group_name": "Keys"},
+        {"key": "public_key_fetched_at","label": "Key Fetched At",        "description": "When the public key was last fetched from auth-service",                  "data_type": "string",   "server_only": true, "readonly": true,   "display_order": 42, "group_name": "Keys"}
+      ]
+    },
+    {
+      "id": "auth_app",
+      "class_id": "@class",
+      "name": "Auth App Registration",
+      "description": "Credentials returned after registering this app with auth-service. One object per app_id. client_secret is server_only.",
+      "is_system": true,
+      "props": [
+        {"key": "config_id",      "label": "Auth Config",    "description": "Auth config this registration belongs to",              "data_type": "relation", "object_class_id": ["auth_config"], "required": true,  "create_only": true, "display_order": 1},
+        {"key": "client_id",      "label": "Client ID",      "description": "Client ID assigned by auth-service after registration", "data_type": "string",   "required": true,  "readonly": true,    "display_order": 2},
+        {"key": "client_secret",  "label": "Client Secret",  "description": "Client secret — never exposed via API",                "data_type": "string",   "required": true,  "server_only": true, "display_order": 3},
+        {"key": "registered_at",  "label": "Registered At",  "description": "When this app was first registered",                   "data_type": "string",   "readonly": true,  "display_order": 4},
+        {"key": "is_active",      "label": "Active",         "description": "Whether this registration is currently valid",          "data_type": "boolean",  "default_value": true,               "display_order": 5}
+      ]
+    },
+    {
+      "id": "auth_machine",
+      "class_id": "@class",
+      "name": "Auth Machine",
+      "description": "Per-instance machine registration with auth-service. One object created/updated on each elementStore boot.",
+      "is_system": true,
+      "props": [
+        {"key": "config_id",      "label": "Auth Config",     "description": "Auth config this machine belongs to",                                   "data_type": "relation", "object_class_id": ["auth_config"], "required": true,  "create_only": true, "display_order": 1},
+        {"key": "instance_id",    "label": "Instance ID",     "description": "UUID generated once for this machine, persists across reboots",         "data_type": "string",   "required": true,  "create_only": true, "display_order": 2},
+        {"key": "machine_id",     "label": "Machine ID",      "description": "Machine ID returned by auth-service after registration",                "data_type": "string",   "readonly": true,                   "display_order": 3},
+        {"key": "hostname",       "label": "Hostname",        "description": "Hostname of this machine at time of registration",                      "data_type": "string",   "readonly": true,                   "display_order": 4},
+        {"key": "ip",             "label": "IP Address",      "description": "IP address of this machine at time of registration",                    "data_type": "string",   "readonly": true,                   "display_order": 5},
+        {"key": "version",        "label": "ES Version",      "description": "ElementStore version running on this machine",                          "data_type": "string",   "readonly": true,                   "display_order": 6},
+        {"key": "registered_at",  "label": "Registered At",   "description": "When this machine was first registered",                               "data_type": "string",   "readonly": true,                   "display_order": 7},
+        {"key": "last_boot_at",   "label": "Last Boot At",    "description": "Timestamp of the last successful boot registration",                   "data_type": "string",   "readonly": true,                   "display_order": 8},
+        {"key": "is_active",      "label": "Active",          "description": "Whether this machine is currently authorized",                          "data_type": "boolean",  "default_value": true,              "display_order": 9}
+      ]
+    }
   ]
 }
