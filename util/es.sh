@@ -124,7 +124,8 @@ PASS=0; FAIL=0; SKIP=0
 
 # ── Usage ─────────────────────────────────────────────────────────────────────
 usage() {
-    grep '^#' "$0" | grep -v '^#!/' | sed 's/^# \{0,1\}//'
+    # Print only the top header block: skip shebang, stop at first non-comment non-blank line
+    awk 'NR==1{next} /^[^#[:space:]]/{exit} {sub(/^# ?/,""); print}' "$0"
     exit 0
 }
 
@@ -132,6 +133,7 @@ usage() {
 [[ $# -eq 0 ]] && usage
 
 CMD="$1"; shift
+[[ "$CMD" == "--help" || "$CMD" == "-h" || "$CMD" == "help" ]] && usage
 
 while [[ $# -gt 0 ]]; do
     case $1 in
