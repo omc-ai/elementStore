@@ -107,7 +107,11 @@ class Constants
     /** @var string Floating point number */
     const DT_FLOAT = 'float';
 
-    /** @var string ISO datetime string. Picker widget controls granularity (date/datetime/time). */
+    /**
+     * @var string Canonical type for all date/time values.
+     * Covers date-only, time-only, and full datetime.
+     * The editor type (ET_DATE / ET_TIME / ET_DATETIME) controls display granularity — not this field.
+     */
     const DT_DATETIME = 'datetime';
 
     /** @var string Nested object/array */
