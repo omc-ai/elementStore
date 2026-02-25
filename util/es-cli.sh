@@ -66,8 +66,13 @@
 #
 #   # Push genesis (classes + seed data) into elementStore
 #   es.sh push --from db/@registry.genesis.json --to http://arc3d.master.local/elementStore
-#   # Genesis "seed" section auto-loads data files relative to the genesis file:
-#   #   { "seed": [{ "class_id": "@my-class", "file": "@my-class.json" }], "classes": [...] }
+#
+#   # Genesis "seed" section uses storage descriptors (resolved relative to genesis file):
+#   #   { "classes": [...], "seed": [
+#   #       { "storage": "./@api-project.json" },        # data array → push objects
+#   #       { "storage": "./projects/haat/@genesis.json" } # sub-genesis → recurse
+#   #   ]}
+#   # Sub-genesis files can have their own seed[], enabling per-project data trees.
 #
 #   # Push data file into elementStore
 #   es.sh push --from db/@api-endpoint.json --to http://arc3d.master.local/elementStore
@@ -435,6 +440,30 @@ _write_objects() {
     fi
 }
 
+# Resolve a storage descriptor relative to a base directory.
+# If the descriptor is a relative file path and base_dir is set, prepend it.
+# Absolute paths, URLs, and file: prefixes pass through unchanged.
+_resolve_storage() {
+    local descriptor="$1"
+    local base_dir="${2:-}"
+
+    # URLs pass through
+    [[ "$descriptor" == http://* || "$descriptor" == https://* ]] && { echo "$descriptor"; return; }
+
+    # Strip file: prefix for resolution, re-add later if needed
+    local bare="${descriptor#file:}"
+
+    # Absolute paths pass through
+    [[ "$bare" == /* ]] && { echo "$bare"; return; }
+
+    # Relative path: resolve against base_dir
+    if [[ -n "$base_dir" ]]; then
+        echo "${base_dir}/${bare}"
+    else
+        echo "$bare"
+    fi
+}
+
 _write_genesis() {
     local storage="$1"
     local genesis_json="$2"
@@ -453,15 +482,17 @@ _write_genesis() {
         local base
         base=$(_url "$storage")
 
-        # Push classes
-        local class_count
-        class_count=$(echo "$genesis_json" | jq '.classes | length // 0')
-        _step "Pushing ${class_count} class(es)..."
-        while IFS= read -r cls; do
-            local cid
-            cid=$(echo "$cls" | jq -r '.id')
-            _api_push_class "$base" "$cid" "$cls"
-        done < <(echo "$genesis_json" | jq -c '.classes[] // empty')
+        # Push classes (if any — sub-genesis files may have only seed)
+        if echo "$genesis_json" | jq -e 'has("classes") and (.classes | length > 0)' &>/dev/null; then
+            local class_count
+            class_count=$(echo "$genesis_json" | jq '.classes | length')
+            _step "Pushing ${class_count} class(es)..."
+            while IFS= read -r cls; do
+                local cid
+                cid=$(echo "$cls" | jq -r '.id')
+                _api_push_class "$base" "$cid" "$cls"
+            done < <(echo "$genesis_json" | jq -c '.classes[] // empty')
+        fi
 
         # Push objects (optional inline section)
         if echo "$genesis_json" | jq -e 'has("objects")' &>/dev/null; then
@@ -473,33 +504,55 @@ _write_genesis() {
             _write_objects "$base" "$objects"
         fi
 
-        # Push seed data files (relative to genesis file directory)
-        if echo "$genesis_json" | jq -e 'has("seed")' &>/dev/null; then
+        # Process seed entries — storage descriptors that reference data or sub-genesis files
+        if echo "$genesis_json" | jq -e 'has("seed") and (.seed | length > 0)' &>/dev/null; then
             local seed_count
             seed_count=$(echo "$genesis_json" | jq '.seed | length')
-            _step "Loading ${seed_count} seed file(s)..."
+            _step "Processing ${seed_count} seed source(s)..."
             while IFS= read -r seed_entry; do
-                local seed_file seed_class seed_path
-                seed_file=$(echo "$seed_entry" | jq -r '.file')
-                seed_class=$(echo "$seed_entry" | jq -r '.class_id // ""')
-                # Resolve relative path from genesis directory
-                if [[ -n "$genesis_dir" && "$seed_file" != /* ]]; then
-                    seed_path="${genesis_dir}/${seed_file}"
+                local seed_storage seed_resolved
+                seed_storage=$(echo "$seed_entry" | jq -r '.storage')
+                seed_resolved=$(_resolve_storage "$seed_storage" "$genesis_dir")
+
+                # Read the seed source
+                if _is_file "$seed_resolved"; then
+                    local seed_path
+                    seed_path=$(_file_path "$seed_resolved")
+                    if [[ ! -f "$seed_path" ]]; then
+                        _warn "Seed not found: ${seed_path}"; ((SKIP++)) || true; continue
+                    fi
+                    local seed_json
+                    seed_json=$(cat "$seed_path")
+                    local seed_dir
+                    seed_dir=$(dirname "$seed_path")
+
+                    # Detect format: genesis (recurse) vs data array vs single object
+                    if echo "$seed_json" | jq -e 'type == "object" and (has("classes") or has("seed"))' &>/dev/null; then
+                        _info "Seed genesis: ${seed_storage}"
+                        _write_genesis "$storage" "$seed_json" "$seed_dir"
+                    elif echo "$seed_json" | jq -e 'type == "array"' &>/dev/null; then
+                        local n
+                        n=$(echo "$seed_json" | jq 'length')
+                        _info "Seed data: ${seed_storage} (${n} objects)"
+                        _write_objects "$storage" "$seed_json"
+                    elif echo "$seed_json" | jq -e 'type == "object" and has("id")' &>/dev/null; then
+                        _info "Seed data: ${seed_storage} (1 object)"
+                        _write_objects "$storage" "$(echo "$seed_json" | jq '[.]')"
+                    else
+                        _warn "Seed unknown format: ${seed_storage}"; ((SKIP++)) || true
+                    fi
                 else
-                    seed_path="$seed_file"
-                fi
-                if [[ ! -f "$seed_path" ]]; then
-                    _warn "Seed file not found: ${seed_path}"; ((SKIP++)) || true; continue
-                fi
-                local seed_json
-                seed_json=$(cat "$seed_path")
-                local seed_obj_count
-                seed_obj_count=$(echo "$seed_json" | jq 'if type == "array" then length else 1 end')
-                _info "Seeding ${seed_obj_count} object(s) from ${seed_file}${seed_class:+ (${seed_class})}"
-                if echo "$seed_json" | jq -e 'type == "array"' &>/dev/null; then
-                    _write_objects "$storage" "$seed_json"
-                else
-                    _write_objects "$storage" "$(echo "$seed_json" | jq '[.]')"
+                    # Remote storage — pull and push
+                    _info "Seed remote: ${seed_storage}"
+                    local remote_class
+                    remote_class=$(echo "$seed_entry" | jq -r '.class_id // ""')
+                    if [[ -n "$remote_class" ]]; then
+                        local data
+                        data=$(_storage_read_class "$seed_resolved" "$remote_class" "") || { ((SKIP++)) || true; continue; }
+                        _write_objects "$storage" "$data"
+                    else
+                        _warn "Remote seed requires class_id: ${seed_storage}"; ((SKIP++)) || true
+                    fi
                 fi
             done < <(echo "$genesis_json" | jq -c '.seed[] // empty')
         fi
