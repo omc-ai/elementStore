@@ -64,8 +64,10 @@
 #   # Create / update from file (single object or array)
 #   es.sh set --file db/@api-project.json
 #
-#   # Push genesis (classes + objects) into elementStore
+#   # Push genesis (classes + seed data) into elementStore
 #   es.sh push --from db/@registry.genesis.json --to http://arc3d.master.local/elementStore
+#   # Genesis "seed" section auto-loads data files relative to the genesis file:
+#   #   { "seed": [{ "class_id": "@my-class", "file": "@my-class.json" }], "classes": [...] }
 #
 #   # Push data file into elementStore
 #   es.sh push --from db/@api-endpoint.json --to http://arc3d.master.local/elementStore
@@ -342,16 +344,16 @@ _api_upsert() {
     code=$(_http "PUT" "${base}/store/${enc_c}/${enc_id}" "$body")
 
     if [[ "$code" == "200" || "$code" == "201" ]]; then
-        _ok "Updated  ${label}"; ((PASS++))
+        _ok "Updated  ${label}"; ((PASS++)) || true
     elif [[ "$code" == "404" ]]; then
         code=$(_http "POST" "${base}/store/${enc_c}" "$body")
         if [[ "$code" == "200" || "$code" == "201" ]]; then
-            _ok "Created  ${label}"; ((PASS++))
+            _ok "Created  ${label}"; ((PASS++)) || true
         else
-            _err "Failed   ${label} (POST ${code}): $(_resp_err)"; ((FAIL++))
+            _err "Failed   ${label} (POST ${code}): $(_resp_err)"; ((FAIL++)) || true
         fi
     else
-        _err "Failed   ${label} (PUT ${code}): $(_resp_err)"; ((FAIL++))
+        _err "Failed   ${label} (PUT ${code}): $(_resp_err)"; ((FAIL++)) || true
     fi
 }
 
@@ -363,9 +365,9 @@ _api_push_class() {
     local code
     code=$(_http "POST" "${base}/class" "$body")
     if [[ "$code" == "200" || "$code" == "201" ]]; then
-        _ok "Class    ${class_id}"; ((PASS++))
+        _ok "Class    ${class_id}"; ((PASS++)) || true
     else
-        _err "Failed   class ${class_id} (${code}): $(_resp_err)"; ((FAIL++))
+        _err "Failed   class ${class_id} (${code}): $(_resp_err)"; ((FAIL++)) || true
     fi
 }
 
@@ -404,7 +406,7 @@ _file_upsert() {
     echo "$merged" | jq '.' > "$path"
     local count
     count=$(echo "$objects_json" | jq 'if type=="array" then length else 1 end')
-    _ok "Written ${count} object(s) → ${path}"; ((PASS++))
+    _ok "Written ${count} object(s) → ${path}"; ((PASS++)) || true
 }
 
 # ── Dispatch: route objects to correct storage ────────────────────────────────
@@ -426,8 +428,8 @@ _write_objects() {
             local oc oid
             oc=$(echo "$obj"  | jq -r '.class_id')
             oid=$(echo "$obj" | jq -r '.id')
-            [[ "$oc" == "null" || -z "$oc" ]] && { _warn "Skipping (no class_id)"; ((SKIP++)); continue; }
-            [[ "$oid" == "null" || -z "$oid" ]] && { _warn "Skipping (no id)"; ((SKIP++)); continue; }
+            [[ "$oc" == "null" || -z "$oc" ]] && { _warn "Skipping (no class_id)"; ((SKIP++)) || true; continue; }
+            [[ "$oid" == "null" || -z "$oid" ]] && { _warn "Skipping (no id)"; ((SKIP++)) || true; continue; }
             _api_upsert "$base" "$oc" "$oid" "$obj"
         done < <(echo "$objects_json" | jq -c '.[]')
     fi
@@ -436,6 +438,7 @@ _write_objects() {
 _write_genesis() {
     local storage="$1"
     local genesis_json="$2"
+    local genesis_dir="${3:-}"   # directory containing the genesis file (for seed resolution)
 
     if _is_file "$storage"; then
         local path
@@ -445,7 +448,7 @@ _write_genesis() {
         fi
         mkdir -p "$(dirname "$path")"
         echo "$genesis_json" | jq '.' > "$path"
-        _ok "Written genesis → ${path}"; ((PASS++))
+        _ok "Written genesis → ${path}"; ((PASS++)) || true
     else
         local base
         base=$(_url "$storage")
@@ -460,7 +463,7 @@ _write_genesis() {
             _api_push_class "$base" "$cid" "$cls"
         done < <(echo "$genesis_json" | jq -c '.classes[] // empty')
 
-        # Push objects (optional section)
+        # Push objects (optional inline section)
         if echo "$genesis_json" | jq -e 'has("objects")' &>/dev/null; then
             local obj_count
             obj_count=$(echo "$genesis_json" | jq '.objects | length')
@@ -468,6 +471,37 @@ _write_genesis() {
             local objects
             objects=$(echo "$genesis_json" | jq '.objects')
             _write_objects "$base" "$objects"
+        fi
+
+        # Push seed data files (relative to genesis file directory)
+        if echo "$genesis_json" | jq -e 'has("seed")' &>/dev/null; then
+            local seed_count
+            seed_count=$(echo "$genesis_json" | jq '.seed | length')
+            _step "Loading ${seed_count} seed file(s)..."
+            while IFS= read -r seed_entry; do
+                local seed_file seed_class seed_path
+                seed_file=$(echo "$seed_entry" | jq -r '.file')
+                seed_class=$(echo "$seed_entry" | jq -r '.class_id // ""')
+                # Resolve relative path from genesis directory
+                if [[ -n "$genesis_dir" && "$seed_file" != /* ]]; then
+                    seed_path="${genesis_dir}/${seed_file}"
+                else
+                    seed_path="$seed_file"
+                fi
+                if [[ ! -f "$seed_path" ]]; then
+                    _warn "Seed file not found: ${seed_path}"; ((SKIP++)) || true; continue
+                fi
+                local seed_json
+                seed_json=$(cat "$seed_path")
+                local seed_obj_count
+                seed_obj_count=$(echo "$seed_json" | jq 'if type == "array" then length else 1 end')
+                _info "Seeding ${seed_obj_count} object(s) from ${seed_file}${seed_class:+ (${seed_class})}"
+                if echo "$seed_json" | jq -e 'type == "array"' &>/dev/null; then
+                    _write_objects "$storage" "$seed_json"
+                else
+                    _write_objects "$storage" "$(echo "$seed_json" | jq '[.]')"
+                fi
+            done < <(echo "$genesis_json" | jq -c '.seed[] // empty')
         fi
     fi
 }
@@ -678,9 +712,13 @@ cmd_set() {
 
     _check_connectivity "$s" || exit 1
 
+    # Resolve genesis directory for seed file resolution
+    local _genesis_dir=""
+    [[ -n "$DATA_FILE" ]] && _genesis_dir="$(dirname "$DATA_FILE")"
+
     # Detect payload type and dispatch
     if echo "$payload" | jq -e 'type == "object" and has("classes")' &>/dev/null; then
-        _write_genesis "$s" "$payload"
+        _write_genesis "$s" "$payload" "$_genesis_dir"
     elif echo "$payload" | jq -e 'type == "array"' &>/dev/null; then
         _write_objects "$s" "$payload"
     elif echo "$payload" | jq -e 'type == "object" and has("id") and has("class_id")' &>/dev/null; then
@@ -714,7 +752,7 @@ cmd_push() {
         _info "Reading: ${path}"
 
         if echo "$json" | jq -e 'type == "object" and has("classes")' &>/dev/null; then
-            _write_genesis "$to" "$json"
+            _write_genesis "$to" "$json" "$(dirname "$path")"
         elif echo "$json" | jq -e 'type == "array"' &>/dev/null; then
             _step "Pushing $(echo "$json" | jq 'length') object(s)..."
             _write_objects "$to" "$json"
