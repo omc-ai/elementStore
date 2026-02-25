@@ -87,7 +87,7 @@ class Prop extends EntityObj
      * - integer/float: min, max, step, values[]
      * - boolean: true_label, false_label
      * - datetime: min_date, max_date, min_time, max_time
-     * - object: (none — behavior driven by object_class_id)
+     * - object: cast_from_string{} — template to expand string values into objects ($value = the string)
      * - relation: filter{}, sort_by, display_field
      * - function: function_type, function_name, parameters{}, bindings{}, code
      */

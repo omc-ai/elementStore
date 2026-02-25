@@ -1245,16 +1245,27 @@ class ClassModel
         }
 
         if ($prop->is_array && is_array($value)) {
-            return array_map(fn($v) => $this->castSingleValue($v, $prop->data_type), $value);
+            return array_map(fn($v) => $this->castSingleValue($v, $prop), $value);
         }
 
-        return $this->castSingleValue($value, $prop->data_type);
+        return $this->castSingleValue($value, $prop);
     }
 
-    private function castSingleValue(mixed $value, string $dataType): mixed
+    private function castSingleValue(mixed $value, Prop $prop): mixed
     {
         if ($value === null) {
             return null;
+        }
+
+        $dataType = $prop->data_type;
+
+        // Object cast_from_string: expand a string value into an object using a template
+        // Template uses $value as placeholder for the original string
+        if ($dataType === Constants::DT_OBJECT && is_string($value)) {
+            $castTemplate = $prop->options['cast_from_string'] ?? null;
+            if ($castTemplate && is_array($castTemplate)) {
+                return $this->applyCastTemplate($castTemplate, $value);
+            }
         }
 
         return match ($dataType) {
@@ -1264,6 +1275,26 @@ class ClassModel
             Constants::DT_STRING, Constants::DT_DATETIME => is_scalar($value) ? (string)$value : $value,
             default => $value,
         };
+    }
+
+    /**
+     * Apply a cast_from_string template: replace $value placeholders with the actual string.
+     * Example template: {"type": "json_file", "url": "$value"}
+     * With input "data.json" → {"type": "json_file", "url": "data.json"}
+     */
+    private function applyCastTemplate(array $template, string $value): array
+    {
+        $result = [];
+        foreach ($template as $k => $v) {
+            if (is_string($v)) {
+                $result[$k] = str_replace('$value', $value, $v);
+            } elseif (is_array($v)) {
+                $result[$k] = $this->applyCastTemplate($v, $value);
+            } else {
+                $result[$k] = $v;
+            }
+        }
+        return $result;
     }
 
     private function castToNumber(mixed $value): mixed

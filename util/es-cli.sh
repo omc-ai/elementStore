@@ -440,18 +440,52 @@ _write_objects() {
     fi
 }
 
-# Resolve a storage descriptor relative to a base directory.
-# If the descriptor is a relative file path and base_dir is set, prepend it.
-# Absolute paths, URLs, and file: prefixes pass through unchanged.
-_resolve_storage() {
-    local descriptor="$1"
+# ── Storage descriptor parsing ────────────────────────────────────────────────
+#
+# A seed storage descriptor can be:
+#   String shorthand:   "./path.json"  → cast to { type: "json_file", url: "./path.json" }
+#   Object (full form): { "type": "json_file", "url": "./path.json" }
+#
+# Supported types:
+#   json_file     — local JSON file (default for file paths)
+#   http          — remote HTTP/HTTPS URL
+#   elementStore  — remote elementStore API (requires class_id on seed entry)
+#
+
+# Parse a seed entry's storage field → outputs "type url" on stdout
+# Input: raw JSON of the seed entry, e.g. {"storage":"./data.json"} or {"storage":{"type":"http","url":"..."}}
+_parse_seed_storage() {
+    local seed_entry_json="$1"
+    local raw_storage
+    raw_storage=$(echo "$seed_entry_json" | jq -r '.storage')
+
+    # Check if storage is an object (jq returns "object" for type)
+    local storage_type_check
+    storage_type_check=$(echo "$seed_entry_json" | jq -r '.storage | type')
+
+    if [[ "$storage_type_check" == "object" ]]; then
+        # Full descriptor object
+        local stype surl
+        stype=$(echo "$seed_entry_json" | jq -r '.storage.type // "json_file"')
+        surl=$(echo "$seed_entry_json" | jq -r '.storage.url // ""')
+        echo "${stype} ${surl}"
+    else
+        # String shorthand → auto-detect type from URL pattern
+        if [[ "$raw_storage" == http://* || "$raw_storage" == https://* ]]; then
+            echo "http ${raw_storage}"
+        else
+            echo "json_file ${raw_storage}"
+        fi
+    fi
+}
+
+# Resolve a file-type URL relative to a base directory.
+_resolve_file_url() {
+    local url="$1"
     local base_dir="${2:-}"
 
-    # URLs pass through
-    [[ "$descriptor" == http://* || "$descriptor" == https://* ]] && { echo "$descriptor"; return; }
-
-    # Strip file: prefix for resolution, re-add later if needed
-    local bare="${descriptor#file:}"
+    # Strip file: prefix
+    local bare="${url#file:}"
 
     # Absolute paths pass through
     [[ "$bare" == /* ]] && { echo "$bare"; return; }
@@ -504,56 +538,68 @@ _write_genesis() {
             _write_objects "$base" "$objects"
         fi
 
-        # Process seed entries — storage descriptors that reference data or sub-genesis files
+        # Process seed entries — typed storage descriptors referencing data or sub-genesis files
+        # Each entry has a "storage" field that is either:
+        #   - string shorthand: "./path.json" (auto-cast to {type:"json_file", url:"./path.json"})
+        #   - full object:      {"type":"json_file","url":"./path.json"}
         if echo "$genesis_json" | jq -e 'has("seed") and (.seed | length > 0)' &>/dev/null; then
             local seed_count
             seed_count=$(echo "$genesis_json" | jq '.seed | length')
             _step "Processing ${seed_count} seed source(s)..."
             while IFS= read -r seed_entry; do
-                local seed_storage seed_resolved
-                seed_storage=$(echo "$seed_entry" | jq -r '.storage')
-                seed_resolved=$(_resolve_storage "$seed_storage" "$genesis_dir")
+                # Parse the storage descriptor → "type url"
+                local parsed stype surl
+                parsed=$(_parse_seed_storage "$seed_entry")
+                stype="${parsed%% *}"
+                surl="${parsed#* }"
 
-                # Read the seed source
-                if _is_file "$seed_resolved"; then
-                    local seed_path
-                    seed_path=$(_file_path "$seed_resolved")
-                    if [[ ! -f "$seed_path" ]]; then
-                        _warn "Seed not found: ${seed_path}"; ((SKIP++)) || true; continue
-                    fi
-                    local seed_json
-                    seed_json=$(cat "$seed_path")
-                    local seed_dir
-                    seed_dir=$(dirname "$seed_path")
+                case "$stype" in
+                    json_file)
+                        # Resolve relative file path from genesis directory
+                        local seed_path
+                        seed_path=$(_resolve_file_url "$surl" "$genesis_dir")
+                        if [[ ! -f "$seed_path" ]]; then
+                            _warn "Seed not found: ${seed_path}"; ((SKIP++)) || true; continue
+                        fi
+                        local seed_json seed_dir
+                        seed_json=$(cat "$seed_path")
+                        seed_dir=$(dirname "$seed_path")
 
-                    # Detect format: genesis (recurse) vs data array vs single object
-                    if echo "$seed_json" | jq -e 'type == "object" and (has("classes") or has("seed"))' &>/dev/null; then
-                        _info "Seed genesis: ${seed_storage}"
-                        _write_genesis "$storage" "$seed_json" "$seed_dir"
-                    elif echo "$seed_json" | jq -e 'type == "array"' &>/dev/null; then
-                        local n
-                        n=$(echo "$seed_json" | jq 'length')
-                        _info "Seed data: ${seed_storage} (${n} objects)"
-                        _write_objects "$storage" "$seed_json"
-                    elif echo "$seed_json" | jq -e 'type == "object" and has("id")' &>/dev/null; then
-                        _info "Seed data: ${seed_storage} (1 object)"
-                        _write_objects "$storage" "$(echo "$seed_json" | jq '[.]')"
-                    else
-                        _warn "Seed unknown format: ${seed_storage}"; ((SKIP++)) || true
-                    fi
-                else
-                    # Remote storage — pull and push
-                    _info "Seed remote: ${seed_storage}"
-                    local remote_class
-                    remote_class=$(echo "$seed_entry" | jq -r '.class_id // ""')
-                    if [[ -n "$remote_class" ]]; then
-                        local data
-                        data=$(_storage_read_class "$seed_resolved" "$remote_class" "") || { ((SKIP++)) || true; continue; }
-                        _write_objects "$storage" "$data"
-                    else
-                        _warn "Remote seed requires class_id: ${seed_storage}"; ((SKIP++)) || true
-                    fi
-                fi
+                        # Detect format: genesis (recurse) vs data array vs single object
+                        if echo "$seed_json" | jq -e 'type == "object" and (has("classes") or has("seed"))' &>/dev/null; then
+                            _info "Seed genesis: ${surl}"
+                            _write_genesis "$storage" "$seed_json" "$seed_dir"
+                        elif echo "$seed_json" | jq -e 'type == "array"' &>/dev/null; then
+                            local n
+                            n=$(echo "$seed_json" | jq 'length')
+                            _info "Seed data: ${surl} (${n} objects)"
+                            _write_objects "$storage" "$seed_json"
+                        elif echo "$seed_json" | jq -e 'type == "object" and has("id")' &>/dev/null; then
+                            _info "Seed data: ${surl} (1 object)"
+                            _write_objects "$storage" "$(echo "$seed_json" | jq '[.]')"
+                        else
+                            _warn "Seed unknown format: ${surl}"; ((SKIP++)) || true
+                        fi
+                        ;;
+
+                    http|elementStore)
+                        # Remote storage — pull class data and push to target
+                        _info "Seed remote (${stype}): ${surl}"
+                        local remote_class
+                        remote_class=$(echo "$seed_entry" | jq -r '.class_id // ""')
+                        if [[ -n "$remote_class" ]]; then
+                            local data
+                            data=$(_storage_read_class "$surl" "$remote_class" "") || { ((SKIP++)) || true; continue; }
+                            _write_objects "$storage" "$data"
+                        else
+                            _warn "Remote seed requires class_id: ${surl}"; ((SKIP++)) || true
+                        fi
+                        ;;
+
+                    *)
+                        _warn "Unknown seed storage type: ${stype}"; ((SKIP++)) || true
+                        ;;
+                esac
             done < <(echo "$genesis_json" | jq -c '.seed[] // empty')
         fi
     fi
@@ -770,7 +816,7 @@ cmd_set() {
     [[ -n "$DATA_FILE" ]] && _genesis_dir="$(dirname "$DATA_FILE")"
 
     # Detect payload type and dispatch
-    if echo "$payload" | jq -e 'type == "object" and has("classes")' &>/dev/null; then
+    if echo "$payload" | jq -e 'type == "object" and (has("classes") or has("seed"))' &>/dev/null; then
         _write_genesis "$s" "$payload" "$_genesis_dir"
     elif echo "$payload" | jq -e 'type == "array"' &>/dev/null; then
         _write_objects "$s" "$payload"
@@ -804,7 +850,7 @@ cmd_push() {
         json=$(cat "$path")
         _info "Reading: ${path}"
 
-        if echo "$json" | jq -e 'type == "object" and has("classes")' &>/dev/null; then
+        if echo "$json" | jq -e 'type == "object" and (has("classes") or has("seed"))' &>/dev/null; then
             _write_genesis "$to" "$json" "$(dirname "$path")"
         elif echo "$json" | jq -e 'type == "array"' &>/dev/null; then
             _step "Pushing $(echo "$json" | jq 'length') object(s)..."
