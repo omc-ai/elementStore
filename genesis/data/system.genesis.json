@@ -17,7 +17,8 @@
         {"key": "storage_id",  "label": "Storage",     "description": "Storage provider (falls back to parent class, then default)", "data_type": "relation", "object_class_id": ["@storage"], "display_order": 6, "group_name": "Advanced"},
         {"key": "is_system",   "label": "System Class","description": "Protected system class (cannot be deleted)",                  "data_type": "boolean",  "readonly": true, "default_value": false, "display_order": 7, "group_name": "Advanced"},
         {"key": "is_abstract", "label": "Abstract",    "description": "Cannot create instances directly (only via child classes)",   "data_type": "boolean",  "default_value": false, "display_order": 8, "group_name": "Advanced"},
-        {"key": "providers",   "label": "Providers",   "description": "Data providers for external API integration",                 "data_type": "relation", "is_array": true, "object_class_id": ["@provider"], "display_order": 9, "group_name": "Advanced"}
+        {"key": "providers",   "label": "Providers",   "description": "Data providers for external API integration",                 "data_type": "relation", "is_array": true, "object_class_id": ["@provider"], "display_order": 9, "group_name": "Advanced"},
+        {"key": "_links",      "label": "External Links", "description": "Maps storage_id to external ID for provider-linked objects. Managed by ActionExecutor — never set manually.", "data_type": "object", "server_only": true, "hidden": true, "display_order": 100, "group_name": "Internal"}
       ]
     },
     {
@@ -72,12 +73,17 @@
       "id": "@storage",
       "class_id": "@class",
       "name": "Storage",
-      "description": "Storage provider configuration — defines where and how class data is persisted",
+      "description": "Storage provider configuration — defines where and how class data is persisted. 'api' and 'composite' types proxy through @provider.",
       "is_system": true,
       "props": [
-        {"key": "name", "label": "Name", "description": "Storage provider display name", "data_type": "string", "required": true, "display_order": 1},
-        {"key": "url",  "label": "URL",  "description": "API endpoint URL for this storage provider", "data_type": "string", "field_type": "url", "display_order": 2},
-        {"key": "type", "label": "Type", "description": "Storage provider type", "data_type": "string", "options": {"type": "string_options", "values": ["local","rest","couchdb","mysql","json"]}, "default_value": "rest", "display_order": 3}
+        {"key": "name",           "label": "Name",           "description": "Storage provider display name",                                                         "data_type": "string",   "required": true, "display_order": 1},
+        {"key": "url",            "label": "URL",            "description": "API endpoint URL (for rest type)",                                                       "data_type": "string",   "field_type": "url", "display_order": 2},
+        {"key": "type",           "label": "Type",           "description": "Storage backend: local (browser), rest (ES API), api (external via @provider), seed (read-only), composite (multi-source), couchdb/mysql/json (server-only)", "data_type": "string", "options": {"type": "string_options", "values": ["local","rest","api","seed","composite","couchdb","mysql","json"]}, "default_value": "rest", "display_order": 3},
+        {"key": "provider_id",    "label": "Provider",       "description": "Data provider for external API integration (type=api)",                                  "data_type": "relation", "object_class_id": ["@provider"], "display_order": 10, "group_name": "Composite"},
+        {"key": "read",           "label": "Read Sources",   "description": "Ordered storage IDs to read from (type=composite). Tried in order or merged.",          "data_type": "string",   "is_array": true, "display_order": 11, "group_name": "Composite"},
+        {"key": "write",          "label": "Write Target",   "description": "Storage ID to write to (type=composite).",                                               "data_type": "string",   "display_order": 12, "group_name": "Composite"},
+        {"key": "read_strategy",  "label": "Read Strategy",  "description": "How to combine reads (type=composite): fallback=first hit wins, merge=combine all",     "data_type": "string",   "options": {"type": "string_options", "values": ["fallback","merge"]}, "default_value": "fallback", "display_order": 13, "group_name": "Composite"},
+        {"key": "write_strategy", "label": "Write Strategy", "description": "How to handle writes (type=composite): sequential=in order stop on fail, parallel=all at once, best_effort=all ignore failures", "data_type": "string", "options": {"type": "string_options", "values": ["sequential","parallel","best_effort"]}, "default_value": "sequential", "display_order": 14, "group_name": "Composite"}
       ]
     },
     {
@@ -100,19 +106,35 @@
       "id": "@action",
       "class_id": "@class",
       "name": "Action",
-      "description": "Defines an executable action that can be triggered on objects",
+      "description": "Universal execution unit — api call, function registry, event dispatch, or composite chain. Same config drives ActionExecutor on both server (PHP) and client (TS).",
       "is_system": true,
       "props": [
-        {"key": "name",               "label": "Name",              "description": "Action display name",                           "data_type": "string",   "required": true, "display_order": 1},
-        {"key": "description",        "label": "Description",       "description": "What this action does",                        "data_type": "string",   "editor": "textarea", "display_order": 2},
-        {"key": "target_class_id",    "label": "Target Class",      "description": "Class this action applies to",                 "data_type": "relation", "object_class_id": ["@class"], "display_order": 3},
-        {"key": "handler",            "label": "Handler",           "description": "Action implementation: (scope) => result",     "data_type": "function", "editor": "javascript", "required": true, "display_order": 4},
-        {"key": "params",             "label": "Parameters",        "description": "Action input parameters",                      "data_type": "object",   "is_array": true, "object_class_id": ["@prop"], "display_order": 5},
-        {"key": "returns",            "label": "Returns",           "description": "Return type description",                      "data_type": "object",   "object_class_id": ["@prop"], "display_order": 6},
-        {"key": "requires_selection", "label": "Requires Selection","description": "Action requires selected object(s)",           "data_type": "boolean",  "default_value": true, "display_order": 7},
-        {"key": "bulk",               "label": "Bulk Action",       "description": "Can apply to multiple objects",               "data_type": "boolean",  "default_value": false, "display_order": 8},
-        {"key": "confirm",            "label": "Confirm",           "description": "Confirmation message (empty = no confirm)",   "data_type": "string",   "display_order": 9},
-        {"key": "icon",               "label": "Icon",              "description": "Icon name for UI",                            "data_type": "string",   "display_order": 10}
+        {"key": "name",        "label": "Name",        "description": "Action display name",                                                       "data_type": "string",   "required": true, "display_order": 1},
+        {"key": "description", "label": "Description", "description": "What this action does",                                                     "data_type": "string",   "editor": "textarea", "display_order": 2},
+        {"key": "type",        "label": "Type",        "description": "Execution type: api (HTTP call), function (FunctionRegistry), event (EventBus), composite (chain), ui (JS handler)", "data_type": "string", "required": true, "options": {"type": "string_options", "values": ["api","function","event","composite","ui"]}, "display_order": 3},
+        {"key": "group_name",  "label": "Group",       "description": "Action category for UI grouping",                                           "data_type": "string",   "display_order": 4},
+        {"key": "params",      "label": "Parameters",  "description": "Input parameters schema",                                                   "data_type": "object",   "is_array": true, "object_class_id": ["@prop"], "display_order": 5},
+        {"key": "returns",     "label": "Returns",     "description": "Return type",                                                               "data_type": "string",   "options": {"type": "string_options", "values": ["object","list","void"]}, "default_value": "void", "display_order": 6},
+
+        {"key": "method",    "label": "HTTP Method",   "description": "HTTP method (type=api)",                                                    "data_type": "string",   "options": {"type": "string_options", "values": ["GET","POST","PUT","PATCH","DELETE"]}, "default_value": "GET", "display_order": 10, "group_name": "API"},
+        {"key": "endpoint",  "label": "Endpoint",      "description": "URL path relative to provider base_url, may use {id} substitution (type=api)", "data_type": "string", "display_order": 11, "group_name": "API"},
+        {"key": "headers",   "label": "Headers",       "description": "Additional HTTP headers as key:value object (type=api)",                    "data_type": "object",   "display_order": 12, "group_name": "API"},
+        {"key": "mapping",   "label": "Field Mapping", "description": "API response field → ES field mapping, e.g. {api_name: es_name} (type=api)", "data_type": "object", "display_order": 13, "group_name": "API"},
+
+        {"key": "function",  "label": "Function Key",  "description": "FunctionRegistry key to call (type=function), e.g. 'billing.calculate'",   "data_type": "string",   "display_order": 20, "group_name": "Function"},
+
+        {"key": "event",     "label": "Event Name",    "description": "EventBus event name to emit (type=event)",                                  "data_type": "string",   "display_order": 30, "group_name": "Event"},
+        {"key": "payload",   "label": "Payload Map",   "description": "param→event_field mapping for event payload (type=event)",                 "data_type": "object",   "display_order": 31, "group_name": "Event"},
+
+        {"key": "actions",   "label": "Sub-Actions",   "description": "Ordered action IDs to chain (type=composite)",                             "data_type": "relation", "object_class_id": ["@action"], "is_array": true, "display_order": 40, "group_name": "Composite"},
+        {"key": "strategy",  "label": "Strategy",      "description": "Execution strategy (type=composite): sequential=stop on fail, parallel=all at once", "data_type": "string", "options": {"type": "string_options", "values": ["sequential","parallel"]}, "default_value": "sequential", "display_order": 41, "group_name": "Composite"},
+
+        {"key": "handler",            "label": "Handler",            "description": "JS handler code: (scope) => result (type=ui)",                "data_type": "function", "editor": "javascript", "display_order": 50, "group_name": "UI"},
+        {"key": "target_class_id",    "label": "Target Class",       "description": "Class this action applies to (type=ui)",                     "data_type": "relation", "object_class_id": ["@class"], "display_order": 51, "group_name": "UI"},
+        {"key": "requires_selection", "label": "Requires Selection", "description": "Action requires selected object(s) (type=ui)",               "data_type": "boolean",  "default_value": true, "display_order": 52, "group_name": "UI"},
+        {"key": "bulk",               "label": "Bulk Action",        "description": "Can apply to multiple objects (type=ui)",                     "data_type": "boolean",  "default_value": false, "display_order": 53, "group_name": "UI"},
+        {"key": "confirm",            "label": "Confirm",            "description": "Confirmation message before running (empty = no confirm)",    "data_type": "string",   "display_order": 54, "group_name": "UI"},
+        {"key": "icon",               "label": "Icon",               "description": "Icon name for UI display",                                    "data_type": "string",   "display_order": 55, "group_name": "UI"}
       ]
     },
     {
@@ -136,16 +158,19 @@
       "id": "@provider",
       "class_id": "@class",
       "name": "Provider",
-      "description": "Abstract base for data providers — defines how to fetch/save data via external APIs",
+      "description": "Abstract base for data providers — defines how to connect to an external API. Extend this class to create concrete providers per external system. Use extends_id to inherit base_url and auth across multiple class-specific providers.",
       "is_system": true,
       "is_abstract": true,
       "props": [
-        {"key": "name",          "label": "Name",                "description": "Provider display name",                           "data_type": "string", "required": true, "display_order": 1},
-        {"key": "description",   "label": "Description",         "description": "What this provider connects to",                  "data_type": "string", "editor": "textarea", "display_order": 2},
-        {"key": "provider_type", "label": "Provider Type",       "description": "Type of provider (crud, graphql, etc.)",         "data_type": "string", "display_order": 3},
-        {"key": "base_url",      "label": "Base URL",            "description": "Base URL for API requests",                       "data_type": "string", "display_order": 4},
-        {"key": "auth",          "label": "Authentication",      "description": "Authentication configuration",                    "data_type": "object", "display_order": 5},
-        {"key": "params",        "label": "Default Parameters",  "description": "Default query parameters for every request",     "data_type": "object", "display_order": 6}
+        {"key": "name",          "label": "Name",               "description": "Provider display name",                                                                "data_type": "string",   "required": true, "display_order": 1},
+        {"key": "description",   "label": "Description",        "description": "What external system this provider connects to",                                       "data_type": "string",   "editor": "textarea", "display_order": 2},
+        {"key": "base_url",      "label": "Base URL",           "description": "Base URL for API requests (inherited by child providers via extends_id)",              "data_type": "string",   "field_type": "url", "display_order": 3},
+        {"key": "auth",          "label": "Authentication",     "description": "Auth config: {type: bearer|basic|apikey, token?, username?, password?, header?, key?}", "data_type": "object",   "display_order": 4},
+        {"key": "id_field",      "label": "External ID Field",  "description": "Field name in API response that holds the external ID (stored in object._links)",      "data_type": "string",   "default_value": "id", "display_order": 5},
+        {"key": "write_mode",    "label": "Write Mode",         "description": "crud=direct setObject allowed; actions_only=must use @action to modify linked objects", "data_type": "string",   "options": {"type": "string_options", "values": ["crud","actions_only"]}, "default_value": "actions_only", "display_order": 6},
+        {"key": "mapping",       "label": "Field Mapping",      "description": "Default API field → ES field mapping (overridden per action). e.g. {api_id: id, api_name: name}", "data_type": "object", "display_order": 7},
+        {"key": "actions",       "label": "Actions",            "description": "Available actions on this provider (get_one, get_list, create_one, update_one, delete_one, + custom)", "data_type": "relation", "object_class_id": ["@action"], "is_array": true, "display_order": 8},
+        {"key": "params",        "label": "Default Parameters", "description": "Default query parameters added to every API request",                                  "data_type": "object",   "display_order": 9}
       ]
     },
     {
@@ -153,17 +178,16 @@
       "class_id": "@class",
       "extends_id": "@provider",
       "name": "CRUD Provider",
-      "description": "Provider for standard CRUD operations — URLs, pagination, filters, and field mapping",
+      "description": "Concrete provider template for standard REST CRUD APIs. Inherits base_url and auth from @provider. Adds URL patterns and pagination config. Create instances for each class that uses a CRUD API.",
       "is_system": true,
       "props": [
-        {"key": "get_one",    "label": "Get One",        "description": "URL pattern for fetching one object",    "data_type": "string", "display_order": 10},
-        {"key": "get_list",   "label": "Get List",       "description": "URL pattern for listing objects",       "data_type": "string", "display_order": 11},
-        {"key": "create_one", "label": "Create One",     "description": "URL pattern for creating an object",    "data_type": "string", "display_order": 12},
-        {"key": "update_one", "label": "Update One",     "description": "URL pattern for updating an object",    "data_type": "string", "display_order": 13},
-        {"key": "delete_one", "label": "Delete One",     "description": "URL pattern for deleting an object",    "data_type": "string", "display_order": 14},
-        {"key": "paginator",  "label": "Paginator",      "description": "Pagination configuration",              "data_type": "object", "display_order": 15},
-        {"key": "filters",    "label": "Filters",        "description": "Available filter parameter names",      "data_type": "string", "is_array": true, "display_order": 16},
-        {"key": "mapping",    "label": "Field Mapping",  "description": "ES_key → API_field (string or @function transform)", "data_type": "object", "display_order": 17}
+        {"key": "get_one",    "label": "Get One Endpoint",    "description": "Endpoint path for GET single object, e.g. /vms/{id}. Overrides actions.get_one.endpoint", "data_type": "string", "display_order": 10},
+        {"key": "get_list",   "label": "Get List Endpoint",   "description": "Endpoint path for GET list, e.g. /vms",                                                   "data_type": "string", "display_order": 11},
+        {"key": "create_one", "label": "Create One Endpoint", "description": "Endpoint path for POST create, e.g. /vms",                                                "data_type": "string", "display_order": 12},
+        {"key": "update_one", "label": "Update One Endpoint", "description": "Endpoint path for PUT/PATCH update, e.g. /vms/{id}",                                     "data_type": "string", "display_order": 13},
+        {"key": "delete_one", "label": "Delete One Endpoint", "description": "Endpoint path for DELETE, e.g. /vms/{id}",                                                "data_type": "string", "display_order": 14},
+        {"key": "paginator",  "label": "Paginator",           "description": "Pagination config: {page_param, size_param, total_field, data_field}",                   "data_type": "object", "display_order": 15},
+        {"key": "filters",    "label": "Filter Params",       "description": "Available filter query parameter names",                                                  "data_type": "string", "is_array": true, "display_order": 16}
       ]
     }
   ,
