@@ -30,10 +30,13 @@ class SystemClasses
         return [
             self::getPropClassDefinition(),
             self::getClassClassDefinition(),
-            self::getStorageClassDefinition(),
             self::getEditorClassDefinition(),
+            self::getFunctionClassDefinition(),
+            self::getStorageClassDefinition(),
             self::getActionClassDefinition(),
             self::getEventClassDefinition(),
+            self::getProviderClassDefinition(),
+            self::getCrudProviderClassDefinition(),
         ];
     }
 
@@ -57,41 +60,14 @@ class SystemClasses
     public static function getPropClassDefinition(): array
     {
         $props = [
-            [
-                Prop::PF_KEY => Prop::PF_KEY,
-                Prop::PF_LABEL => 'Key',
-                Prop::PF_DESCRIPTION => 'Property key (field name)',
-                Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_REQUIRED => true,
-                Prop::PF_DISPLAY_ORDER => 1,
-            ],
-            [
-                Prop::PF_KEY => Prop::PF_LABEL,
-                Prop::PF_LABEL => 'Label',
-                Prop::PF_DESCRIPTION => 'Display label for forms',
-                Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_DISPLAY_ORDER => 1.5,
-            ],
-            [
-                Prop::PF_KEY => Prop::PF_NAME,
-                Prop::PF_LABEL => 'Name',
-                Prop::PF_DESCRIPTION => 'Display name',
-                Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_DISPLAY_ORDER => 2,
-            ],
-            [
-                Prop::PF_KEY => Prop::PF_DESCRIPTION,
-                Prop::PF_LABEL => 'Description',
-                Prop::PF_DESCRIPTION => 'Help text for the field',
-                Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_FIELD_TYPE => 'textarea',
-                Prop::PF_DISPLAY_ORDER => 3,
-            ],
+            // Type group
             [
                 Prop::PF_KEY => Prop::PF_DATA_TYPE,
                 Prop::PF_LABEL => 'Data Type',
-                Prop::PF_DESCRIPTION => 'Value data type (8 canonical types)',
+                Prop::PF_DESCRIPTION => 'Type of value this property holds',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_REQUIRED => true,
+                Prop::PF_DEFAULT_VALUE => Constants::DT_STRING,
                 Prop::PF_OPTIONS => [
                     'values' => [
                         Constants::DT_STRING,
@@ -104,25 +80,66 @@ class SystemClasses
                         Constants::DT_FUNCTION,
                     ],
                 ],
-                Prop::PF_DEFAULT_VALUE => Constants::DT_STRING,
-                Prop::PF_DISPLAY_ORDER => 4,
+                Prop::PF_DISPLAY_ORDER => 1,
+                Prop::PF_GROUP_NAME => 'Type',
             ],
             [
                 Prop::PF_KEY => Prop::PF_IS_ARRAY,
                 Prop::PF_LABEL => 'Is Array',
-                Prop::PF_DESCRIPTION => 'Property holds array of values',
+                Prop::PF_DESCRIPTION => 'Property holds multiple values',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
-                Prop::PF_DISPLAY_ORDER => 5,
+                Prop::PF_DISPLAY_ORDER => 2,
+                Prop::PF_GROUP_NAME => 'Type',
             ],
+
+            // Core group
+            [
+                Prop::PF_KEY => Prop::PF_KEY,
+                Prop::PF_LABEL => 'Key',
+                Prop::PF_DESCRIPTION => 'Property key (field name in data)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_REQUIRED => true,
+                Prop::PF_DISPLAY_ORDER => 10,
+                Prop::PF_GROUP_NAME => 'Core',
+            ],
+            [
+                Prop::PF_KEY => Prop::PF_LABEL,
+                Prop::PF_LABEL => 'Label',
+                Prop::PF_DESCRIPTION => 'Display label in UI',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 11,
+                Prop::PF_GROUP_NAME => 'Core',
+            ],
+            [
+                Prop::PF_KEY => Prop::PF_DESCRIPTION,
+                Prop::PF_LABEL => 'Description',
+                Prop::PF_DESCRIPTION => 'Help text shown to users',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_FIELD_TYPE => 'textarea',
+                Prop::PF_DISPLAY_ORDER => 12,
+                Prop::PF_GROUP_NAME => 'Core',
+            ],
+
+            // Options group
+            [
+                Prop::PF_KEY => Prop::PF_OPTIONS,
+                Prop::PF_LABEL => 'Type Options',
+                Prop::PF_DESCRIPTION => 'Type-specific options (varies by data_type)',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_DISPLAY_ORDER => 20,
+                Prop::PF_GROUP_NAME => 'Options',
+            ],
+
+            // Relation group
             [
                 Prop::PF_KEY => Prop::PF_OBJECT_CLASS_ID,
                 Prop::PF_LABEL => 'Target Classes',
-                Prop::PF_DESCRIPTION => 'Target class(es) for relations/objects (accepts child classes unless strict)',
-                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_DESCRIPTION => 'Class IDs for relations/embedded objects',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_IS_ARRAY => true,
-                Prop::PF_OBJECT_CLASS_ID => [Constants::K_CLASS],
-                Prop::PF_DISPLAY_ORDER => 6,
+                Prop::PF_DISPLAY_ORDER => 30,
+                Prop::PF_GROUP_NAME => 'Relation',
             ],
             [
                 Prop::PF_KEY => Prop::PF_OBJECT_CLASS_STRICT,
@@ -130,103 +147,132 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'Only accept exact class, not child classes',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
-                Prop::PF_DISPLAY_ORDER => 7,
+                Prop::PF_DISPLAY_ORDER => 31,
+                Prop::PF_GROUP_NAME => 'Relation',
             ],
             [
                 Prop::PF_KEY => Prop::PF_ON_ORPHAN,
                 Prop::PF_LABEL => 'On Orphan',
-                Prop::PF_DESCRIPTION => 'Action when object becomes orphaned',
+                Prop::PF_DESCRIPTION => 'Action when referenced object is deleted',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_OPTIONS => [
-                    'values' => [Prop::ORPHAN_KEEP, Prop::ORPHAN_DELETE],
+                    'values' => [Prop::ORPHAN_KEEP, Prop::ORPHAN_DELETE, 'nullify'],
                 ],
                 Prop::PF_DEFAULT_VALUE => Prop::ORPHAN_KEEP,
-                Prop::PF_DISPLAY_ORDER => 8,
+                Prop::PF_DISPLAY_ORDER => 32,
+                Prop::PF_GROUP_NAME => 'Relation',
             ],
+
+            // UI group
             [
-                Prop::PF_KEY => Prop::PF_OPTIONS,
-                Prop::PF_LABEL => 'Options',
-                Prop::PF_DESCRIPTION => 'Type-specific options (values, min, max, pattern, etc.)',
-                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
-                Prop::PF_DISPLAY_ORDER => 7,
+                Prop::PF_KEY => 'editor',
+                Prop::PF_LABEL => 'Editor',
+                Prop::PF_DESCRIPTION => 'UI editor — relation to @editor instance',
+                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_EDITOR],
+                Prop::PF_DISPLAY_ORDER => 40,
+                Prop::PF_GROUP_NAME => 'UI',
             ],
             [
                 Prop::PF_KEY => Prop::PF_FIELD_TYPE,
                 Prop::PF_LABEL => 'Field Type',
-                Prop::PF_DESCRIPTION => 'Relation to field type instance (e.g. text, email, select). Determines editor and validator.',
-                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
-                Prop::PF_OBJECT_CLASS_ID => [Constants::K_EDITOR],
-                Prop::PF_DISPLAY_ORDER => 8,
+                Prop::PF_DESCRIPTION => 'Shorthand field type string (e.g. email, url, textarea)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 41,
+                Prop::PF_GROUP_NAME => 'UI',
             ],
+            [
+                Prop::PF_KEY => Prop::PF_DISPLAY_ORDER,
+                Prop::PF_LABEL => 'Display Order',
+                Prop::PF_DESCRIPTION => 'Sort order in forms (lower = first)',
+                Prop::PF_DATA_TYPE => Constants::DT_INTEGER,
+                Prop::PF_DEFAULT_VALUE => 0,
+                Prop::PF_DISPLAY_ORDER => 42,
+                Prop::PF_GROUP_NAME => 'UI',
+            ],
+            [
+                Prop::PF_KEY => Prop::PF_GROUP_NAME,
+                Prop::PF_LABEL => 'Group',
+                Prop::PF_DESCRIPTION => 'Form section grouping',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 43,
+                Prop::PF_GROUP_NAME => 'UI',
+            ],
+            [
+                Prop::PF_KEY => Prop::PF_HIDDEN,
+                Prop::PF_LABEL => 'Hidden',
+                Prop::PF_DESCRIPTION => 'Hide from default UI views',
+                Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
+                Prop::PF_DEFAULT_VALUE => false,
+                Prop::PF_DISPLAY_ORDER => 44,
+                Prop::PF_GROUP_NAME => 'UI',
+            ],
+
+            // Validation group
             [
                 Prop::PF_KEY => Prop::PF_REQUIRED,
                 Prop::PF_LABEL => 'Required',
-                Prop::PF_DESCRIPTION => 'Field is required',
+                Prop::PF_DESCRIPTION => 'Field must have a value',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
-                Prop::PF_DISPLAY_ORDER => 9,
+                Prop::PF_DISPLAY_ORDER => 50,
+                Prop::PF_GROUP_NAME => 'Validation',
             ],
             [
                 Prop::PF_KEY => Prop::PF_READONLY,
                 Prop::PF_LABEL => 'Read Only',
-                Prop::PF_DESCRIPTION => 'Field cannot be edited',
+                Prop::PF_DESCRIPTION => 'Field cannot be edited after creation',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
-                Prop::PF_DISPLAY_ORDER => 10,
+                Prop::PF_DISPLAY_ORDER => 51,
+                Prop::PF_GROUP_NAME => 'Validation',
             ],
             [
                 Prop::PF_KEY => Prop::PF_CREATE_ONLY,
                 Prop::PF_LABEL => 'Create Only',
-                Prop::PF_DESCRIPTION => 'Only writable when creating new objects (readonly after first save)',
+                Prop::PF_DESCRIPTION => 'Only writable when creating new objects',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
-                Prop::PF_DISPLAY_ORDER => 11,
+                Prop::PF_DISPLAY_ORDER => 52,
+                Prop::PF_GROUP_NAME => 'Validation',
             ],
             [
                 Prop::PF_KEY => Prop::PF_DEFAULT_VALUE,
                 Prop::PF_LABEL => 'Default Value',
                 Prop::PF_DESCRIPTION => 'Default value for new objects',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_DISPLAY_ORDER => 12,
+                Prop::PF_DISPLAY_ORDER => 53,
+                Prop::PF_GROUP_NAME => 'Validation',
             ],
             [
-                Prop::PF_KEY => Prop::PF_DISPLAY_ORDER,
-                Prop::PF_LABEL => 'Display Order',
-                Prop::PF_DESCRIPTION => 'Order in forms/tables',
-                Prop::PF_DATA_TYPE => Constants::DT_INTEGER,
-                Prop::PF_DEFAULT_VALUE => 0,
-                Prop::PF_DISPLAY_ORDER => 13,
+                Prop::PF_KEY => 'validators',
+                Prop::PF_LABEL => 'Validators',
+                Prop::PF_DESCRIPTION => 'Validation rules — relation to @function instances',
+                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_FUNCTION],
+                Prop::PF_IS_ARRAY => true,
+                Prop::PF_DISPLAY_ORDER => 54,
+                Prop::PF_GROUP_NAME => 'Validation',
             ],
-            [
-                Prop::PF_KEY => Prop::PF_GROUP_NAME,
-                Prop::PF_LABEL => 'Group Name',
-                Prop::PF_DESCRIPTION => 'Form section grouping',
-                Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_DISPLAY_ORDER => 14,
-            ],
-            [
-                Prop::PF_KEY => Prop::PF_HIDDEN,
-                Prop::PF_LABEL => 'Hidden',
-                Prop::PF_DESCRIPTION => 'Hide from default views',
-                Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
-                Prop::PF_DEFAULT_VALUE => false,
-                Prop::PF_DISPLAY_ORDER => 15,
-            ],
+
+            // Security group
             [
                 Prop::PF_KEY => Prop::PF_SERVER_ONLY,
                 Prop::PF_LABEL => 'Server Only',
-                Prop::PF_DESCRIPTION => 'Property is stripped from API responses (backend-only)',
+                Prop::PF_DESCRIPTION => 'Stripped from API responses (backend-only)',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
-                Prop::PF_DISPLAY_ORDER => 16,
+                Prop::PF_DISPLAY_ORDER => 60,
+                Prop::PF_GROUP_NAME => 'Security',
             ],
             [
                 Prop::PF_KEY => Prop::PF_MASTER_ONLY,
                 Prop::PF_LABEL => 'Master Only',
-                Prop::PF_DESCRIPTION => 'Property only visible on master/admin interface',
+                Prop::PF_DESCRIPTION => 'Only visible on master/admin interface',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
-                Prop::PF_DISPLAY_ORDER => 17,
+                Prop::PF_DISPLAY_ORDER => 61,
+                Prop::PF_GROUP_NAME => 'Security',
             ],
         ];
 
@@ -234,6 +280,7 @@ class SystemClasses
             Constants::F_ID => Constants::K_PROP,
             Constants::F_CLASS_ID => Constants::K_CLASS,
             Constants::F_NAME => 'Property',
+            'description' => 'Defines a property within a class — type, validation, and UI behavior',
             'is_system' => true,
             Constants::F_PROPS => $props,
         ];
@@ -299,11 +346,41 @@ class SystemClasses
             [
                 Prop::PF_KEY => 'is_system',
                 Prop::PF_LABEL => 'System Class',
-                Prop::PF_DESCRIPTION => 'Protected system class',
+                Prop::PF_DESCRIPTION => 'Protected system class (cannot be deleted)',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_READONLY => true,
                 Prop::PF_DEFAULT_VALUE => false,
                 Prop::PF_DISPLAY_ORDER => 7,
+                Prop::PF_GROUP_NAME => 'Advanced',
+            ],
+            [
+                Prop::PF_KEY => 'is_abstract',
+                Prop::PF_LABEL => 'Abstract',
+                Prop::PF_DESCRIPTION => 'Cannot create instances directly (only via child classes)',
+                Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
+                Prop::PF_DEFAULT_VALUE => false,
+                Prop::PF_DISPLAY_ORDER => 8,
+                Prop::PF_GROUP_NAME => 'Advanced',
+            ],
+            [
+                Prop::PF_KEY => 'providers',
+                Prop::PF_LABEL => 'Providers',
+                Prop::PF_DESCRIPTION => 'Data providers for external API integration',
+                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_IS_ARRAY => true,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_PROVIDER],
+                Prop::PF_DISPLAY_ORDER => 9,
+                Prop::PF_GROUP_NAME => 'Advanced',
+            ],
+            [
+                Prop::PF_KEY => '_links',
+                Prop::PF_LABEL => 'External Links',
+                Prop::PF_DESCRIPTION => 'Maps storage_id to external ID for provider-linked objects. Managed by ActionExecutor — never set manually.',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_SERVER_ONLY => true,
+                Prop::PF_HIDDEN => true,
+                Prop::PF_DISPLAY_ORDER => 100,
+                Prop::PF_GROUP_NAME => 'Internal',
             ],
         ];
 
@@ -335,7 +412,7 @@ class SystemClasses
             [
                 Prop::PF_KEY => 'url',
                 Prop::PF_LABEL => 'URL',
-                Prop::PF_DESCRIPTION => 'API endpoint URL for this storage provider',
+                Prop::PF_DESCRIPTION => 'API endpoint URL (for rest type)',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_FIELD_TYPE => 'url',
                 Prop::PF_DISPLAY_ORDER => 2,
@@ -343,13 +420,63 @@ class SystemClasses
             [
                 Prop::PF_KEY => 'type',
                 Prop::PF_LABEL => 'Type',
-                Prop::PF_DESCRIPTION => 'Storage provider type (local, rest, couchdb, etc.)',
+                Prop::PF_DESCRIPTION => 'Storage backend: local (browser), rest (ES API), api (external via @provider), seed (read-only), composite (multi-source), couchdb/mysql/json (server-only)',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_OPTIONS => [
-                    'values' => ['local', 'rest', 'couchdb', 'mysql', 'json'],
+                    'values' => ['local', 'rest', 'api', 'seed', 'composite', 'couchdb', 'mysql', 'json'],
                 ],
                 Prop::PF_DEFAULT_VALUE => 'rest',
                 Prop::PF_DISPLAY_ORDER => 3,
+            ],
+            [
+                Prop::PF_KEY => 'provider_id',
+                Prop::PF_LABEL => 'Provider',
+                Prop::PF_DESCRIPTION => 'Data provider for external API integration (type=api)',
+                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_PROVIDER],
+                Prop::PF_DISPLAY_ORDER => 10,
+                Prop::PF_GROUP_NAME => 'Composite',
+            ],
+            [
+                Prop::PF_KEY => 'read',
+                Prop::PF_LABEL => 'Read Sources',
+                Prop::PF_DESCRIPTION => 'Ordered storage IDs to read from (type=composite). Tried in order or merged.',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_IS_ARRAY => true,
+                Prop::PF_DISPLAY_ORDER => 11,
+                Prop::PF_GROUP_NAME => 'Composite',
+            ],
+            [
+                Prop::PF_KEY => 'write',
+                Prop::PF_LABEL => 'Write Target',
+                Prop::PF_DESCRIPTION => 'Storage ID to write to (type=composite).',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 12,
+                Prop::PF_GROUP_NAME => 'Composite',
+            ],
+            [
+                Prop::PF_KEY => 'read_strategy',
+                Prop::PF_LABEL => 'Read Strategy',
+                Prop::PF_DESCRIPTION => 'How to combine reads (type=composite): fallback=first hit wins, merge=combine all',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_OPTIONS => [
+                    'values' => ['fallback', 'merge'],
+                ],
+                Prop::PF_DEFAULT_VALUE => 'fallback',
+                Prop::PF_DISPLAY_ORDER => 13,
+                Prop::PF_GROUP_NAME => 'Composite',
+            ],
+            [
+                Prop::PF_KEY => 'write_strategy',
+                Prop::PF_LABEL => 'Write Strategy',
+                Prop::PF_DESCRIPTION => 'How to handle writes (type=composite): sequential=in order stop on fail, parallel=all at once, best_effort=all ignore failures',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_OPTIONS => [
+                    'values' => ['sequential', 'parallel', 'best_effort'],
+                ],
+                Prop::PF_DEFAULT_VALUE => 'sequential',
+                Prop::PF_DISPLAY_ORDER => 14,
+                Prop::PF_GROUP_NAME => 'Composite',
             ],
         ];
 
@@ -370,27 +497,204 @@ class SystemClasses
     public static function getActionClassDefinition(): array
     {
         $props = [
+            // Core
             [
                 Prop::PF_KEY => Constants::F_NAME,
                 Prop::PF_LABEL => 'Name',
-                Prop::PF_DESCRIPTION => 'Action name',
+                Prop::PF_DESCRIPTION => 'Action display name',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_REQUIRED => true,
                 Prop::PF_DISPLAY_ORDER => 1,
             ],
             [
-                Prop::PF_KEY => 'handler',
-                Prop::PF_LABEL => 'Handler',
-                Prop::PF_DESCRIPTION => 'Action handler function/class',
+                Prop::PF_KEY => 'description',
+                Prop::PF_LABEL => 'Description',
+                Prop::PF_DESCRIPTION => 'What this action does',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_FIELD_TYPE => 'textarea',
                 Prop::PF_DISPLAY_ORDER => 2,
+            ],
+            [
+                Prop::PF_KEY => 'type',
+                Prop::PF_LABEL => 'Type',
+                Prop::PF_DESCRIPTION => 'Execution type: api (HTTP call), function (FunctionRegistry), event (EventBus), composite (chain), ui (JS handler)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_REQUIRED => true,
+                Prop::PF_OPTIONS => [
+                    'values' => ['api', 'function', 'event', 'composite', 'ui'],
+                ],
+                Prop::PF_DISPLAY_ORDER => 3,
+            ],
+            [
+                Prop::PF_KEY => 'group_name',
+                Prop::PF_LABEL => 'Group',
+                Prop::PF_DESCRIPTION => 'Action category for UI grouping',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 4,
             ],
             [
                 Prop::PF_KEY => 'params',
                 Prop::PF_LABEL => 'Parameters',
-                Prop::PF_DESCRIPTION => 'Action parameters schema',
+                Prop::PF_DESCRIPTION => 'Input parameters schema',
                 Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
-                Prop::PF_DISPLAY_ORDER => 3,
+                Prop::PF_IS_ARRAY => true,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_PROP],
+                Prop::PF_DISPLAY_ORDER => 5,
+            ],
+            [
+                Prop::PF_KEY => 'returns',
+                Prop::PF_LABEL => 'Returns',
+                Prop::PF_DESCRIPTION => 'Return type',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_OPTIONS => [
+                    'values' => ['object', 'list', 'void'],
+                ],
+                Prop::PF_DEFAULT_VALUE => 'void',
+                Prop::PF_DISPLAY_ORDER => 6,
+            ],
+
+            // API group
+            [
+                Prop::PF_KEY => 'method',
+                Prop::PF_LABEL => 'HTTP Method',
+                Prop::PF_DESCRIPTION => 'HTTP method (type=api)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_OPTIONS => [
+                    'values' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+                ],
+                Prop::PF_DEFAULT_VALUE => 'GET',
+                Prop::PF_DISPLAY_ORDER => 10,
+                Prop::PF_GROUP_NAME => 'API',
+            ],
+            [
+                Prop::PF_KEY => 'endpoint',
+                Prop::PF_LABEL => 'Endpoint',
+                Prop::PF_DESCRIPTION => 'URL path relative to provider base_url, may use {id} substitution (type=api)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 11,
+                Prop::PF_GROUP_NAME => 'API',
+            ],
+            [
+                Prop::PF_KEY => 'headers',
+                Prop::PF_LABEL => 'Headers',
+                Prop::PF_DESCRIPTION => 'Additional HTTP headers as key:value object (type=api)',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_DISPLAY_ORDER => 12,
+                Prop::PF_GROUP_NAME => 'API',
+            ],
+            [
+                Prop::PF_KEY => 'mapping',
+                Prop::PF_LABEL => 'Field Mapping',
+                Prop::PF_DESCRIPTION => 'API response field → ES field mapping, e.g. {api_name: es_name} (type=api)',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_DISPLAY_ORDER => 13,
+                Prop::PF_GROUP_NAME => 'API',
+            ],
+
+            // Function group
+            [
+                Prop::PF_KEY => 'function',
+                Prop::PF_LABEL => 'Function Key',
+                Prop::PF_DESCRIPTION => "FunctionRegistry key to call (type=function), e.g. 'billing.calculate'",
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 20,
+                Prop::PF_GROUP_NAME => 'Function',
+            ],
+
+            // Event group
+            [
+                Prop::PF_KEY => 'event',
+                Prop::PF_LABEL => 'Event Name',
+                Prop::PF_DESCRIPTION => 'EventBus event name to emit (type=event)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 30,
+                Prop::PF_GROUP_NAME => 'Event',
+            ],
+            [
+                Prop::PF_KEY => 'payload',
+                Prop::PF_LABEL => 'Payload Map',
+                Prop::PF_DESCRIPTION => 'param→event_field mapping for event payload (type=event)',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_DISPLAY_ORDER => 31,
+                Prop::PF_GROUP_NAME => 'Event',
+            ],
+
+            // Composite group
+            [
+                Prop::PF_KEY => 'actions',
+                Prop::PF_LABEL => 'Sub-Actions',
+                Prop::PF_DESCRIPTION => 'Ordered action IDs to chain (type=composite)',
+                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_ACTION],
+                Prop::PF_IS_ARRAY => true,
+                Prop::PF_DISPLAY_ORDER => 40,
+                Prop::PF_GROUP_NAME => 'Composite',
+            ],
+            [
+                Prop::PF_KEY => 'strategy',
+                Prop::PF_LABEL => 'Strategy',
+                Prop::PF_DESCRIPTION => 'Execution strategy (type=composite): sequential=stop on fail, parallel=all at once',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_OPTIONS => [
+                    'values' => ['sequential', 'parallel'],
+                ],
+                Prop::PF_DEFAULT_VALUE => 'sequential',
+                Prop::PF_DISPLAY_ORDER => 41,
+                Prop::PF_GROUP_NAME => 'Composite',
+            ],
+
+            // UI group
+            [
+                Prop::PF_KEY => 'handler',
+                Prop::PF_LABEL => 'Handler',
+                Prop::PF_DESCRIPTION => 'JS handler code: (scope) => result (type=ui)',
+                Prop::PF_DATA_TYPE => Constants::DT_FUNCTION,
+                Prop::PF_FIELD_TYPE => 'javascript',
+                Prop::PF_DISPLAY_ORDER => 50,
+                Prop::PF_GROUP_NAME => 'UI',
+            ],
+            [
+                Prop::PF_KEY => 'target_class_id',
+                Prop::PF_LABEL => 'Target Class',
+                Prop::PF_DESCRIPTION => 'Class this action applies to (type=ui)',
+                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_CLASS],
+                Prop::PF_DISPLAY_ORDER => 51,
+                Prop::PF_GROUP_NAME => 'UI',
+            ],
+            [
+                Prop::PF_KEY => 'requires_selection',
+                Prop::PF_LABEL => 'Requires Selection',
+                Prop::PF_DESCRIPTION => 'Action requires selected object(s) (type=ui)',
+                Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
+                Prop::PF_DEFAULT_VALUE => true,
+                Prop::PF_DISPLAY_ORDER => 52,
+                Prop::PF_GROUP_NAME => 'UI',
+            ],
+            [
+                Prop::PF_KEY => 'bulk',
+                Prop::PF_LABEL => 'Bulk Action',
+                Prop::PF_DESCRIPTION => 'Can apply to multiple objects (type=ui)',
+                Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
+                Prop::PF_DEFAULT_VALUE => false,
+                Prop::PF_DISPLAY_ORDER => 53,
+                Prop::PF_GROUP_NAME => 'UI',
+            ],
+            [
+                Prop::PF_KEY => 'confirm',
+                Prop::PF_LABEL => 'Confirm',
+                Prop::PF_DESCRIPTION => 'Confirmation message before running (empty = no confirm)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 54,
+                Prop::PF_GROUP_NAME => 'UI',
+            ],
+            [
+                Prop::PF_KEY => 'icon',
+                Prop::PF_LABEL => 'Icon',
+                Prop::PF_DESCRIPTION => 'Icon name for UI display',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 55,
+                Prop::PF_GROUP_NAME => 'UI',
             ],
         ];
 
@@ -420,18 +724,64 @@ class SystemClasses
                 Prop::PF_DISPLAY_ORDER => 1,
             ],
             [
-                Prop::PF_KEY => 'trigger_type',
-                Prop::PF_LABEL => 'Trigger Type',
-                Prop::PF_DESCRIPTION => 'When this event triggers',
+                Prop::PF_KEY => 'description',
+                Prop::PF_LABEL => 'Description',
+                Prop::PF_DESCRIPTION => 'What triggers this event',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_FIELD_TYPE => 'textarea',
                 Prop::PF_DISPLAY_ORDER => 2,
+            ],
+            [
+                Prop::PF_KEY => 'target_class_id',
+                Prop::PF_LABEL => 'Target Class',
+                Prop::PF_DESCRIPTION => 'Class this event applies to',
+                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_CLASS],
+                Prop::PF_DISPLAY_ORDER => 3,
+            ],
+            [
+                Prop::PF_KEY => 'trigger',
+                Prop::PF_LABEL => 'Trigger',
+                Prop::PF_DESCRIPTION => 'When this event fires',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_OPTIONS => [
+                    'values' => ['before_create', 'after_create', 'before_update', 'after_update', 'before_delete', 'after_delete', 'on_change', 'custom'],
+                ],
+                Prop::PF_DISPLAY_ORDER => 4,
+            ],
+            [
+                Prop::PF_KEY => 'handler',
+                Prop::PF_LABEL => 'Handler',
+                Prop::PF_DESCRIPTION => 'Event handler: (scope) => void',
+                Prop::PF_DATA_TYPE => Constants::DT_FUNCTION,
+                Prop::PF_FIELD_TYPE => 'javascript',
+                Prop::PF_REQUIRED => true,
+                Prop::PF_DISPLAY_ORDER => 5,
             ],
             [
                 Prop::PF_KEY => 'payload_schema',
                 Prop::PF_LABEL => 'Payload Schema',
                 Prop::PF_DESCRIPTION => 'Event payload structure',
                 Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
-                Prop::PF_DISPLAY_ORDER => 3,
+                Prop::PF_IS_ARRAY => true,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_PROP],
+                Prop::PF_DISPLAY_ORDER => 6,
+            ],
+            [
+                Prop::PF_KEY => 'async',
+                Prop::PF_LABEL => 'Async',
+                Prop::PF_DESCRIPTION => 'Run handler asynchronously',
+                Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
+                Prop::PF_DEFAULT_VALUE => false,
+                Prop::PF_DISPLAY_ORDER => 7,
+            ],
+            [
+                Prop::PF_KEY => 'priority',
+                Prop::PF_LABEL => 'Priority',
+                Prop::PF_DESCRIPTION => 'Execution order (higher = first)',
+                Prop::PF_DATA_TYPE => Constants::DT_INTEGER,
+                Prop::PF_DEFAULT_VALUE => 0,
+                Prop::PF_DISPLAY_ORDER => 8,
             ],
         ];
 
@@ -492,10 +842,26 @@ class SystemClasses
             [
                 Prop::PF_KEY => 'is_default',
                 Prop::PF_LABEL => 'Default Editor',
-                Prop::PF_DESCRIPTION => 'Is this the default editor for its data_types',
+                Prop::PF_DESCRIPTION => 'Default editor for its data types',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
                 Prop::PF_DISPLAY_ORDER => 4,
+            ],
+            [
+                Prop::PF_KEY => 'is_system',
+                Prop::PF_LABEL => 'System Editor',
+                Prop::PF_DESCRIPTION => 'Protected system editor (cannot be deleted)',
+                Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
+                Prop::PF_READONLY => true,
+                Prop::PF_DEFAULT_VALUE => false,
+                Prop::PF_DISPLAY_ORDER => 5,
+            ],
+            [
+                Prop::PF_KEY => 'validator',
+                Prop::PF_LABEL => 'Validator',
+                Prop::PF_DESCRIPTION => 'Built-in validator (e.g. email, url, phone)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 6,
             ],
             [
                 Prop::PF_KEY => Constants::F_PROPS,
@@ -504,7 +870,22 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
                 Prop::PF_IS_ARRAY => true,
                 Prop::PF_OBJECT_CLASS_ID => [Constants::K_PROP],
-                Prop::PF_DISPLAY_ORDER => 5,
+                Prop::PF_DISPLAY_ORDER => 7,
+            ],
+            [
+                Prop::PF_KEY => 'component',
+                Prop::PF_LABEL => 'Component',
+                Prop::PF_DESCRIPTION => 'UI component name or path',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 8,
+            ],
+            [
+                Prop::PF_KEY => 'render',
+                Prop::PF_LABEL => 'Render',
+                Prop::PF_DESCRIPTION => 'Custom render function: (scope) => html',
+                Prop::PF_DATA_TYPE => Constants::DT_FUNCTION,
+                Prop::PF_FIELD_TYPE => 'javascript',
+                Prop::PF_DISPLAY_ORDER => 9,
             ],
         ];
 
@@ -512,6 +893,252 @@ class SystemClasses
             Constants::F_ID => Constants::K_EDITOR,
             Constants::F_CLASS_ID => Constants::K_CLASS,
             Constants::F_NAME => 'Editor',
+            'is_system' => true,
+            Constants::F_PROPS => $props,
+        ];
+    }
+
+    /**
+     * Get @function class definition
+     *
+     * @return array
+     */
+    public static function getFunctionClassDefinition(): array
+    {
+        $props = [
+            [
+                Prop::PF_KEY => Constants::F_NAME,
+                Prop::PF_LABEL => 'Name',
+                Prop::PF_DESCRIPTION => 'Function display name',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_REQUIRED => true,
+                Prop::PF_DISPLAY_ORDER => 1,
+            ],
+            [
+                Prop::PF_KEY => 'description',
+                Prop::PF_LABEL => 'Description',
+                Prop::PF_DESCRIPTION => 'What this function does',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_FIELD_TYPE => 'textarea',
+                Prop::PF_DISPLAY_ORDER => 2,
+            ],
+            [
+                Prop::PF_KEY => 'function_type',
+                Prop::PF_LABEL => 'Function Type',
+                Prop::PF_DESCRIPTION => 'Category of function',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_REQUIRED => true,
+                Prop::PF_OPTIONS => [
+                    'values' => ['validator', 'transformer', 'computed', 'generator', 'custom'],
+                ],
+                Prop::PF_DISPLAY_ORDER => 3,
+            ],
+            [
+                Prop::PF_KEY => 'scope',
+                Prop::PF_LABEL => 'Scope',
+                Prop::PF_DESCRIPTION => 'Which data types this function applies to',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_IS_ARRAY => true,
+                Prop::PF_DISPLAY_ORDER => 4,
+            ],
+            [
+                Prop::PF_KEY => 'parameters',
+                Prop::PF_LABEL => 'Parameters',
+                Prop::PF_DESCRIPTION => 'Function input parameters schema',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_IS_ARRAY => true,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_PROP],
+                Prop::PF_DISPLAY_ORDER => 5,
+            ],
+            [
+                Prop::PF_KEY => 'code',
+                Prop::PF_LABEL => 'Code',
+                Prop::PF_DESCRIPTION => 'JavaScript: (obj, prop, value, params) => result',
+                Prop::PF_DATA_TYPE => Constants::DT_FUNCTION,
+                Prop::PF_FIELD_TYPE => 'javascript',
+                Prop::PF_REQUIRED => true,
+                Prop::PF_DISPLAY_ORDER => 6,
+            ],
+            [
+                Prop::PF_KEY => 'is_system',
+                Prop::PF_LABEL => 'System',
+                Prop::PF_DESCRIPTION => 'Protected system function',
+                Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
+                Prop::PF_READONLY => true,
+                Prop::PF_DEFAULT_VALUE => false,
+                Prop::PF_DISPLAY_ORDER => 7,
+            ],
+        ];
+
+        return [
+            Constants::F_ID => Constants::K_FUNCTION,
+            Constants::F_CLASS_ID => Constants::K_CLASS,
+            Constants::F_NAME => 'Function',
+            'is_system' => true,
+            Constants::F_PROPS => $props,
+        ];
+    }
+
+    /**
+     * Get @provider class definition (abstract base)
+     *
+     * @return array
+     */
+    public static function getProviderClassDefinition(): array
+    {
+        $props = [
+            [
+                Prop::PF_KEY => Constants::F_NAME,
+                Prop::PF_LABEL => 'Name',
+                Prop::PF_DESCRIPTION => 'Provider display name',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_REQUIRED => true,
+                Prop::PF_DISPLAY_ORDER => 1,
+            ],
+            [
+                Prop::PF_KEY => 'description',
+                Prop::PF_LABEL => 'Description',
+                Prop::PF_DESCRIPTION => 'What external system this provider connects to',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_FIELD_TYPE => 'textarea',
+                Prop::PF_DISPLAY_ORDER => 2,
+            ],
+            [
+                Prop::PF_KEY => 'base_url',
+                Prop::PF_LABEL => 'Base URL',
+                Prop::PF_DESCRIPTION => 'Base URL for API requests (inherited by child providers via extends_id)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_FIELD_TYPE => 'url',
+                Prop::PF_DISPLAY_ORDER => 3,
+            ],
+            [
+                Prop::PF_KEY => 'auth',
+                Prop::PF_LABEL => 'Authentication',
+                Prop::PF_DESCRIPTION => 'Auth config: {type: bearer|basic|apikey, token?, username?, password?, header?, key?}',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_DISPLAY_ORDER => 4,
+            ],
+            [
+                Prop::PF_KEY => 'id_field',
+                Prop::PF_LABEL => 'External ID Field',
+                Prop::PF_DESCRIPTION => 'Field name in API response that holds the external ID (stored in object._links)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DEFAULT_VALUE => 'id',
+                Prop::PF_DISPLAY_ORDER => 5,
+            ],
+            [
+                Prop::PF_KEY => 'write_mode',
+                Prop::PF_LABEL => 'Write Mode',
+                Prop::PF_DESCRIPTION => 'crud=direct setObject allowed; actions_only=must use @action to modify linked objects',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_OPTIONS => [
+                    'values' => ['crud', 'actions_only'],
+                ],
+                Prop::PF_DEFAULT_VALUE => 'actions_only',
+                Prop::PF_DISPLAY_ORDER => 6,
+            ],
+            [
+                Prop::PF_KEY => 'mapping',
+                Prop::PF_LABEL => 'Field Mapping',
+                Prop::PF_DESCRIPTION => 'Default API field → ES field mapping (overridden per action). e.g. {api_id: id, api_name: name}',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_DISPLAY_ORDER => 7,
+            ],
+            [
+                Prop::PF_KEY => 'actions',
+                Prop::PF_LABEL => 'Actions',
+                Prop::PF_DESCRIPTION => 'Available actions on this provider (get_one, get_list, create_one, update_one, delete_one, + custom)',
+                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_ACTION],
+                Prop::PF_IS_ARRAY => true,
+                Prop::PF_DISPLAY_ORDER => 8,
+            ],
+            [
+                Prop::PF_KEY => 'params',
+                Prop::PF_LABEL => 'Default Parameters',
+                Prop::PF_DESCRIPTION => 'Default query parameters added to every API request',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_DISPLAY_ORDER => 9,
+            ],
+        ];
+
+        return [
+            Constants::F_ID => Constants::K_PROVIDER,
+            Constants::F_CLASS_ID => Constants::K_CLASS,
+            Constants::F_NAME => 'Provider',
+            'description' => 'Abstract base for data providers — defines how to connect to an external API. Extend via extends_id to inherit base_url and auth.',
+            'is_system' => true,
+            'is_abstract' => true,
+            Constants::F_PROPS => $props,
+        ];
+    }
+
+    /**
+     * Get crud_provider class definition (extends @provider)
+     *
+     * @return array
+     */
+    public static function getCrudProviderClassDefinition(): array
+    {
+        $props = [
+            [
+                Prop::PF_KEY => 'get_one',
+                Prop::PF_LABEL => 'Get One Endpoint',
+                Prop::PF_DESCRIPTION => 'Endpoint path for GET single object, e.g. /vms/{id}',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 10,
+            ],
+            [
+                Prop::PF_KEY => 'get_list',
+                Prop::PF_LABEL => 'Get List Endpoint',
+                Prop::PF_DESCRIPTION => 'Endpoint path for GET list, e.g. /vms',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 11,
+            ],
+            [
+                Prop::PF_KEY => 'create_one',
+                Prop::PF_LABEL => 'Create One Endpoint',
+                Prop::PF_DESCRIPTION => 'Endpoint path for POST create, e.g. /vms',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 12,
+            ],
+            [
+                Prop::PF_KEY => 'update_one',
+                Prop::PF_LABEL => 'Update One Endpoint',
+                Prop::PF_DESCRIPTION => 'Endpoint path for PUT/PATCH update, e.g. /vms/{id}',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 13,
+            ],
+            [
+                Prop::PF_KEY => 'delete_one',
+                Prop::PF_LABEL => 'Delete One Endpoint',
+                Prop::PF_DESCRIPTION => 'Endpoint path for DELETE, e.g. /vms/{id}',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 14,
+            ],
+            [
+                Prop::PF_KEY => 'paginator',
+                Prop::PF_LABEL => 'Paginator',
+                Prop::PF_DESCRIPTION => 'Pagination config: {page_param, size_param, total_field, data_field}',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_DISPLAY_ORDER => 15,
+            ],
+            [
+                Prop::PF_KEY => 'filters',
+                Prop::PF_LABEL => 'Filter Params',
+                Prop::PF_DESCRIPTION => 'Available filter query parameter names',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_IS_ARRAY => true,
+                Prop::PF_DISPLAY_ORDER => 16,
+            ],
+        ];
+
+        return [
+            Constants::F_ID => Constants::K_CRUD_PROVIDER,
+            Constants::F_CLASS_ID => Constants::K_CLASS,
+            Constants::F_EXTENDS_ID => Constants::K_PROVIDER,
+            Constants::F_NAME => 'CRUD Provider',
+            'description' => 'Concrete provider template for standard REST CRUD APIs. Inherits base_url and auth from @provider.',
             'is_system' => true,
             Constants::F_PROPS => $props,
         ];

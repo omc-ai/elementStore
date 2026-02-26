@@ -46,6 +46,12 @@ class Constants
     /** @var string Storage configuration class */
     const K_STORAGE = '@storage';
 
+    /** @var string Data provider class — external API integration */
+    const K_PROVIDER = '@provider';
+
+    /** @var string CRUD provider class — extends @provider for REST CRUD APIs */
+    const K_CRUD_PROVIDER = 'crud_provider';
+
     /** @var string Auth-service connection config class */
     const K_AUTH_CONFIG = 'auth_config';
 
