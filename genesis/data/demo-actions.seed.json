@@ -1,0 +1,70 @@
+[
+  {
+    "id": "demo:server.refresh",
+    "class_id": "@action",
+    "name": "Refresh Status",
+    "description": "Fetch latest status from cloud provider API",
+    "type": "api",
+    "target_class_id": "demo:server",
+    "method": "GET",
+    "endpoint": "/service/server/{_link_id}",
+    "response_mapping": {
+      "power": "status",
+      "cpu": "cpu_usage",
+      "ram": "ram_usage"
+    },
+    "icon": "refresh-cw"
+  },
+  {
+    "id": "demo:server.power_off",
+    "class_id": "@action",
+    "name": "Power Off",
+    "description": "Send power-off command to server",
+    "type": "api",
+    "target_class_id": "demo:server",
+    "method": "PUT",
+    "endpoint": "/service/server/{_link_id}/power",
+    "request_mapping": {
+      "power": "off"
+    },
+    "response_mapping": {
+      "power": "status"
+    },
+    "icon": "power"
+  },
+  {
+    "id": "demo:server.reboot",
+    "class_id": "@action",
+    "name": "Reboot",
+    "description": "Reboot the server",
+    "type": "api",
+    "target_class_id": "demo:server",
+    "method": "PUT",
+    "endpoint": "/service/server/{_link_id}/power",
+    "request_mapping": {
+      "power": "reboot"
+    },
+    "response_mapping": {
+      "power": "status"
+    },
+    "icon": "rotate-ccw"
+  },
+  {
+    "id": "demo-srv-web01",
+    "class_id": "demo:server",
+    "name": "Web Server 01",
+    "ip": "10.0.1.10",
+    "status": "running",
+    "cpu_usage": 45.2,
+    "ram_usage": 72.8
+  },
+  {
+    "id": "demo-srv-db01",
+    "class_id": "demo:server",
+    "name": "Database Server",
+    "ip": "10.0.1.20",
+    "status": "running",
+    "cpu_usage": 12.5,
+    "ram_usage": 88.1
+  }
+]

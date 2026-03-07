@@ -61,6 +61,9 @@ class Constants
     /** @var string Auth machine registration class */
     const K_AUTH_MACHINE = 'auth_machine';
 
+    /** @var string Seed definition class — declarative data loading */
+    const K_SEED = '@seed';
+
     // =========================================================================
     // STANDARD FIELDS (F_*)
     // Common field names used across all objects
@@ -126,7 +129,7 @@ class Constants
     /** @var string Reference to another object (foreign key) */
     const DT_RELATION = 'relation';
 
-    /** @var string JavaScript function/code */
+    /** @var string Executable — local function or @action (PUT triggers execution, body = params) */
     const DT_FUNCTION = 'function';
 
     // =========================================================================
@@ -263,4 +266,59 @@ class Constants
 
     /** @var string Custom validation function */
     const VT_CUSTOM = 'custom';
+
+    // =========================================================================
+    // DIRECTORY & PATH CONSTANTS
+    // =========================================================================
+
+    /** @var string ElementStore data directory name */
+    const ES_DIR = '.es';
+
+    /** @var string Namespace separator in class IDs (e.g., ui:button) */
+    const NS_SEPARATOR = ':';
+
+    /** @var string Genesis file suffix */
+    const GENESIS_SUFFIX = '.genesis.json';
+
+    /** @var string Seed file suffix */
+    const SEED_SUFFIX = '.seed.json';
+
+    // =========================================================================
+    // GENESIS CONFIGURATION KEYS
+    // =========================================================================
+
+    /** @var string Config key for genesis source URL (git raw URL) */
+    const CFG_GENESIS_URL = 'genesis_url';
+
+    /** @var string Config key for genesis mode: 'local' or 'remote' */
+    const CFG_GENESIS_MODE = 'genesis_mode';
+
+    /** @var string Environment variable for genesis URL override */
+    const ENV_GENESIS_URL = 'ES_GENESIS_URL';
+
+    /** @var string Environment variable for genesis mode override */
+    const ENV_GENESIS_MODE = 'ES_GENESIS_MODE';
+
+    // =========================================================================
+    // PERMISSION CONSTANTS
+    // =========================================================================
+
+    /** @var string Permission: allowed to write to seed/genesis files */
+    const PERM_SEED_WRITE = 'seed_write';
+
+    // =========================================================================
+    // GENESIS FIELDS
+    // =========================================================================
+
+    /** @var string Flag: class is a seed class (changes auto-save to genesis) */
+    const F_IS_SEED = 'is_seed';
+
+    /** @var string The genesis file this class definition was loaded from */
+    const F_GENESIS_FILE = 'genesis_file';
+
+    /** @var string The .es/ directory path where this class's genesis/seed files reside */
+    const F_GENESIS_DIR = 'genesis_dir';
+
+    /** @var string The seed file this class's objects should write back to */
+    const F_SEED_FILE = 'seed_file';
 }

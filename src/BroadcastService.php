@@ -15,6 +15,12 @@
  * Each item IS the object data (id, class_id, all fields).
  * _old contains the previous values (optional, omitted for new objects).
  * _deleted: true marks a deletion.
+ *
+ * PERFORMANCE NOTE:
+ *   Docker DNS resolution blocks ~8s when the target container doesn't exist.
+ *   Neither curl CURLOPT_CONNECTTIMEOUT_MS nor stream timeout help with DNS.
+ *   Solution: check if the WS server is enabled via env var or @init.json config.
+ *   If not explicitly enabled, skip broadcast entirely (zero overhead).
  */
 
 namespace ElementStore;
@@ -22,6 +28,9 @@ namespace ElementStore;
 class BroadcastService
 {
     private static string $wsUrl = 'http://elementstore-ws:3100/broadcast';
+
+    /** @var bool|null Cached reachability: null=not tested, true=OK, false=skip */
+    private static ?bool $reachable = null;
 
     /**
      * Broadcast one or more changed items to the WS server.
@@ -33,6 +42,25 @@ class BroadcastService
     {
         if (empty($items)) {
             return;
+        }
+
+        // Fast path: skip if already known unreachable (lasts for FPM worker lifetime)
+        if (self::$reachable === false) {
+            return;
+        }
+
+        // First call: check if WS broadcasting is enabled
+        // ES_WS_URL env var enables broadcasting; unset = disabled (no DNS timeout risk)
+        if (self::$reachable === null) {
+            $envUrl = getenv('ES_WS_URL');
+            if ($envUrl === false || $envUrl === '' || $envUrl === '0') {
+                self::$reachable = false;
+                return;
+            }
+            if ($envUrl !== '1') {
+                self::$wsUrl = $envUrl;
+            }
+            self::$reachable = true; // Enabled — will try to connect
         }
 
         $payload = json_encode([
@@ -48,20 +76,24 @@ class BroadcastService
             $headers[] = 'X-Sender-User-Id: ' . $senderUserId;
         }
 
-        $context = stream_context_create([
-            'http' => [
-                'method'  => 'POST',
-                'header'  => implode("\r\n", $headers),
-                'content' => $payload,
-                'timeout' => 0.5, // 500ms max — fire and forget
-                'ignore_errors' => true,
-            ],
+        $ch = curl_init(self::$wsUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT_MS => 200,  // 200ms connect timeout
+            CURLOPT_TIMEOUT_MS     => 500,     // 500ms total timeout
+            CURLOPT_NOSIGNAL       => true,    // Required for sub-second timeouts
         ]);
 
-        try {
-            @file_get_contents(self::$wsUrl, false, $context);
-        } catch (\Throwable $e) {
-            error_log('[ElementStore] BroadcastService: ' . $e->getMessage());
+        $result = curl_exec($ch);
+        $errno  = curl_errno($ch);
+        curl_close($ch);
+
+        if ($errno !== 0) {
+            // Connection failed — mark unreachable for the rest of this worker's lifetime
+            self::$reachable = false;
         }
     }
 

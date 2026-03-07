@@ -116,7 +116,10 @@ const seedData = {
     '@action.method':             {id: '@action.method',             class_id: '@prop', key: 'method',             label: 'HTTP Method',        options: {values: ['GET','POST','PUT','PATCH','DELETE']}, default_value: 'GET', display_order: 10, group_name: 'API'},
     '@action.endpoint':           {id: '@action.endpoint',           class_id: '@prop', key: 'endpoint',           label: 'Endpoint',           display_order: 11, group_name: 'API'},
     '@action.headers':            {id: '@action.headers',            class_id: '@prop', key: 'headers',            label: 'Headers',            data_type: 'object', display_order: 12, group_name: 'API'},
-    '@action.mapping':            {id: '@action.mapping',            class_id: '@prop', key: 'mapping',            label: 'Field Mapping',      data_type: 'object', display_order: 13, group_name: 'API'},
+    '@action.mapping':            {id: '@action.mapping',            class_id: '@prop', key: 'mapping',            label: 'Field Mapping (deprecated)', data_type: 'object', display_order: 13, group_name: 'API', description: 'Deprecated: use request_mapping/response_mapping instead'},
+    '@action.request_mapping':    {id: '@action.request_mapping',    class_id: '@prop', key: 'request_mapping',    label: 'Request Mapping',    data_type: 'object', display_order: 14, group_name: 'API', description: 'Maps ES fields to API request fields'},
+    '@action.response_mapping':   {id: '@action.response_mapping',   class_id: '@prop', key: 'response_mapping',   label: 'Response Mapping',   data_type: 'object', display_order: 15, group_name: 'API', description: 'Maps API response fields to ES fields'},
+    '@action.provider_id':        {id: '@action.provider_id',        class_id: '@prop', key: 'provider_id',        label: 'Provider',           data_type: 'relation', object_class_id: ['@provider'], display_order: 16, group_name: 'API'},
     '@action.function':           {id: '@action.function',           class_id: '@prop', key: 'function',           label: 'Function Key',       display_order: 20, group_name: 'Function'},
     '@action.event':              {id: '@action.event',              class_id: '@prop', key: 'event',              label: 'Event Name',         display_order: 30, group_name: 'Event'},
     '@action.payload':            {id: '@action.payload',            class_id: '@prop', key: 'payload',            label: 'Payload Map',        data_type: 'object', display_order: 31, group_name: 'Event'},
@@ -1752,6 +1755,68 @@ class ElementStore {
             console.warn('fetchRemote failed for ' + id + ':', e.message);
         }
         return null;
+    }
+
+    /**
+     * Execute an action on an object.
+     * PUT /store/{class}/{id}/{prop} — the PHP backend detects action-type props
+     * (object_class_id includes '@action') and executes them via ActionExecutor.
+     *
+     * @param {string} classId    - Class of the target object
+     * @param {string} objectId   - Object ID
+     * @param {string} actionProp - Property name that references the @action
+     * @param {Object} [params]   - Action parameters (sent as request body)
+     * @returns {Object|null} Updated object data, or null on failure
+     */
+    executeAction(classId, objectId, actionProp, params) {
+        if (!this.storage || !this.storage.url) {
+            console.warn('executeAction: no storage configured');
+            return null;
+        }
+
+        var url = this.storage.url + '/store/' +
+            encodeURIComponent(classId) + '/' +
+            encodeURIComponent(objectId) + '/' +
+            encodeURIComponent(actionProp);
+
+        try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('PUT', url, false); // sync
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            if (_jwtToken) {
+                xhr.setRequestHeader('Authorization', 'Bearer ' + _jwtToken);
+            }
+            xhr.send(JSON.stringify(params || {}));
+
+            // 401 → try refresh + retry once
+            if (xhr.status === 401 && this.storage && this.storage.auth) {
+                if (this.storage._syncRefreshAuth()) {
+                    xhr = new XMLHttpRequest();
+                    xhr.open('PUT', url, false);
+                    xhr.setRequestHeader('Content-Type', 'application/json');
+                    xhr.setRequestHeader('Authorization', 'Bearer ' + _jwtToken);
+                    xhr.send(JSON.stringify(params || {}));
+                } else if (this.storage.onAuthRequired) {
+                    this.storage.onAuthRequired();
+                    return null;
+                }
+            }
+
+            if (xhr.status >= 200 && xhr.status < 300) {
+                var response = JSON.parse(xhr.responseText);
+                // Apply updated object to local store
+                if (response && response.id) {
+                    this.applyRemote(response);
+                }
+                return response;
+            } else {
+                console.warn('executeAction failed: HTTP ' + xhr.status, xhr.responseText);
+                return null;
+            }
+        } catch (e) {
+            console.warn('executeAction failed:', e.message);
+            return null;
+        }
     }
 
     /**

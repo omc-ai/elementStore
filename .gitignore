@@ -2,3 +2,9 @@
 keys/
 vendor/
 node_modules/
+
+# .es/ directory: track genesis/seed files, ignore runtime data
+.es/*.json
+!.es/*.genesis.json
+!.es/*.seed.json
+.es/*/

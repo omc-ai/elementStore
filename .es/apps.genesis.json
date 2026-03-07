@@ -1,0 +1,62 @@
+{
+  "id": "es-apps",
+  "class_id": "@seed",
+  "name": "ES Application & Feature Tracking",
+  "description": "Self-aware registry of applications that use elementStore, canonical ES features, and per-app feature implementation progress",
+  "version": "1.0.0",
+  "classes": [
+    {
+      "id": "es:app",
+      "class_id": "@class",
+      "name": "ES Application",
+      "description": "An application that uses elementStore — as server, client, or declaration provider",
+      "props": [
+        {"key": "name",            "label": "Name",            "description": "Application name",                                              "data_type": "string",   "required": true, "display_order": 1},
+        {"key": "description",     "label": "Description",     "description": "What this app does",                                            "data_type": "string",   "editor": "textarea", "display_order": 2},
+        {"key": "application_id",  "label": "Application",     "description": "Links to @application in platform_root registry",               "data_type": "string",   "display_order": 3},
+        {"key": "role",            "label": "Role",            "description": "How this app relates to elementStore",                          "data_type": "string",   "options": {"type": "string_options", "values": ["server", "client", "provider", "declaration"]}, "editor": "select", "required": true, "display_order": 4},
+        {"key": "server_url",      "label": "Server URL",      "description": "ES API URL (serves or connects to)",                           "data_type": "string",   "field_type": "url", "display_order": 5},
+        {"key": "repositories",    "label": "Repositories",    "description": "Repository IDs that interact with ES",                         "data_type": "string",   "is_array": true, "display_order": 6},
+        {"key": "genesis_files",   "label": "Genesis Files",   "description": "Genesis/seed file paths",                                      "data_type": "string",   "is_array": true, "display_order": 7},
+        {"key": "class_count",     "label": "Class Count",     "description": "Total ES classes this app defines",                             "data_type": "integer",  "display_order": 8},
+        {"key": "crud_providers",  "label": "CRUD Providers",  "description": "CRUD provider IDs for API mapping",                            "data_type": "string",   "is_array": true, "display_order": 9},
+        {"key": "client_language", "label": "Client Language", "description": "Primary language of ES client code",                           "data_type": "string",   "options": {"type": "string_options", "values": ["typescript", "php", "bash", "none"]}, "editor": "select", "default_value": "none", "display_order": 10},
+        {"key": "status",          "label": "Status",          "description": "Current status of this app's ES integration",                  "data_type": "string",   "options": {"type": "string_options", "values": ["active", "planned", "deprecated"]}, "editor": "select", "default_value": "active", "display_order": 11}
+      ]
+    },
+    {
+      "id": "es:feature",
+      "class_id": "@class",
+      "name": "ES Feature",
+      "description": "A canonical elementStore capability that can be implemented by clients and servers",
+      "props": [
+        {"key": "name",          "label": "Name",          "description": "Feature name",                                                     "data_type": "string",   "required": true, "display_order": 1},
+        {"key": "description",   "label": "Description",   "description": "What this feature does",                                           "data_type": "string",   "editor": "textarea", "display_order": 2},
+        {"key": "category",      "label": "Category",      "description": "Broad classification of the feature area",                         "data_type": "string",   "options": {"type": "string_options", "values": ["core", "data", "schema", "integration", "system"]}, "editor": "select", "required": true, "display_order": 3},
+        {"key": "group",         "label": "Group",         "description": "Feature sub-group for display organization within a category",     "data_type": "string",   "options": {"type": "string_options", "values": ["object", "query", "relation", "class", "schema", "data", "actions", "events", "provider", "storage", "auth", "health"]}, "editor": "select", "display_order": 4},
+        {"key": "scope",         "label": "Scope",         "description": "Whether this feature applies to server, client, or both",          "data_type": "string",   "options": {"type": "string_options", "values": ["server", "client", "both"]}, "editor": "select", "required": true, "display_order": 5},
+        {"key": "api_endpoints", "label": "API Endpoints", "description": "Related API routes",                                               "data_type": "string",   "is_array": true, "display_order": 6},
+        {"key": "depends_on",    "label": "Depends On",    "description": "Other features this depends on",                                   "data_type": "relation", "object_class_id": ["es:feature"], "is_array": true, "display_order": 7}
+      ]
+    },
+    {
+      "id": "es:app_feature",
+      "class_id": "@class",
+      "name": "App Feature Progress",
+      "description": "Tracks which ES features each application implements and their implementation progress",
+      "props": [
+        {"key": "application_id",    "label": "Application",      "description": "The es:app this feature record belongs to",                                                    "data_type": "relation", "object_class_id": ["es:app"], "required": true, "display_order": 1},
+        {"key": "feature_id",       "label": "Feature",          "description": "The feature",                                                                                  "data_type": "relation", "object_class_id": ["es:feature"], "required": true, "display_order": 2},
+        {"key": "progress",         "label": "Progress",          "description": "Implementation progress",                                                                      "data_type": "string",   "options": {"type": "string_options", "values": ["not_started", "planned", "in_progress", "partial", "implemented", "tested"]}, "editor": "select", "default_value": "not_started", "display_order": 3},
+        {"key": "server_endpoints", "label": "Server Endpoints",  "description": "HTTP endpoints this app exposes as a server for this feature (empty if client-only)",          "data_type": "string",   "is_array": true, "display_order": 4},
+        {"key": "notes",            "label": "Notes",             "description": "Implementation notes, limitations, known gaps",                                               "data_type": "string",   "editor": "textarea", "display_order": 5},
+        {"key": "implemented_in",   "label": "Implemented In",    "description": "File paths (file:line) where this feature is implemented",                                     "data_type": "string",   "is_array": true, "display_order": 6}
+      ]
+    }
+  ],
+  "seed": [
+    {"storage": "./@es-app.json"},
+    {"storage": "./@es-feature.json"},
+    {"storage": "./@es-app_feature.json"}
+  ]
+}

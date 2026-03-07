@@ -40,12 +40,12 @@
 | `@class` | Class definition (schema of schemas) | ✅ | ✅ | ✅ | ✅ | Done |
 | `@prop` | Property definition (field schema) | ✅ | ✅ | ✅ | ✅ | Done |
 | `@storage` | Storage provider config | ✅ | ✅ | ✅ | ✅ | Done |
-| `@editor` | UI editor component definition | ✅ | ✅ | ✅ | ❌ | CWM-FE: add to seedData |
-| `@action` | Universal execution unit (api/fn/event/composite) | ✅ | ✅ | ❌ | ✅ | Admin: add to seedData |
-| `@event` | Event handler definition | ✅ | ✅ | ❌ | ❌ | Admin+CWM: add to seedData |
-| `@function` | Reusable function (validator/transformer/computed) | ✅ | ✅ | ❌ | ❌ | Admin+CWM: add to seedData |
-| `@provider` | External API provider (abstract) | ✅ | ✅ | ❌ | ❌ | Admin+CWM: add to seedData |
-| `crud_provider` | CRUD REST provider (extends @provider) | ✅ | ❌ | ❌ | ❌ | Server PHP: add; clients: add |
+| `@editor` | UI editor component definition | ✅ | ✅ | ✅ | ✅ | Done |
+| `@action` | Universal execution unit (api/cli/fn/event/composite/ui) | ✅ | ✅ | ✅ | ✅ | Done |
+| `@event` | Event handler definition | ✅ | ✅ | ✅ | ✅ | Done |
+| `@function` | Reusable function (validator/transformer/computed) | ✅ | ✅ | ✅ | ✅ | Done |
+| `@provider` | External API provider (abstract) | ✅ | ✅ | ✅ | ✅ | Done |
+| `crud_provider` | CRUD REST provider (extends @provider) | ✅ | ✅ | ✅ | ✅ | Done |
 | `auth_config` | Auth-service connection config | ✅ | ✅ | ❌ | ❌ | ✅ (auth) | — |
 | `auth_app` | App registration credentials | ✅ | ✅ | ❌ | ❌ | ✅ (auth) | — |
 | `auth_machine` | Machine/instance registration | ✅ | ✅ | ❌ | ❌ | ✅ (auth) | — |
@@ -119,6 +119,7 @@
 | Action type | Description | Server PHP | CWM-FE TS | Admin (es.js) | Status |
 |-------------|-------------|:-:|:-:|:-:|--------|
 | `api` | HTTP call to external provider | ✅ | ✅ | ❌ | Admin: add ActionExecutor |
+| `cli` | Shell command with {field} placeholders | ✅ | — | — | Server-only |
 | `function` | FunctionRegistry dispatch | ✅ | ✅ | ❌ | Admin: add |
 | `event` | EventBus event emit | ✅ | ✅ | ❌ | Admin: add |
 | `composite` | Chain of sub-actions | ✅ | ✅ | ❌ | Admin: add |
@@ -129,21 +130,25 @@
 | Field | Type | Group | Description |
 |-------|------|-------|-------------|
 | `name` | string | Core | Display name |
-| `type` | string | Core | api / function / event / composite / ui |
+| `type` | string | Core | api / cli / function / event / composite / ui |
 | `group_name` | string | Core | Category for UI grouping |
+| `target_class_id` | @class | Core | Class this action applies to |
 | `params` | @prop[] | Core | Input parameters schema |
 | `returns` | string | Core | object / list / void |
+| `request_mapping` | object | Core | Source object field → request field mapping |
+| `response_mapping` | object | Core | Response field → target object field mapping |
+| `provider_id` | @provider | API | Provider (inherits base_url, auth) |
 | `method` | string | API | GET / POST / PUT / PATCH / DELETE |
-| `endpoint` | string | API | URL path (supports `{id}` substitution) |
+| `endpoint` | string | API | URL path (supports `{field}` substitution) |
 | `headers` | object | API | Additional HTTP headers |
-| `mapping` | object | API | API field → ES field mapping |
+| `command` | string | CLI | Shell command with {field} placeholders |
+| `working_dir` | string | CLI | Working directory for command |
 | `function` | string | Function | FunctionRegistry key |
 | `event` | string | Event | EventBus event name |
 | `payload` | object | Event | param → event_field mapping |
 | `actions` | @action[] | Composite | Ordered sub-action IDs |
 | `strategy` | string | Composite | sequential / parallel |
 | `handler` | function | UI | JS handler code |
-| `target_class_id` | @class | UI | Class this action applies to |
 | `requires_selection` | boolean | UI | Needs selected object(s) |
 | `bulk` | boolean | UI | Can apply to multiple objects |
 | `confirm` | string | UI | Confirmation message |
@@ -221,10 +226,10 @@ Managed by ActionExecutor, never set by clients.
 | Static ID array → object resolution | — | ✅ | ✅ | Done |
 | Dynamic relation (query by owner_id) | — | ❌ | ✅ | Admin: add |
 | All prop fields as class properties | ✅ | ✅ | ✅ | Done |
-| `isRelation()` / `isEmbeddedObject()` | ✅ | ❌ | ❌ | Admin+CWM: add |
-| `isOwnershipRelation()` / `isReferenceRelation()` | ✅ | ❌ | ❌ | Admin+CWM: add |
-| `shouldDeleteOnOrphan()` | ✅ | ❌ | ❌ | Admin+CWM: add |
-| `getTargetClasses()` / `getPrimaryTargetClass()` | ✅ | ❌ | ❌ | Admin+CWM: add |
+| `isRelation()` / `isEmbeddedObject()` | ✅ | ✅ | ✅ | Done |
+| `isOwnershipRelation()` / `isReferenceRelation()` | ✅ | ✅ | ✅ | Done |
+| `shouldDeleteOnOrphan()` | ✅ | ✅ | ✅ | Done |
+| `getTargetClasses()` / `getPrimaryTargetClass()` | ✅ | ✅ | ✅ | Done |
 | `normalizeClassIds()` | ✅ | ✅ | ✅ | Done |
 
 ---
@@ -377,13 +382,13 @@ These exist only on the server and don't need client parity:
 | Seed entry | Server SystemClasses.php | editors.seed.json | Admin seedData | CWM seedData.ts | Status |
 |---|:-:|:-:|:-:|:-:|--------|
 | `@class` meta + 10 props | ✅ | — | ✅ | ✅ | Done |
-| `@prop` meta + 20 props | ✅ | — | ✅ | ✅ | Done |
+| `@prop` meta + 21 props | ✅ | — | ✅ | ✅ | Done |
 | `@storage` meta + 8 props | ✅ | — | ✅ | ✅ | Done |
-| `@editor` meta + 7 props | ✅ | — | ✅ | ❌ | CWM: add |
-| `@action` meta + 22 props | ✅ | — | ❌ | ❌ | Admin+CWM: add |
-| `@event` meta + 8 props | ✅ | — | ❌ | ❌ | Admin+CWM: add |
-| `@function` meta + 7 props | ✅ | — | ❌ | ❌ | Admin+CWM: add |
-| `@provider` meta + 9 props | ✅ | — | ❌ | ❌ | Admin+CWM: add |
+| `@editor` meta + 9 props | ✅ | — | ✅ | ✅ | Done |
+| `@action` meta + 21 props | ✅ | — | ✅ | ✅ | Done |
+| `@event` meta + 8 props | ✅ | — | ✅ | ✅ | Done |
+| `@function` meta + 7 props | ✅ | — | ✅ | ✅ | Done |
+| `@provider` meta + 9 props | ✅ | — | ✅ | ✅ | Done |
 | 30 @editor instances | — | ✅ | ✅ | ❌ | CWM: load from genesis |
 | `@storage:local` instance | — | — | ✅ | ✅ | Done |
 | `@storage:api` instance | — | — | ❌ | ✅ | Admin: add |
@@ -410,7 +415,7 @@ These exist only on the server and don't need client parity:
 **Prop alignment:** ✅ All match genesis exactly
 - [x] `@class`: 10 props (added is_abstract, providers, _links)
 - [x] `@prop`: 21 props (reordered by group, added editor relation, validators, aligned display_order)
-- [x] `@action`: 21 props (full rebuild: core + API + function + event + composite + UI groups)
+- [x] `@action`: 25 props (full rebuild: core + API + function + event + composite + UI groups)
 - [x] `@event`: 8 props (expanded from 3: added description, target_class_id, trigger, handler, async, priority)
 - [x] `@storage`: 8 props (added provider_id, read, write, read_strategy, write_strategy; expanded type options)
 - [x] `@editor`: 9 props (added is_system, validator, component, render)
@@ -496,33 +501,45 @@ These exist only on the server and don't need client parity:
 
 ---
 
-### CWM-FE (cwm-architect) — Verified gaps (3 categories, ~12 items)
+### CWM-FE (cwm-architect) — ALIGNED 2026-02-26
 
-**EditorType union (5 missing editors):**
-- [ ] `email` — email input with validation
-- [ ] `url` — URL input with validation
-- [ ] `phone` — phone number input
-- [ ] `javascript` — JS code editor (default for function type)
-- [ ] `nested` — class-driven nested object editor
+**seedData.ts — ✅ ALL DONE (aligned to genesis):**
+- [x] @class meta + 10 props
+- [x] @prop meta + 21 props (grouped: Type/Core/Options/Relation/UI/Validation/Security)
+- [x] @editor meta + 9 props
+- [x] @function meta + 7 props
+- [x] @storage meta + 8 props
+- [x] @action meta + 21 props (grouped: Core/API/Function/Event/Composite/UI)
+- [x] @event meta + 8 props
+- [x] @provider meta + 9 props (abstract)
+- [x] crud_provider meta + 7 props (extends @provider)
 
-**seedData.ts (5 missing system class definitions):**
-- [ ] `@editor` meta class + prop definitions
-- [ ] `@action` meta class + prop definitions
-- [ ] `@event` meta class + prop definitions
-- [ ] `@function` meta class + prop definitions
-- [ ] `@provider` meta class + prop definitions
+**types.ts — ✅ ALIGNED:**
+- [x] Meta constants: META_CLASS, META_PROP, META_ACTION, META_EVENT, META_EDITOR, META_FUNCTION, META_STORAGE, META_PROVIDER
+- [x] EditorType: added `javascript`
+- [x] Prop interface: added `field_type`, `create_only`, `master_only`, `server_only`
+- [x] Prop.on_orphan: expanded to `'keep' | 'delete' | 'nullify'`
 
-**AtomProp.ts (5 missing helper methods):**
-- [ ] `isRelation()` — shorthand for data_type check
-- [ ] `isEmbeddedObject()` — object + target classes check
-- [ ] `isOwnershipRelation()` — single relation cascade
-- [ ] `getTargetClasses()` — return object_class_id array
-- [ ] `shouldDeleteOnOrphan()` — on_orphan check
+**AtomProp.ts — ✅ ALL DONE (8 helper methods):**
+- [x] `isRelation()` — data_type === 'relation'
+- [x] `isEmbeddedObject()` — object + target classes + not array
+- [x] `isOwnershipRelation()` — relation + target classes + not array
+- [x] `isReferenceRelation()` — relation + target classes + is array
+- [x] `hasTargetClasses()` — non-empty object_class_id
+- [x] `getTargetClasses()` — normalised array
+- [x] `getPrimaryTargetClass()` — first target class
+- [x] `shouldDeleteOnOrphan()` — on_orphan === 'delete'
 
-**Already present (previously listed as gaps — VERIFIED WORKING):**
+**Remaining CWM-FE EditorType gaps (not blocking):**
+- [ ] `email` — editor type (no matching seed data yet)
+- [ ] `url` — editor type (no matching seed data yet)
+- [ ] `phone` — editor type (no matching seed data yet)
+- [ ] `nested` — editor type (no matching seed data yet)
+
+**Already present:**
 - [x] DataType union — canonical 8 types, no legacy
 - [x] ActionDef, ProviderDef, ProviderAuth interfaces
-- [x] ActionExecutor.ts — created this session
+- [x] ActionExecutor.ts
 - [x] AtomObj: update(), delete(), subscribe(), extendsFrom(), getInheritanceChain()
 - [x] AtomStorage: setObject(), getObject(), delObject(), fetchList(), all 5 storage types
 - [x] ElementStore: getElementsByClass(), getElementsByOwner(), classExtends(), getClassSafe(), _version, subscribe()
@@ -530,8 +547,13 @@ These exist only on the server and don't need client parity:
 
 ---
 
-### CWM-BE + Auth (types only):
-- [x] ActionDef, ProviderDef, ProviderAuth types — synced this session
+### CWM-BE + Auth (types.ts) — ALIGNED 2026-02-26
+
+- [x] Meta constants: +META_EDITOR, +META_FUNCTION, +META_STORAGE, +META_PROVIDER
+- [x] EditorType: +`javascript`
+- [x] Prop interface: +field_type, +create_only, +master_only, +server_only, on_orphan +nullify
+- [x] Removed legacy enum_values, enum_allow_custom (not in genesis)
+- [x] ActionDef, ProviderDef, ProviderAuth interfaces
 
 ---
 

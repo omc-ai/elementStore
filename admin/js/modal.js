@@ -168,6 +168,35 @@ async function renderModalForClass(classId, data) {
         <div id="geContainer">${editorHtml}</div>
     `;
 
+    // Render action buttons for @action-type props (only when editing existing objects)
+    if (!isNew) {
+        const actionProps = propsArray.filter(p => {
+            const ocid = p.object_class_id;
+            if (!ocid) return false;
+            if (Array.isArray(ocid)) return ocid.includes('@action');
+            return ocid === '@action';
+        });
+        if (actionProps.length > 0) {
+            html += `<div class="action-buttons" style="margin-top:12px;padding:8px 12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px">
+                <strong style="font-size:12px;color:#92400e">Prop Actions</strong>
+                <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">`;
+            for (const ap of actionProps) {
+                const label = ap.label || ap.name || ap.key;
+                const icon = ap.icon ? `${ap.icon} ` : '';
+                html += `<button type="button" class="btn btn-primary btn-sm"
+                    onclick="executeModalAction('${esc(ap.key)}')"
+                    title="${esc(ap.description || '')}">${icon}${esc(label)}</button>`;
+            }
+            html += `</div></div>`;
+        }
+
+        // Class-level actions: query @action objects with target_class_id matching this class
+        html += `<div id="classActionsPanel" style="margin-top:12px"><div class="loading" style="padding:8px"><div class="spinner" style="width:16px;height:16px;border-width:2px;margin-right:8px"></div><span style="font-size:12px">Loading class actions...</span></div></div>`;
+
+        // Action results panel
+        html += `<div id="actionResultsPanel" style="display:none;margin-top:12px"></div>`;
+    }
+
     const d = editingObject;
     if (d.created_at || d.updated_at || d.owner_id) {
         html += `<div style="margin-top:12px;padding:8px 12px;background:#f9fafb;border-radius:4px;font-size:11px;color:#6b7280">
@@ -188,6 +217,11 @@ async function renderModalForClass(classId, data) {
             allowClear: true
         });
     }, 0);
+
+    // Load class-level actions (async, after modal is rendered)
+    if (!isNew) {
+        _loadClassActions(classId);
+    }
 }
 
 // Toggle meta viewer in modal
@@ -337,5 +371,241 @@ async function saveCurrentObject() {
         }
     } catch (err) {
         showToast(err.message, 'error');
+    }
+}
+
+// =====================
+// Execute Action (from modal action buttons)
+// =====================
+// =====================
+// Class-level action discovery & execution
+// =====================
+const ACTION_TYPE_COLORS = {
+    api: '#3b82f6', cli: '#8b5cf6', function: '#10b981',
+    event: '#f59e0b', composite: '#ec4899', ui: '#6366f1'
+};
+
+let _actionResults = []; // session-only, last 5
+
+async function _loadClassActions(classId) {
+    const panel = document.getElementById('classActionsPanel');
+    if (!panel) return;
+
+    try {
+        const actions = await getActionsForClass(classId);
+        if (!actions || actions.length === 0) {
+            panel.innerHTML = '';
+            return;
+        }
+
+        // Group by group_name
+        const groups = {};
+        for (const a of actions) {
+            const g = a.group_name || 'General';
+            if (!groups[g]) groups[g] = [];
+            groups[g].push(a);
+        }
+
+        let html = `<div class="class-actions-container">
+            <div class="class-actions-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.ca-arrow').textContent=this.nextElementSibling.style.display==='none'?'\\u25B6':'\\u25BC'">
+                <strong>Class Actions</strong>
+                <span style="font-size:12px;color:#6b7280;margin-left:8px">${actions.length} available</span>
+                <span class="ca-arrow" style="margin-left:auto">&#9660;</span>
+            </div>
+            <div class="class-actions-body">`;
+
+        for (const [groupName, groupActions] of Object.entries(groups)) {
+            html += `<div class="ca-group">
+                <div class="ca-group-name">${esc(groupName)}</div>
+                <div class="ca-group-actions">`;
+            for (const a of groupActions) {
+                const color = ACTION_TYPE_COLORS[a.type] || '#6b7280';
+                const icon = a.icon ? `${a.icon} ` : '';
+                const desc = a.description ? ` title="${esc(a.description)}"` : '';
+                html += `<button type="button" class="ca-btn"${desc}
+                    onclick="handleClassAction('${esc(a.id)}')">
+                    ${icon}<span>${esc(a.name || a.id)}</span>
+                    <span class="ca-type-badge" style="background:${color}">${esc(a.type || '?')}</span>
+                </button>`;
+            }
+            html += `</div></div>`;
+        }
+
+        html += `</div></div>`;
+        panel.innerHTML = html;
+    } catch (e) {
+        panel.innerHTML = `<div style="font-size:12px;color:#9ca3af;padding:4px">No class actions</div>`;
+    }
+}
+
+async function handleClassAction(actionId) {
+    if (!editingClassId || !editingObject?.id) {
+        showToast('No object selected', 'error');
+        return;
+    }
+
+    try {
+        // Fetch action definition
+        const actionDef = await api('GET', `/store/@action/${actionId}`);
+        if (!actionDef) { showToast('Action not found', 'error'); return; }
+
+        // Confirmation
+        if (actionDef.confirm) {
+            let msg = actionDef.confirm;
+            // Resolve {field} placeholders from current object
+            msg = msg.replace(/\{(\w+)\}/g, (_, key) => editingObject[key] || `{${key}}`);
+            if (!confirm(msg)) return;
+        }
+
+        // Collect params if action has params defined
+        let params = {};
+        if (actionDef.params && actionDef.params.length > 0) {
+            params = await _collectActionParams(actionDef);
+            if (params === null) return; // user cancelled
+        }
+
+        showToast(`Executing ${actionDef.name || actionId}...`, 'success');
+        const result = await executeClassAction(actionId, editingClassId, editingObject.id, params);
+
+        // Record result
+        _addActionResult(actionDef.name || actionId, actionDef.type, result);
+
+        showToast(`Action "${actionDef.name || actionId}" completed`, 'success');
+
+        // Refresh editor with updated object
+        if (result?.object) {
+            editingObject = result.object;
+            await renderModalForClass(editingClassId, editingObject);
+        }
+    } catch (err) {
+        _addActionResult(actionId, 'error', { error: err.message });
+        showToast(`Action failed: ${err.message}`, 'error');
+    }
+}
+
+function _collectActionParams(actionDef) {
+    return new Promise((resolve) => {
+        const params = actionDef.params || [];
+        let html = `<div style="padding:8px"><strong>${esc(actionDef.name || actionDef.id)}</strong><p style="font-size:12px;color:#6b7280;margin:4px 0 12px">${esc(actionDef.description || 'Enter parameters:')}</p>`;
+        for (const p of params) {
+            const key = p.key || p.id || p.name;
+            const label = p.label || p.name || key;
+            const type = p.data_type || 'string';
+            html += `<div style="margin-bottom:8px">
+                <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px">${esc(label)}${p.required ? ' <span style="color:#ef4444">*</span>' : ''}</label>`;
+            if (p.options && p.options.length) {
+                html += `<select class="form-input action-param-input" data-key="${esc(key)}">
+                    <option value="">Select...</option>`;
+                for (const opt of p.options) {
+                    const optVal = typeof opt === 'string' ? opt : (opt.value || opt.id || opt);
+                    const optLabel = typeof opt === 'string' ? opt : (opt.label || opt.name || optVal);
+                    html += `<option value="${esc(optVal)}">${esc(optLabel)}</option>`;
+                }
+                html += `</select>`;
+            } else if (type === 'boolean') {
+                html += `<label class="toggle-switch"><input type="checkbox" class="action-param-input" data-key="${esc(key)}" data-type="boolean"><span class="toggle-slider"></span></label>`;
+            } else if (type === 'text') {
+                html += `<textarea class="form-input action-param-input" data-key="${esc(key)}" rows="3"></textarea>`;
+            } else {
+                html += `<input type="text" class="form-input action-param-input" data-key="${esc(key)}" placeholder="${esc(p.default_value || '')}">`;
+            }
+            html += `</div>`;
+        }
+        html += `<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+            <button class="btn btn-ghost btn-sm" id="actionParamCancel">Cancel</button>
+            <button class="btn btn-primary btn-sm" id="actionParamSubmit">Execute</button>
+        </div></div>`;
+
+        // Show in a sub-overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'action-param-overlay';
+        overlay.innerHTML = `<div class="action-param-dialog">${html}</div>`;
+        document.body.appendChild(overlay);
+
+        overlay.querySelector('#actionParamCancel').onclick = () => { overlay.remove(); resolve(null); };
+        overlay.querySelector('#actionParamSubmit').onclick = () => {
+            const collected = {};
+            overlay.querySelectorAll('.action-param-input').forEach(el => {
+                const k = el.dataset.key;
+                if (el.dataset.type === 'boolean') {
+                    collected[k] = el.checked;
+                } else {
+                    if (el.value) collected[k] = el.value;
+                }
+            });
+            overlay.remove();
+            resolve(collected);
+        };
+    });
+}
+
+function _addActionResult(name, type, result) {
+    _actionResults.unshift({ name, type, result, timestamp: new Date().toLocaleTimeString() });
+    if (_actionResults.length > 5) _actionResults.pop();
+    _renderActionResults();
+}
+
+function _renderActionResults() {
+    const panel = document.getElementById('actionResultsPanel');
+    if (!panel) return;
+
+    if (_actionResults.length === 0) { panel.style.display = 'none'; return; }
+
+    panel.style.display = 'block';
+    let html = `<div class="action-results-container">
+        <div class="action-results-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+            <strong>Results</strong>
+            <span style="font-size:11px;color:#6b7280;margin-left:8px">${_actionResults.length}</span>
+        </div>
+        <div class="action-results-body">`;
+    for (const r of _actionResults) {
+        const isError = r.type === 'error' || r.result?.error;
+        const statusClass = isError ? 'ar-error' : 'ar-success';
+        const output = typeof r.result === 'string' ? r.result : JSON.stringify(r.result, null, 2);
+        html += `<div class="ar-item ${statusClass}">
+            <div class="ar-item-header">
+                <span class="ar-name">${esc(r.name)}</span>
+                <span class="ar-time">${esc(r.timestamp)}</span>
+                <span class="ar-status">${isError ? 'FAIL' : 'OK'}</span>
+            </div>
+            <pre class="ar-output">${esc(output)}</pre>
+        </div>`;
+    }
+    html += `</div></div>`;
+    panel.innerHTML = html;
+}
+
+// =====================
+// Execute Action (from modal action buttons — prop-level)
+// =====================
+async function executeModalAction(propKey) {
+    if (!editingClassId || !editingObject?.id) {
+        showToast('Cannot execute action: no object selected', 'error');
+        return;
+    }
+
+    // Use store.executeAction if available (preferred), else direct API call
+    try {
+        showToast(`Executing ${propKey}...`, 'success');
+        let result;
+
+        if (typeof store !== 'undefined' && store.executeAction) {
+            result = store.executeAction(editingClassId, editingObject.id, propKey, {});
+        } else {
+            result = await api('PUT', `/store/${editingClassId}/${editingObject.id}/${propKey}`, {});
+        }
+
+        if (result) {
+            showToast(`Action "${propKey}" completed`, 'success');
+            // Refresh the editor with updated object data
+            const updated = await api('GET', `/store/${editingClassId}/${editingObject.id}`);
+            if (updated) {
+                showEditor(editingClassId, updated);
+            }
+        } else {
+            showToast(`Action "${propKey}" returned no result`, 'error');
+        }
+    } catch (err) {
+        showToast(`Action "${propKey}" failed: ${err.message}`, 'error');
     }
 }

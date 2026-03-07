@@ -76,12 +76,14 @@ class CouchDbStorageProvider implements IStorageProvider
      */
     private function getDbName(string $class): string
     {
-        // CouchDB database names must start with a letter
-        // Replace @ prefix with 'es_' (elementstore)
+        // CouchDB database names: lowercase, start with letter, allow [a-z0-9_$()+-/]
+        // Replace @ prefix with 'es_' (elementstore system classes)
+        // Replace ':' with '_' (namespace separator — e.g. demo:server → demo_server)
         $name = strtolower($class);
         if (str_starts_with($name, '@')) {
             $name = 'es_' . substr($name, 1);
         }
+        $name = str_replace(':', '_', $name);
         return $name;
     }
 
@@ -335,6 +337,9 @@ class CouchDbStorageProvider implements IStorageProvider
         // Set CouchDB _id
         $obj['_id'] = (string)$obj[Constants::F_ID];
 
+        // Escape application _-prefixed fields (CouchDB reserves _ prefix)
+        $obj = $this->escapeUnderscoreFields($obj);
+
         // Save document
         $response = $this->request('PUT', "/$dbName/" . urlencode($obj['_id']), $obj);
 
@@ -427,7 +432,10 @@ class CouchDbStorageProvider implements IStorageProvider
         // Build Mango query
         $selector = [];
         foreach ($filters as $key => $value) {
-            if (is_array($value)) {
+            if (is_array($value) && $this->isMangoOperator($value)) {
+                // Already a Mango operator (e.g. ['$regex' => '...'], ['$gt' => 5])
+                $selector[$key] = $value;
+            } elseif (is_array($value)) {
                 $selector[$key] = ['$in' => $value];
             } else {
                 $selector[$key] = $value;
@@ -510,17 +518,46 @@ class CouchDbStorageProvider implements IStorageProvider
      * @param array $options Options
      * @return array Filtered results
      */
+    /**
+     * Check if an array value is a CouchDB Mango operator (keys start with $).
+     */
+    private function isMangoOperator(array $value): bool
+    {
+        foreach (array_keys($value) as $k) {
+            if (is_string($k) && str_starts_with($k, '$')) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private function clientSideQuery(string $class, array $filters, array $options): array
     {
         $all = $this->getobj($class);
 
-        // Apply filters
+        // Apply filters (supports Mango-style operators for client-side fallback)
         $results = array_filter($all, function ($obj) use ($filters) {
             foreach ($filters as $key => $value) {
                 if (!isset($obj[$key])) {
                     return false;
                 }
-                if (is_array($value)) {
+                if (is_array($value) && $this->isMangoOperator($value)) {
+                    // Handle Mango operators client-side
+                    $fieldVal = $obj[$key];
+                    if (isset($value['$regex'])) {
+                        if (!preg_match('/' . str_replace('/', '\/', $value['$regex']) . '/', (string)$fieldVal)) {
+                            return false;
+                        }
+                    } elseif (isset($value['$gt'])) {
+                        if ($fieldVal <= $value['$gt']) return false;
+                    } elseif (isset($value['$gte'])) {
+                        if ($fieldVal < $value['$gte']) return false;
+                    } elseif (isset($value['$lt'])) {
+                        if ($fieldVal >= $value['$lt']) return false;
+                    } elseif (isset($value['$lte'])) {
+                        if ($fieldVal > $value['$lte']) return false;
+                    }
+                } elseif (is_array($value)) {
                     if (!in_array($obj[$key], $value)) {
                         return false;
                     }
@@ -690,6 +727,7 @@ class CouchDbStorageProvider implements IStorageProvider
      * Convert CouchDB document to plain array
      *
      * Removes CouchDB internal fields (_id, _rev) but keeps our id.
+     * Restores escaped underscore-prefixed fields (es__x → _x).
      *
      * @param array $doc CouchDB document
      * @return array Plain associative array
@@ -697,6 +735,51 @@ class CouchDbStorageProvider implements IStorageProvider
     private function documentToArray(array $doc): array
     {
         unset($doc['_id'], $doc['_rev']);
-        return $doc;
+        return $this->unescapeUnderscoreFields($doc);
+    }
+
+    /**
+     * Escape application underscore-prefixed fields for CouchDB storage.
+     *
+     * CouchDB reserves all _-prefixed fields (_id, _rev, _deleted, etc.).
+     * Application fields like _links, _providers are escaped to es__links, es__providers.
+     * System fields (_id, _rev) are left untouched.
+     *
+     * @param array $obj Input object
+     * @return array Object with escaped keys
+     */
+    private function escapeUnderscoreFields(array $obj): array
+    {
+        $systemFields = ['_id', '_rev', '_deleted', '_attachments'];
+        $result = [];
+        foreach ($obj as $key => $value) {
+            if (str_starts_with($key, '_') && !in_array($key, $systemFields, true)) {
+                $result['es_' . $key] = $value;
+            } else {
+                $result[$key] = $value;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Restore escaped underscore-prefixed fields from CouchDB storage.
+     *
+     * Reverses escapeUnderscoreFields: es__links → _links.
+     *
+     * @param array $obj CouchDB document (after removing _id/_rev)
+     * @return array Object with restored keys
+     */
+    private function unescapeUnderscoreFields(array $obj): array
+    {
+        $result = [];
+        foreach ($obj as $key => $value) {
+            if (str_starts_with($key, 'es__')) {
+                $result['_' . substr($key, 4)] = $value;
+            } else {
+                $result[$key] = $value;
+            }
+        }
+        return $result;
     }
 }

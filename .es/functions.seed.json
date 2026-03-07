@@ -1,0 +1,114 @@
+[
+  {
+    "id": "required_validator",
+    "class_id": "@function", "name": "Required", "description": "Value must be present and not empty",
+    "function_type": "validator", "is_system": true, "scope": ["string","boolean","integer","float","object","relation"],
+    "parameters": [],
+    "code": "function(obj, prop, value) {\n  const isEmpty = value === undefined || value === null || value === '' ||\n                  (Array.isArray(value) && value.length === 0);\n  return { valid: !isEmpty, error: 'This field is required' };\n}"
+  },
+  {
+    "id": "email_validator",
+    "class_id": "@function", "name": "Email", "description": "Must be a properly formatted email address",
+    "function_type": "validator", "is_system": true, "scope": ["string"],
+    "parameters": [],
+    "code": "function(obj, prop, value) {\n  if (!value) return { valid: true };\n  const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n  return { valid: emailRegex.test(value), error: 'Invalid email address format' };\n}"
+  },
+  {
+    "id": "url_validator",
+    "class_id": "@function", "name": "URL", "description": "Must be a properly formatted URL",
+    "function_type": "validator", "is_system": true, "scope": ["string"],
+    "parameters": [],
+    "code": "function(obj, prop, value) {\n  if (!value) return { valid: true };\n  try { new URL(value); return { valid: true }; }\n  catch (e) { return { valid: false, error: 'Invalid URL format' }; }\n}"
+  },
+  {
+    "id": "phone_validator",
+    "class_id": "@function", "name": "Phone", "description": "Must be a properly formatted phone number",
+    "function_type": "validator", "is_system": true, "scope": ["string"],
+    "parameters": [],
+    "code": "function(obj, prop, value) {\n  if (!value) return { valid: true };\n  const phoneRegex = /^[\\+]?[(]?[0-9]{1,4}[)]?[-\\s\\./0-9]*$/;\n  return { valid: phoneRegex.test(value), error: 'Invalid phone number format' };\n}"
+  },
+  {
+    "id": "min_length_validator",
+    "class_id": "@function", "name": "Min Length", "description": "String must meet minimum length",
+    "function_type": "validator", "is_system": true, "scope": ["string"],
+    "parameters": [{"key": "min", "data_type": "integer", "required": true}],
+    "code": "function(obj, prop, value, params) {\n  if (!value) return { valid: true };\n  const min = params?.min || 0;\n  return { valid: value.length >= min, error: `Minimum length is ${min} characters` };\n}"
+  },
+  {
+    "id": "max_length_validator",
+    "class_id": "@function", "name": "Max Length", "description": "String must not exceed maximum length",
+    "function_type": "validator", "is_system": true, "scope": ["string"],
+    "parameters": [{"key": "max", "data_type": "integer", "required": true}],
+    "code": "function(obj, prop, value, params) {\n  if (!value) return { valid: true };\n  const max = params?.max || Infinity;\n  return { valid: value.length <= max, error: `Maximum length is ${max} characters` };\n}"
+  },
+  {
+    "id": "regex_validator",
+    "class_id": "@function", "name": "Regex", "description": "Value must match a regular expression pattern",
+    "function_type": "validator", "is_system": true, "scope": ["string"],
+    "parameters": [{"key": "pattern", "data_type": "string", "required": true}, {"key": "message", "data_type": "string"}],
+    "code": "function(obj, prop, value, params) {\n  if (!value) return { valid: true };\n  const regex = new RegExp(params?.pattern || '.*');\n  return { valid: regex.test(value), error: params?.message || 'Value does not match required pattern' };\n}"
+  },
+  {
+    "id": "range_validator",
+    "class_id": "@function", "name": "Range", "description": "Number must be within min/max range",
+    "function_type": "validator", "is_system": true, "scope": ["integer","float"],
+    "parameters": [{"key": "min", "data_type": "float"}, {"key": "max", "data_type": "float"}],
+    "code": "function(obj, prop, value, params) {\n  if (value === undefined || value === null || value === '') return { valid: true };\n  const num = parseFloat(value);\n  if (isNaN(num)) return { valid: false, error: 'Value must be a number' };\n  const min = params?.min ?? -Infinity;\n  const max = params?.max ?? Infinity;\n  if (num < min) return { valid: false, error: `Minimum value is ${min}` };\n  if (num > max) return { valid: false, error: `Maximum value is ${max}` };\n  return { valid: true };\n}"
+  },
+  {
+    "id": "uuid_generator",
+    "class_id": "@function", "name": "UUID", "description": "Generates a UUID v4",
+    "function_type": "generator", "is_system": true, "scope": ["unique","string"],
+    "parameters": [],
+    "code": "function() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {\n    const r = Math.random() * 16 | 0;\n    const v = c === 'x' ? r : (r & 0x3 | 0x8);\n    return v.toString(16);\n  });\n}"
+  },
+  {
+    "id": "auto_increment_generator",
+    "class_id": "@function", "name": "Auto Increment", "description": "Generates an auto-incrementing integer ID",
+    "function_type": "generator", "is_system": true, "scope": ["unique","integer"],
+    "parameters": [{"key": "prefix", "data_type": "string"}, {"key": "padding", "data_type": "integer", "default_value": 0}],
+    "code": "function(obj, prop, value, params, context) {\n  const nextId = (context?.lastId || 0) + 1;\n  const prefix = params?.prefix || '';\n  const padding = params?.padding || 0;\n  const numStr = padding > 0 ? String(nextId).padStart(padding, '0') : String(nextId);\n  return prefix + numStr;\n}"
+  },
+  {
+    "id": "timestamp_generator",
+    "class_id": "@function", "name": "Timestamp ID", "description": "Generates a timestamp-based unique ID",
+    "function_type": "generator", "is_system": true, "scope": ["unique","string"],
+    "parameters": [{"key": "prefix", "data_type": "string"}],
+    "code": "function(obj, prop, value, params) {\n  const prefix = params?.prefix || '';\n  const ts = Date.now().toString(36);\n  const rand = Math.random().toString(36).substring(2, 6);\n  return prefix + ts + rand;\n}"
+  },
+  {
+    "id": "lowercase_transformer",
+    "class_id": "@function", "name": "Lowercase", "description": "Transforms value to lowercase",
+    "function_type": "transformer", "is_system": true, "scope": ["string"],
+    "parameters": [],
+    "code": "function(obj, prop, value) {\n  return typeof value === 'string' ? value.toLowerCase() : value;\n}"
+  },
+  {
+    "id": "uppercase_transformer",
+    "class_id": "@function", "name": "Uppercase", "description": "Transforms value to uppercase",
+    "function_type": "transformer", "is_system": true, "scope": ["string"],
+    "parameters": [],
+    "code": "function(obj, prop, value) {\n  return typeof value === 'string' ? value.toUpperCase() : value;\n}"
+  },
+  {
+    "id": "trim_transformer",
+    "class_id": "@function", "name": "Trim", "description": "Trims whitespace from start and end",
+    "function_type": "transformer", "is_system": true, "scope": ["string"],
+    "parameters": [],
+    "code": "function(obj, prop, value) {\n  return typeof value === 'string' ? value.trim() : value;\n}"
+  },
+  {
+    "id": "slug_transformer",
+    "class_id": "@function", "name": "Slug", "description": "Transforms value to a URL-friendly slug",
+    "function_type": "transformer", "is_system": true, "scope": ["string"],
+    "parameters": [],
+    "code": "function(obj, prop, value) {\n  if (typeof value !== 'string') return value;\n  return value\n    .toLowerCase()\n    .normalize('NFD')\n    .replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[^a-z0-9\\s-]/g, '')\n    .replace(/\\s+/g, '-')\n    .replace(/-+/g, '-')\n    .replace(/^-|-$/g, '');\n}"
+  },
+  {
+    "id": "full_name_computed",
+    "class_id": "@function", "name": "Full Name", "description": "Computes full name from first_name and last_name fields",
+    "function_type": "computed", "is_system": true, "scope": ["string"],
+    "parameters": [{"key": "first_name_field", "data_type": "string", "default_value": "first_name"}, {"key": "last_name_field", "data_type": "string", "default_value": "last_name"}],
+    "code": "function(obj, prop, value, params) {\n  const firstName = obj[params?.first_name_field || 'first_name'] || '';\n  const lastName = obj[params?.last_name_field || 'last_name'] || '';\n  return [firstName, lastName].filter(Boolean).join(' ');\n}"
+  }
+]

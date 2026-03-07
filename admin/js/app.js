@@ -64,6 +64,20 @@ async function initDashboard() {
 
     await loadFunctions();
 
+    // Start health check polling
+    startHealthPolling(30000);
+
+    // Initialize global search
+    initGlobalSearch();
+
+    // Close genesis dropdown on outside click
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#genesisDropdown')) {
+            const dd = document.getElementById('genesisDropdown');
+            if (dd) dd.classList.remove('open');
+        }
+    });
+
     if (!tabManager) {
         tabManager = new TabManager(
             document.getElementById('tabBar'),

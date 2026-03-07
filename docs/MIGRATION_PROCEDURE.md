@@ -1065,8 +1065,10 @@ Child classes inherit all parent props automatically. Only define additional or 
 
 | File | Description |
 |------|-------------|
-| `genesis/Genesis.php` | Core genesis initialization (system classes) |
+| `docs/ES_DIRECTORY_CONVENTION.md` | `.es/` directory convention (structure, naming, write-back) |
+| `src/GenesisLoader.php` | Direct genesis/seed file loader (used at boot) |
+| `genesis/Genesis.php` | Legacy HTTP-based genesis initialization |
 | `genesis/init.php` | CLI script for genesis operations |
-| `genesis/data/` | Central genesis directory for all project genesis files |
-| `src/ClassModel.php` | Class model with validation and change detection |
-| `src/Constants.php` | All data types, editor types, validator types |
+| `.es/` | Central genesis directory (replaces `genesis/data/`) |
+| `src/ClassModel.php` | Class model with validation, change detection, seed write-back |
+| `src/Constants.php` | All data types, editor types, validator types, genesis constants |

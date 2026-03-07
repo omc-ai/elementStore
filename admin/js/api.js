@@ -215,3 +215,56 @@ function getFunctionsByType(funcType) {
 function getFunctionDef(funcId) {
     return functionConfig.functions[funcId] || null;
 }
+
+// =============================================================================
+// ACTION EXECUTION
+// =============================================================================
+
+/**
+ * Execute a class-level @action directly (not prop-wired).
+ * Uses POST /action/{actionId}/execute endpoint.
+ */
+async function executeClassAction(actionId, targetClassId, targetId, params = {}) {
+    return api('POST', `/action/${actionId}/execute`, {
+        target_class_id: targetClassId,
+        target_id: targetId,
+        ...params
+    });
+}
+
+/**
+ * Fetch all @action objects for a given target_class_id.
+ */
+async function getActionsForClass(classId) {
+    return api('GET', `/query/@action?target_class_id=${encodeURIComponent(classId)}`);
+}
+
+// =============================================================================
+// BATCH OPERATIONS
+// =============================================================================
+
+async function batchDelete(classId, ids) {
+    const results = { ok: [], errors: [] };
+    for (const id of ids) {
+        try {
+            await api('DELETE', `/store/${classId}/${id}`);
+            results.ok.push(id);
+        } catch (e) {
+            results.errors.push({ id, error: e.message });
+        }
+    }
+    return results;
+}
+
+async function batchExecuteAction(actionId, classId, ids, params = {}) {
+    const results = { ok: [], errors: [] };
+    for (const id of ids) {
+        try {
+            const r = await executeClassAction(actionId, classId, id, params);
+            results.ok.push({ id, result: r });
+        } catch (e) {
+            results.errors.push({ id, error: e.message });
+        }
+    }
+    return results;
+}

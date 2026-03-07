@@ -1067,6 +1067,292 @@
         }
         .ge-validation-summary ul { margin: 4px 0 0 16px; padding: 0; }
         .ge-validation-summary li { margin-bottom: 2px; }
+
+        /* =====================================================
+           HEALTH INDICATOR
+           ===================================================== */
+        .health-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.15);
+            font-size: 11px;
+        }
+        .health-indicator:hover { background: rgba(255,255,255,0.25); }
+        .health-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .health-ok { background: #10b981; box-shadow: 0 0 4px #10b981; }
+        .health-fail { background: #ef4444; box-shadow: 0 0 4px #ef4444; }
+        .health-text { color: rgba(255,255,255,0.9); }
+
+        /* =====================================================
+           GLOBAL SEARCH
+           ===================================================== */
+        #globalSearchWrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        #globalSearchInput {
+            padding: 6px 12px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 20px;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            font-size: 13px;
+            width: 180px;
+            transition: width 0.3s, background 0.2s;
+        }
+        #globalSearchInput::placeholder { color: rgba(255,255,255,0.6); }
+        #globalSearchInput:focus {
+            width: 260px;
+            background: rgba(255,255,255,0.25);
+            outline: none;
+            border-color: rgba(255,255,255,0.5);
+        }
+        #searchResults {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 6px;
+            width: 360px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 500;
+        }
+        #searchResults.open { display: block; }
+        .search-result {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .search-result:hover { background: #f9fafb; }
+        .search-result:last-child { border-bottom: none; }
+        .search-class-badge {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: #e0e7ff;
+            color: #4338ca;
+            white-space: nowrap;
+        }
+        .search-id {
+            font-family: Monaco, Menlo, monospace;
+            font-size: 12px;
+            color: #374151;
+        }
+        .search-name {
+            color: #6b7280;
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* =====================================================
+           CLASS ACTIONS PANEL (in modal)
+           ===================================================== */
+        .class-actions-container {
+            border: 1px solid #e0e7ff;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .class-actions-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #eff6ff 0%, #f0f4ff 100%);
+            border-bottom: 1px solid #e0e7ff;
+            cursor: pointer;
+            font-size: 12px;
+            user-select: none;
+        }
+        .class-actions-header:hover { background: #e0e7ff; }
+        .class-actions-body { padding: 8px 12px; }
+        .ca-group { margin-bottom: 8px; }
+        .ca-group:last-child { margin-bottom: 0; }
+        .ca-group-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .ca-group-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .ca-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            background: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ca-btn:hover { background: #f3f4f6; border-color: #667eea; }
+        .ca-type-badge {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 600;
+            color: white;
+            padding: 1px 5px;
+            border-radius: 3px;
+            text-transform: uppercase;
+        }
+
+        /* =====================================================
+           ACTION PARAM DIALOG
+           ===================================================== */
+        .action-param-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 1200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .action-param-dialog {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            min-width: 400px;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        /* =====================================================
+           ACTION RESULTS PANEL (in modal)
+           ===================================================== */
+        .action-results-container {
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .action-results-header {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            font-size: 12px;
+            user-select: none;
+        }
+        .action-results-body { max-height: 300px; overflow-y: auto; }
+        .ar-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .ar-item:last-child { border-bottom: none; }
+        .ar-item-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .ar-name { font-size: 12px; font-weight: 500; }
+        .ar-time { font-size: 10px; color: #9ca3af; margin-left: auto; }
+        .ar-status {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 3px;
+        }
+        .ar-success .ar-status { background: #dcfce7; color: #166534; }
+        .ar-error .ar-status { background: #fee2e2; color: #991b1b; }
+        .ar-output {
+            margin: 0;
+            padding: 6px 8px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 4px;
+            font-family: Monaco, Menlo, monospace;
+            font-size: 11px;
+            max-height: 120px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* =====================================================
+           BATCH TOOLBAR (object list)
+           ===================================================== */
+        .batch-toolbar {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 20px;
+            background: #eff6ff;
+            border-bottom: 1px solid #bfdbfe;
+            font-size: 12px;
+        }
+        .batch-label { color: #1e40af; }
+        .batch-action-select {
+            padding: 4px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 11px;
+            background: white;
+        }
+
+        /* =====================================================
+           GENESIS DROPDOWN
+           ===================================================== */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            min-width: 180px;
+            z-index: 100;
+            overflow: hidden;
+        }
+        .dropdown.open .dropdown-menu { display: block; }
+        .dropdown-item {
+            display: block;
+            width: 100%;
+            padding: 8px 16px;
+            border: none;
+            background: none;
+            text-align: left;
+            font-size: 13px;
+            color: #374151;
+            cursor: pointer;
+        }
+        .dropdown-item:hover { background: #f3f4f6; }
     </style>
 </head>
 <body>
@@ -1092,11 +1378,29 @@
 
     <!-- Header (hidden until auth) -->
     <div class="header" id="mainHeader" style="display:none;">
-        <h1>ElementStore Admin</h1>
+        <div style="display:flex;align-items:center;gap:12px">
+            <h1>ElementStore Admin</h1>
+            <span id="healthIndicator" class="health-indicator" onclick="showHealthDetails()" title="Checking...">
+                <span class="health-dot"></span>
+                <span class="health-text">...</span>
+            </span>
+        </div>
         <div class="actions">
+            <div id="globalSearchWrap">
+                <input type="text" id="globalSearchInput" placeholder="Search by ID...">
+                <div id="searchResults"></div>
+            </div>
             <select id="appSelector" class="header-select" onchange="handleAppChange(this.value)" style="display:none;"></select>
             <button class="btn btn-secondary" onclick="exportData()">Export</button>
             <button class="btn btn-secondary" onclick="showExportHistory()">History</button>
+            <div class="dropdown" id="genesisDropdown">
+                <button class="btn btn-secondary" onclick="this.parentElement.classList.toggle('open')">Genesis</button>
+                <div class="dropdown-menu">
+                    <button class="dropdown-item" onclick="reloadGenesis();this.closest('.dropdown').classList.remove('open')">Reload All Genesis</button>
+                    <button class="dropdown-item" onclick="showGenesisFiles();this.closest('.dropdown').classList.remove('open')">View Genesis Files</button>
+                    <button class="dropdown-item" onclick="verifyGenesis();this.closest('.dropdown').classList.remove('open')">Verify Genesis</button>
+                </div>
+            </div>
             <button class="btn btn-danger" onclick="resetDatabase()">Reset DB</button>
             <button class="btn btn-secondary" onclick="refreshData()">Refresh</button>
             <span id="userDisplay" style="display:none;"></span>
@@ -1204,6 +1508,8 @@
     <script src="js/editor/fields.js"></script>
     <script src="js/panels/class-list.js"></script>
     <script src="js/panels/object-list.js"></script>
+    <script src="js/health.js"></script>
+    <script src="js/search.js"></script>
     <script src="js/actions.js"></script>
     <script src="js/app.js"></script>
 </body>

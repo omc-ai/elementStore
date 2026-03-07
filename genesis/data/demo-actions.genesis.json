@@ -1,0 +1,36 @@
+{
+  "version": "1.0.0",
+  "namespace": "demo",
+  "description": "Demo: Action-enabled class with sample @action instances and demo server objects",
+  "classes": [
+    {
+      "id": "demo:server",
+      "class_id": "@class",
+      "name": "Demo Server",
+      "description": "Example class with action-type properties to demonstrate action execution",
+      "icon": "server",
+      "props": [
+        {"key": "name",        "label": "Name",        "data_type": "string",  "required": true, "display_order": 1},
+        {"key": "ip",          "label": "IP Address",   "data_type": "string",  "display_order": 2},
+        {"key": "status",      "label": "Status",       "data_type": "string",  "options": {"type": "string_options", "values": ["running","stopped","error","unknown"]}, "default_value": "unknown", "display_order": 3},
+        {"key": "cpu_usage",   "label": "CPU %",        "data_type": "float",   "display_order": 4},
+        {"key": "ram_usage",   "label": "RAM %",        "data_type": "float",   "display_order": 5},
+
+        {"key": "refresh",     "label": "Refresh",      "description": "Refresh server status from provider",
+         "data_type": "function", "object_class_id": ["@action"],
+         "icon": "refresh-cw", "display_order": 100, "group_name": "Actions"},
+
+        {"key": "power_off",   "label": "Power Off",    "description": "Shut down the server",
+         "data_type": "function", "object_class_id": ["@action"],
+         "icon": "power", "display_order": 101, "group_name": "Actions"},
+
+        {"key": "reboot",      "label": "Reboot",       "description": "Restart the server",
+         "data_type": "function", "object_class_id": ["@action"],
+         "icon": "rotate-ccw", "display_order": 102, "group_name": "Actions"}
+      ]
+    }
+  ],
+  "seed": [
+    {"storage": "./demo-actions.seed.json"}
+  ]
+}

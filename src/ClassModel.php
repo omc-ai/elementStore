@@ -84,6 +84,15 @@ class ClassModel
     /** @var \Phalcon\Di\DiInterface|null DI container */
     private ?\Phalcon\Di\DiInterface $di = null;
 
+    /** @var array Genesis configuration from @init.json */
+    private array $genesisConfig = ['mode' => 'local', 'url' => null, 'auto_load' => true];
+
+    /** @var string Path to the .es/ directory */
+    private string $esDir = '';
+
+    /** @var GenesisLoader|null Genesis loader instance */
+    private ?GenesisLoader $genesisLoader = null;
+
 
     // =========================================================================
     // CONSTRUCTOR & BOOT
@@ -125,12 +134,19 @@ class ClassModel
     public static function boot(string $basePath, mixed $userId = null): self
     {
         $initFile = $basePath . '/@init.json';
-        $dataDir = dirname($basePath) . '/data';
+        $esDir = $basePath . '/' . Constants::ES_DIR;
 
-        // Default storage config
+        // Default storage config — .es/ is the default data directory
         $storageConfig = [
             'type' => 'json',
-            'data_dir' => $dataDir,
+            'data_dir' => Constants::ES_DIR,
+        ];
+
+        // Default genesis config
+        $genesisConfig = [
+            'mode' => 'local',
+            'url' => null,
+            'auto_load' => true,
         ];
 
         // Load from @init.json if exists
@@ -139,12 +155,28 @@ class ClassModel
             if (isset($initData[Constants::K_STORAGE]['bootstrap'])) {
                 $storageConfig = array_merge($storageConfig, $initData[Constants::K_STORAGE]['bootstrap']);
             }
+            if (isset($initData['genesis'])) {
+                $genesisConfig = array_merge($genesisConfig, $initData['genesis']);
+            }
         }
 
-        // Resolve relative paths
+        // Environment variable overrides for genesis config
+        $envUrl = getenv(Constants::ENV_GENESIS_URL);
+        if ($envUrl !== false && $envUrl !== '') {
+            $genesisConfig['url'] = $envUrl;
+        }
+        $envMode = getenv(Constants::ENV_GENESIS_MODE);
+        if ($envMode !== false && $envMode !== '') {
+            $genesisConfig['mode'] = $envMode;
+        }
+
+        // Resolve relative paths — data_dir is relative to basePath
         if (isset($storageConfig['data_dir']) && !str_starts_with($storageConfig['data_dir'], '/')) {
             $storageConfig['data_dir'] = $basePath . '/' . $storageConfig['data_dir'];
         }
+
+        // Resolve .es/ directory path
+        $resolvedEsDir = $storageConfig['data_dir'];
 
         // Create storage provider based on type
         $storage = match ($storageConfig['type'] ?? 'json') {
@@ -160,7 +192,11 @@ class ClassModel
             default => new JsonStorageProvider($storageConfig['data_dir'])
         };
 
-        return new self($storage, $basePath, $userId);
+        $model = new self($storage, $basePath, $userId);
+        $model->genesisConfig = $genesisConfig;
+        $model->esDir = $resolvedEsDir;
+
+        return $model;
     }
 
     // =========================================================================
@@ -360,16 +396,25 @@ class ClassModel
      */
     public function setObject(string $class_id, array $data): AtomObj
     {
-        $this->ensureBootstrap();
+        $t0 = microtime(true);
+        $timings = [];
 
+        $this->ensureBootstrap();
+        $timings['bootstrap'] = round((microtime(true) - $t0) * 1000, 1);
+
+        $t1 = microtime(true);
         $meta = $this->getClass($class_id);
+        $timings['getClass'] = round((microtime(true) - $t1) * 1000, 1);
+
         $id = $data[Constants::F_ID] ?? null;
         $oldObj = null;
         $oldData = null;
 
         // Step 1: Get old object if ID provided
         if ($id !== null) {
+            $t1 = microtime(true);
             $oldData = $this->storage->getobj($class_id, $id);
+            $timings['getOldObj'] = round((microtime(true) - $t1) * 1000, 1);
 
             // For non-system classes with custom IDs disabled, object must exist
             if ($oldData === null && !$this->isSystemClass($class_id) && !$this->allowCustomIds) {
@@ -392,7 +437,9 @@ class ClassModel
 
         // Step 2: Validate and build merged object
         if ($meta !== null) {
+            $t1 = microtime(true);
             $result = $this->validate($class_id, $data, $oldData);
+            $timings['validate'] = round((microtime(true) - $t1) * 1000, 1);
             if (!empty($result['errors'])) {
                 throw new StorageException(
                     'Validation failed',
@@ -430,7 +477,9 @@ class ClassModel
         }
 
         // Step 6: Save and handle side effects
+        $t1 = microtime(true);
         $savedData = $this->onChange($class_id, $data, $oldData, $changes);
+        $timings['onChange'] = round((microtime(true) - $t1) * 1000, 1);
 
         // Step 7: Create AtomObj, clear changes, return
         $obj = $this->factory($class_id, $savedData);
@@ -440,7 +489,62 @@ class ClassModel
         // Update cache
         $this->toCache($obj);
 
+        $timings['total'] = round((microtime(true) - $t0) * 1000, 1);
+        error_log("[ES-TIMING] setObject {$class_id}/{$id}: " . json_encode($timings));
+
         return $obj;
+    }
+
+    /**
+     * Batch upsert — best-effort: save what passes validation, report errors for the rest.
+     *
+     * @param string $class_id Class identifier (all objects share this class)
+     * @param array  $items    Array of object data arrays
+     *
+     * @return array ['results' => [...], 'summary' => ['total' => N, 'ok' => N, 'errors' => N]]
+     */
+    public function setObjects(string $class_id, array $items): array
+    {
+        $t0 = microtime(true);
+        $results = [];
+        $ok = 0;
+        $errors = 0;
+
+        foreach ($items as $item) {
+            $id = $item[Constants::F_ID] ?? null;
+            try {
+                $obj = $this->setObject($class_id, $item);
+                $results[] = [
+                    'status' => 'ok',
+                    'id'     => $obj->id,
+                    'data'   => $obj->toApiArray(),
+                ];
+                $ok++;
+            } catch (StorageException $e) {
+                $results[] = [
+                    'status'  => 'error',
+                    'id'      => $id,
+                    'error'   => $e->getMessage(),
+                    'details' => $e->getErrors() ?: null,
+                ];
+                $errors++;
+            } catch (\Exception $e) {
+                $results[] = [
+                    'status' => 'error',
+                    'id'     => $id,
+                    'error'  => $e->getMessage(),
+                ];
+                $errors++;
+            }
+        }
+
+        $totalMs = round((microtime(true) - $t0) * 1000, 1);
+        error_log("[ES-TIMING] setObjects {$class_id}: {$ok} ok, {$errors} errors, {$totalMs}ms");
+
+        return [
+            'results' => $results,
+            'summary' => ['total' => count($items), 'ok' => $ok, 'errors' => $errors],
+        ];
     }
 
     /**
@@ -470,6 +574,11 @@ class ClassModel
 
         if ($deleted) {
             BroadcastService::emitDelete($class_id, $id, $oldData, $this->userId);
+
+            // Seed write-back on delete
+            if ($this->genesisLoader !== null && $this->hasSeedWritePermission()) {
+                $this->seedDeleteBack($class_id, $id);
+            }
         }
 
         return $deleted;
@@ -1372,6 +1481,12 @@ class ClassModel
             unset($this->objectCache[Constants::K_CLASS][$data[Constants::F_ID]]);
         }
 
+        // Seed write-back: if genesis loader is active and user has permission,
+        // save changes back to the genesis/seed file in .es/
+        if ($this->genesisLoader !== null && $this->hasSeedWritePermission()) {
+            $this->seedWriteBack($class_id, $data, $result);
+        }
+
         return $result;
     }
 
@@ -1504,22 +1619,26 @@ class ClassModel
     }
 
     /**
-     * Check if name is unique within class
+     * Check if name is unique within class.
+     * Uses targeted Mango query (case-insensitive regex) instead of loading all docs.
      */
     private function isNameUnique(string $classId, string $name, mixed $excludeId): bool
     {
-        $all = $this->storage->getobj($classId);
-        if (!$all) {
+        // Build case-insensitive regex pattern for CouchDB Mango query
+        $escaped = preg_quote($name, '/');
+        $matches = $this->storage->query($classId, [
+            Constants::F_NAME => ['$regex' => "(?i)^{$escaped}$"],
+        ], ['limit' => 2]);
+
+        if (empty($matches)) {
             return true;
         }
 
-        foreach ($all as $obj) {
+        foreach ($matches as $obj) {
             if ($excludeId !== null && ($obj[Constants::F_ID] ?? null) == $excludeId) {
                 continue;
             }
-            if (isset($obj[Constants::F_NAME]) && strtolower($obj[Constants::F_NAME]) === strtolower($name)) {
-                return false;
-            }
+            return false;
         }
         return true;
     }
@@ -1538,6 +1657,10 @@ class ClassModel
 
     /**
      * Ensure system classes exist (lazy bootstrap)
+     *
+     * Uses GenesisLoader to load from .es/ directory (genesis-first approach).
+     * Falls back to SystemClasses for backward compatibility when .es/ files
+     * are not available.
      */
     private function ensureBootstrap(): void
     {
@@ -1545,27 +1668,201 @@ class ClassModel
             return;
         }
 
-        // Check if @class exists - if not, create all system classes
+        // Initialize GenesisLoader if .es/ directory path is set
+        if (!empty($this->esDir)) {
+            $this->genesisLoader = new GenesisLoader(
+                $this->storage,
+                $this->esDir,
+                $this->genesisConfig['url'] ?? null,
+                $this->genesisConfig['mode'] ?? 'local'
+            );
+        }
+
+        // Check if @class exists - if not, bootstrap from genesis or SystemClasses
         $classClass = $this->storage->getobj(Constants::K_CLASS, Constants::K_CLASS);
         if (!$classClass) {
-            SystemClasses::createSystemClasses($this->storage);
+            // Try genesis-first approach
+            if ($this->genesisLoader !== null && ($this->genesisConfig['auto_load'] ?? true)) {
+                $this->genesisLoader->load(true);
+            } else {
+                // Fallback: create from SystemClasses (backward compat)
+                SystemClasses::createSystemClasses($this->storage);
+            }
         }
 
         // Check if @editor class exists (may be missing if added after initial bootstrap)
         $editorClass = $this->storage->getobj(Constants::K_CLASS, Constants::K_EDITOR);
         if (!$editorClass) {
-            // Create just the @editor class
             $editorClassDef = SystemClasses::getEditorClassDefinition();
             $this->storage->setobj(Constants::K_CLASS, $editorClassDef);
+        }
+
+        // Check if @seed class exists (may be missing if added after initial bootstrap)
+        $seedClass = $this->storage->getobj(Constants::K_CLASS, Constants::K_SEED);
+        if (!$seedClass) {
+            $seedClassDef = SystemClasses::getSeedClassDefinition();
+            $this->storage->setobj(Constants::K_CLASS, $seedClassDef);
         }
 
         // Check if seed editors exist
         $textEditor = $this->storage->getobj(Constants::K_EDITOR, 'text');
         if (!$textEditor) {
-            $this->createSeedEditors();
+            // Try loading from .es/ seed file first
+            if ($this->genesisLoader !== null) {
+                $seedFile = $this->esDir . '/editors' . Constants::SEED_SUFFIX;
+                if (file_exists($seedFile)) {
+                    $editors = json_decode(file_get_contents($seedFile), true);
+                    if (is_array($editors)) {
+                        foreach ($editors as $editor) {
+                            $this->storage->setobj(Constants::K_EDITOR, $editor);
+                        }
+                    }
+                } else {
+                    $this->createSeedEditors();
+                }
+            } else {
+                $this->createSeedEditors();
+            }
         }
 
         $this->bootstrapped = true;
+    }
+
+    // =========================================================================
+    // GENESIS & SEED WRITE-BACK
+    // =========================================================================
+
+    /**
+     * Get the GenesisLoader instance (available after bootstrap)
+     *
+     * @return GenesisLoader|null
+     */
+    public function getGenesisLoader(): ?GenesisLoader
+    {
+        return $this->genesisLoader;
+    }
+
+    /**
+     * Check if current user has seed write permission.
+     *
+     * Permission is granted if:
+     * - No auth is configured (development mode — always allowed)
+     * - Auth is enabled but allowCustomIds is set (seeding context)
+     *
+     * @return bool
+     */
+    private function hasSeedWritePermission(): bool
+    {
+        // If AuthService class doesn't exist or isn't enabled, allow (dev mode)
+        if (!class_exists('\\ElementStore\\AuthService') || !AuthService::isEnabled()) {
+            return true;
+        }
+
+        // In authenticated mode, seed write-back requires the custom IDs flag
+        // (set via X-Allow-Custom-Ids header during seeding operations)
+        return $this->allowCustomIds;
+    }
+
+    /**
+     * Write class/object changes back to genesis/seed files in .es/
+     *
+     * Triggered after onChange() when:
+     * - Saving a @class definition that has a genesis_file field
+     * - Saving an object whose class has a seed file mapping
+     *
+     * @param string $classId   Class being saved (e.g., "@class", "@editor")
+     * @param array  $data      Input data
+     * @param array  $savedData Saved result from storage
+     */
+    private function seedWriteBack(string $classId, array $data, array $savedData): void
+    {
+        // Case 1: Class definition change -> save to genesis file
+        if ($classId === Constants::K_CLASS) {
+            $genesisFile = $savedData[Constants::F_GENESIS_FILE] ?? null;
+            $genesisDir = $savedData[Constants::F_GENESIS_DIR] ?? null;
+            if ($genesisFile) {
+                $this->genesisLoader->saveToGenesis(
+                    $savedData[Constants::F_ID],
+                    $genesisFile,
+                    $savedData,
+                    $genesisDir
+                );
+            }
+            return;
+        }
+
+        // Case 2: Object on a seed class -> save to seed file
+        $seedInfo = $this->resolveSeedFile($classId);
+        if ($seedInfo !== null) {
+            $this->genesisLoader->saveToSeed(
+                $classId,
+                $seedInfo['file'],
+                $savedData,
+                $seedInfo['dir']
+            );
+        }
+    }
+
+    /**
+     * Delete object from its seed file (write-back on delete).
+     *
+     * @param string $classId  Class of the deleted object
+     * @param string $objectId ID of the deleted object
+     */
+    private function seedDeleteBack(string $classId, string $objectId): void
+    {
+        $seedInfo = $this->resolveSeedFile($classId);
+        if ($seedInfo !== null) {
+            $this->genesisLoader->deleteFromSeed(
+                $classId,
+                $seedInfo['file'],
+                $objectId,
+                $seedInfo['dir']
+            );
+        }
+    }
+
+    /**
+     * Resolve which seed file a class's objects should be saved to.
+     *
+     * Returns both the seed filename and the .es/ directory path.
+     * Checks: 1) hardcoded system mappings, 2) GenesisLoader's dynamic seedFileMap.
+     *
+     * @param string $classId Class ID
+     * @return array{file: string, dir: string}|null Seed file info or null
+     */
+    private function resolveSeedFile(string $classId): ?array
+    {
+        // Hardcoded system seed mappings (use own esDir)
+        $systemFile = match ($classId) {
+            Constants::K_EDITOR => 'editors' . Constants::SEED_SUFFIX,
+            Constants::K_FUNCTION => 'functions' . Constants::SEED_SUFFIX,
+            default => null,
+        };
+
+        if ($systemFile !== null) {
+            return ['file' => $systemFile, 'dir' => $this->esDir];
+        }
+
+        // Check GenesisLoader's in-memory map (built from genesis seed sections)
+        if ($this->genesisLoader !== null) {
+            $map = $this->genesisLoader->getSeedFileMap();
+            if (isset($map[$classId])) {
+                return $map[$classId];
+            }
+        }
+
+        // Fall back to persistent seed_file/genesis_dir on the class definition
+        $classDef = $this->storage->getobj(Constants::K_CLASS, $classId);
+        if ($classDef !== null) {
+            $seedFile = $classDef[Constants::F_SEED_FILE] ?? null;
+            $seedDir = $classDef[Constants::F_GENESIS_DIR] ?? null;
+            if ($seedFile !== null && $seedDir !== null) {
+                return ['file' => $seedFile, 'dir' => $seedDir];
+            }
+        }
+
+        return null;
     }
 
     /**

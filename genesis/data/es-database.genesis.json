@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "namespace": "es",
+  "description": "ElementStore self-monitoring: CouchDB database objects with live stats sync via @action + @provider",
+  "classes": [
+    {
+      "id": "es:database",
+      "class_id": "@class",
+      "name": "ES Database",
+      "description": "CouchDB database with live stats synced via @action",
+      "icon": "database",
+      "props": [
+        {"key": "name",        "label": "Name",          "data_type": "string",  "required": true, "display_order": 1},
+        {"key": "doc_count",   "label": "Documents",     "data_type": "integer", "readonly": true, "display_order": 2},
+        {"key": "disk_size",   "label": "Disk Size",     "data_type": "integer", "readonly": true, "display_order": 3},
+        {"key": "active_size", "label": "Active Size",   "data_type": "integer", "readonly": true, "display_order": 4},
+        {"key": "del_count",   "label": "Deleted Docs",  "data_type": "integer", "readonly": true, "display_order": 5},
+        {"key": "compact",     "label": "Compacting",    "data_type": "boolean", "readonly": true, "display_order": 6},
+        {"key": "synced_at",   "label": "Last Synced",   "data_type": "string",  "readonly": true, "display_order": 7},
+
+        {"key": "_links",   "label": "Provider Links", "description": "Maps provider_id to external resource ID",
+         "data_type": "object", "display_order": 90, "group_name": "Provider"},
+
+        {"key": "refresh",  "label": "Refresh Stats",  "description": "Sync database stats from CouchDB",
+         "data_type": "function", "object_class_id": ["@action"],
+         "icon": "refresh-cw", "display_order": 100, "group_name": "Actions"}
+      ]
+    }
+  ],
+  "seed": [
+    {"storage": "./es-database.seed.json"}
+  ]
+}

@@ -9,6 +9,9 @@
 #   find                            Find object by ID across all classes
 #   push                            Bulk import: storage → storage
 #   pull                            Bulk export: storage → storage
+#   delete | del | rm               Delete objects/classes (API target only)
+#   init | reinit                    Delete + reload genesis from --es-dir (clean init)
+#   action | exec                    Execute action on object (PUT store/{class}/{id}/{prop})
 #   classes                         List all class IDs
 #   health                          Connectivity check
 #
@@ -18,6 +21,12 @@
 #   ./relative/file.json           Local JSON file   (read or write)
 #   /absolute/file.json            Local JSON file
 #   file:./relative/file.json      Explicit local file prefix (same as above)
+#
+# .ES/ AUTO-DETECTION
+#   When --dir, --from, or --file points to a directory that contains
+#   a .es/ subdirectory, the .es/ subdirectory is used automatically.
+#   es.sh push --from /path/to/project --to http://localhost/elementStore
+#   → auto-detects /path/to/project/.es/ and processes genesis+seed files
 #
 # USAGE
 #   es.sh <command> [options]
@@ -30,6 +39,7 @@
 #   --id     <id>          Object ID     (e.g. api-project.haat)
 #   --data   <json>        Inline JSON payload (for set)
 #   --file   <path>        JSON file to read from (for set/push)
+#   --dir    <path>        Load all *.json files in a directory (for set/push)
 #   --out    <path>        Write output to file instead of stdout
 #   --out-dir <dir>        Output directory (for pull --all)
 #   --filter <k=v>         Filter  (repeatable; maps to ?k=v query params)
@@ -42,6 +52,7 @@
 #   --token  <jwt>         Bearer token. $ES_TOKEN if omitted.
 #   --dry-run              Show what would happen, no API calls
 #   -v | --verbose         Show HTTP request/response details
+#   --timing               Show elapsed time for each operation
 #   -h | --help            Show this help
 #
 # ENVIRONMENT
@@ -63,6 +74,12 @@
 #
 #   # Create / update from file (single object or array)
 #   es.sh set --file db/@api-project.json
+#
+#   # Load all JSON files from current directory
+#   es.sh set --dir .
+#
+#   # Load all JSON files from a specific directory
+#   es.sh push --dir db/ --to http://arc3d.master.local/elementStore
 #
 #   # Push genesis (classes + seed data) into elementStore
 #   es.sh push --from db/@registry.genesis.json --to http://arc3d.master.local/elementStore
@@ -88,6 +105,12 @@
 #
 #   # Find object by ID across all classes
 #   es.sh find --id api-project.haat
+#
+#   # Push from a project directory (auto-detects .es/)
+#   es.sh push --from /path/to/platform_root --to http://arc3d.master.local/elementStore
+#
+#   # Push all files from a directory (auto-detects .es/)
+#   es.sh push --dir /path/to/project --to http://arc3d.master.local/elementStore
 # =============================================================================
 
 set -euo pipefail
@@ -112,6 +135,7 @@ CLASS_ID=""
 OBJECT_ID=""
 DATA_INLINE=""
 DATA_FILE=""
+DATA_DIR=""
 OUT_FILE=""
 OUT_DIR="."
 FILTERS=()
@@ -123,9 +147,16 @@ RESOLVE_RELATED=false
 FORCE=false
 DRY_RUN=false
 VERBOSE=false
+TIMING=false
 PUSH_ALL=false
 PUSH_GENESIS=false
 TOKEN="${ES_TOKEN:-}"
+CLASS_IDS=()           # repeatable --class (for delete multi-class)
+CLASS_FILTER=""         # --class-filter pattern
+INCLUDE_CLASS_DEF=false # --include-class-def (delete class definition too)
+GENESIS_DIR="${ES_DIR:-}"  # --genesis-dir / --es-dir (server-side .es/ path)
+PROP_NAME=""            # --prop (property name for action execution)
+ACTION_PARAMS=""        # --params (JSON params for action execution)
 
 PASS=0; FAIL=0; SKIP=0
 
@@ -147,10 +178,11 @@ while [[ $# -gt 0 ]]; do
         --url)      URL_DEFAULT="$2";   shift 2 ;;
         --from)     FROM_STORAGE="$2";  shift 2 ;;
         --to)       TO_STORAGE="$2";    shift 2 ;;
-        --class)    CLASS_ID="$2";      shift 2 ;;
+        --class)    CLASS_ID="$2"; CLASS_IDS+=("$2"); shift 2 ;;
         --id)       OBJECT_ID="$2";     shift 2 ;;
         --data)     DATA_INLINE="$2";   shift 2 ;;
         --file)     DATA_FILE="$2";     shift 2 ;;
+        --dir)      DATA_DIR="$2";      shift 2 ;;
         --out)      OUT_FILE="$2";      shift 2 ;;
         --out-dir)  OUT_DIR="$2";       shift 2 ;;
         --filter)   FILTERS+=("$2");    shift 2 ;;
@@ -164,7 +196,13 @@ while [[ $# -gt 0 ]]; do
         --genesis)  PUSH_GENESIS=true;  shift ;;
         --force)    FORCE=true;         shift ;;
         --dry-run)  DRY_RUN=true;       shift ;;
+        --class-filter)     CLASS_FILTER="$2";       shift 2 ;;
+        --include-class-def) INCLUDE_CLASS_DEF=true; shift ;;
+        --genesis-dir|--es-dir) GENESIS_DIR="$2";     shift 2 ;;
+        --prop)     PROP_NAME="$2";    shift 2 ;;
+        --params)   ACTION_PARAMS="$2"; shift 2 ;;
         -v|--verbose) VERBOSE=true;     shift ;;
+        --timing)   TIMING=true;        shift ;;
         -h|--help)  usage ;;
         *) _err "Unknown option: $1"; exit 1 ;;
     esac
@@ -180,8 +218,20 @@ case "$CMD" in
     pull)                   CMD="pull" ;;
     classes)                CMD="classes" ;;
     health)                 CMD="health" ;;
+    action|exec)            CMD="action" ;;
+    delete|del|rm)          CMD="delete" ;;
+    init|reinit)            CMD="init" ;;
     *) _err "Unknown command: ${CMD}. Run es.sh --help for usage."; exit 1 ;;
 esac
+
+# ── .es/ auto-detection for directory arguments ──────────────────────────────
+if [[ -n "$DATA_DIR" ]]; then
+    bare=$(_file_path "$DATA_DIR")
+    if [[ -d "$bare" && -d "${bare%/}/.es" ]]; then
+        DATA_DIR="${bare%/}/.es"
+        _info "Auto-detected .es/ directory: ${DATA_DIR}"
+    fi
+fi
 
 # ── Dependency check ──────────────────────────────────────────────────────────
 command -v jq   &>/dev/null || { _err "jq required: brew install jq"; exit 1; }
@@ -201,6 +251,20 @@ _is_file() {
 # Strip file: prefix → bare path
 _file_path() {
     echo "${1#file:}"
+}
+
+# If path is a directory, check for .es/ subdirectory and use it
+_resolve_es_dir() {
+    local path="$1"
+    if [[ -d "$path" ]]; then
+        local es_path="${path%/}/.es"
+        if [[ -d "$es_path" ]]; then
+            _info "Found .es/ directory: ${es_path}"
+            echo "$es_path"
+            return
+        fi
+    fi
+    echo "$path"
 }
 
 # Strip trailing slash from URL
@@ -270,8 +334,38 @@ _http() {
 }
 
 _resp()      { cat "$_RESP_FILE" 2>/dev/null || echo '{}'; }
-_resp_err()  { _resp | jq -r '.error // .message // .' 2>/dev/null | head -1; }
+_resp_err()  {
+    local resp
+    resp=$(_resp)
+    local main
+    main=$(echo "$resp" | jq -r '.error // .message // ""' 2>/dev/null)
+    # Include validation details if present
+    local details
+    details=$(echo "$resp" | jq -r '
+        if .details and (.details | length > 0) then
+            [.details[] | "  - \(.path // "?"): \(.message // "unknown") [\(.code // "")]"] | join("\n")
+        else empty end
+    ' 2>/dev/null)
+    if [[ -n "$details" ]]; then
+        echo -e "${main}\n${details}"
+    elif [[ -n "$main" ]]; then
+        echo "$main"
+    else
+        echo "$resp" | head -1
+    fi
+}
 _resp_pp()   { _resp | jq '.' 2>/dev/null || _resp; }
+
+# ── Timing helpers ──────────────────────────────────────────────────────────
+_now_ms() { python3 -c "import time; print(int(time.time()*1000))" 2>/dev/null; }
+_timer_start() { [[ "$TIMING" == true ]] && _T_START=$(_now_ms) || true; }
+_timer_end()   {
+    [[ "$TIMING" != true ]] && return
+    local elapsed=$(( $(_now_ms) - ${_T_START:-0} ))
+    echo -e "  ${GRAY}⏱  ${elapsed}ms  ${1:-}${NC}" >&2
+}
+_T_START=0
+_T_TOTAL_START=0
 
 # ── Storage read: fetch from ES API or local file ─────────────────────────────
 _storage_read_class() {
@@ -345,20 +439,21 @@ _api_upsert() {
     enc_c=$(_urlencode "$class")
     enc_id=$(_urlencode "$id")
 
+    _timer_start
     local code
     code=$(_http "PUT" "${base}/store/${enc_c}/${enc_id}" "$body")
 
     if [[ "$code" == "200" || "$code" == "201" ]]; then
-        _ok "Updated  ${label}"; ((PASS++)) || true
+        _ok "Updated  ${label}"; _timer_end "$label"; ((PASS++)) || true
     elif [[ "$code" == "404" ]]; then
         code=$(_http "POST" "${base}/store/${enc_c}" "$body")
         if [[ "$code" == "200" || "$code" == "201" ]]; then
-            _ok "Created  ${label}"; ((PASS++)) || true
+            _ok "Created  ${label}"; _timer_end "$label"; ((PASS++)) || true
         else
-            _err "Failed   ${label} (POST ${code}): $(_resp_err)"; ((FAIL++)) || true
+            _err "Failed   ${label} (POST ${code}):\n$(_resp_err)"; _timer_end "$label"; ((FAIL++)) || true
         fi
     else
-        _err "Failed   ${label} (PUT ${code}): $(_resp_err)"; ((FAIL++)) || true
+        _err "Failed   ${label} (PUT ${code}):\n$(_resp_err)"; _timer_end "$label"; ((FAIL++)) || true
     fi
 }
 
@@ -367,12 +462,13 @@ _api_push_class() {
     local base="$1"
     local class_id="$2"
     local body="$3"
+    _timer_start
     local code
     code=$(_http "POST" "${base}/class" "$body")
     if [[ "$code" == "200" || "$code" == "201" ]]; then
-        _ok "Class    ${class_id}"; ((PASS++)) || true
+        _ok "Class    ${class_id}"; _timer_end "class ${class_id}"; ((PASS++)) || true
     else
-        _err "Failed   class ${class_id} (${code}): $(_resp_err)"; ((FAIL++)) || true
+        _err "Failed   class ${class_id} (${code}):\n$(_resp_err)"; _timer_end "class ${class_id}"; ((FAIL++)) || true
     fi
 }
 
@@ -414,6 +510,60 @@ _file_upsert() {
     _ok "Written ${count} object(s) → ${path}"; ((PASS++)) || true
 }
 
+# ── Batch API upsert: single HTTP call for all objects of same class ──────────
+_api_batch_upsert() {
+    local base="$1"
+    local class="$2"
+    local objects_json="$3"   # JSON array of objects (all same class_id)
+
+    local enc_c
+    enc_c=$(_urlencode "$class")
+
+    _timer_start
+    local code
+    code=$(_http "POST" "${base}/store/${enc_c}/_batch" "$objects_json")
+
+    if [[ "$code" == "200" ]]; then
+        # All OK
+        local count
+        count=$(_resp | jq '.summary.ok')
+        _ok "Batch OK  ${class} (${count} objects)"
+        _timer_end "batch ${class}"
+        ((PASS += count)) || true
+    elif [[ "$code" == "207" || "$code" == "400" ]]; then
+        # Mixed or all errors — parse per-object results
+        while IFS= read -r row; do
+            local st rid
+            st=$(echo "$row" | jq -r '.status')
+            rid=$(echo "$row" | jq -r '.id // "?"')
+            if [[ "$st" == "ok" ]]; then
+                _ok "Updated  ${class}/${rid}"; ((PASS++)) || true
+            else
+                local emsg edetails
+                emsg=$(echo "$row" | jq -r '.error // "unknown"')
+                edetails=$(echo "$row" | jq -r '
+                    if .details and (.details | length > 0) then
+                        [.details[] | "  - \(.path // "?"): \(.message // "unknown") [\(.code // "")]"] | join("\n")
+                    else empty end
+                ' 2>/dev/null)
+                if [[ -n "$edetails" ]]; then
+                    _err "Failed   ${class}/${rid}:\n${emsg}\n${edetails}"
+                else
+                    _err "Failed   ${class}/${rid}: ${emsg}"
+                fi
+                ((FAIL++)) || true
+            fi
+        done < <(_resp | jq -c '.results[]')
+        _timer_end "batch ${class}"
+    else
+        _err "Batch failed ${class} (HTTP ${code}): $(_resp_err)"
+        _timer_end "batch ${class}"
+        local count
+        count=$(echo "$objects_json" | jq 'length')
+        ((FAIL += count)) || true
+    fi
+}
+
 # ── Dispatch: route objects to correct storage ────────────────────────────────
 _write_objects() {
     local storage="$1"
@@ -427,16 +577,16 @@ _write_objects() {
     else
         local base
         base=$(_url "$storage")
-        local total
-        total=$(echo "$objects_json" | jq 'length')
-        while IFS= read -r obj; do
-            local oc oid
-            oc=$(echo "$obj"  | jq -r '.class_id')
-            oid=$(echo "$obj" | jq -r '.id')
-            [[ "$oc" == "null" || -z "$oc" ]] && { _warn "Skipping (no class_id)"; ((SKIP++)) || true; continue; }
-            [[ "$oid" == "null" || -z "$oid" ]] && { _warn "Skipping (no id)"; ((SKIP++)) || true; continue; }
-            _api_upsert "$base" "$oc" "$oid" "$obj"
-        done < <(echo "$objects_json" | jq -c '.[]')
+
+        # Group objects by class_id and batch-upsert each group
+        local classes_list
+        classes_list=$(echo "$objects_json" | jq -r '[.[].class_id] | unique | .[]')
+        while IFS= read -r cls; do
+            [[ -z "$cls" || "$cls" == "null" ]] && { _warn "Skipping objects with no class_id"; ((SKIP++)) || true; continue; }
+            local class_objects
+            class_objects=$(echo "$objects_json" | jq -c --arg c "$cls" '[.[] | select(.class_id == $c)]')
+            _api_batch_upsert "$base" "$cls" "$class_objects"
+        done <<< "$classes_list"
     fi
 }
 
@@ -524,6 +674,10 @@ _write_genesis() {
             while IFS= read -r cls; do
                 local cid
                 cid=$(echo "$cls" | jq -r '.id')
+                # Stamp genesis_dir if --genesis-dir was provided
+                if [[ -n "$GENESIS_DIR" ]]; then
+                    cls=$(echo "$cls" | jq --arg gd "$GENESIS_DIR" '. + {genesis_dir: $gd}')
+                fi
                 _api_push_class "$base" "$cid" "$cls"
             done < <(echo "$genesis_json" | jq -c '.classes[] // empty')
         fi
@@ -566,9 +720,16 @@ _write_genesis() {
                         seed_dir=$(dirname "$seed_path")
 
                         # Detect format: genesis (recurse) vs data array vs single object
+                        # Genesis = wrapped {classes/seed} OR plain array where all items have class_id=="@class"
                         if echo "$seed_json" | jq -e 'type == "object" and (has("classes") or has("seed"))' &>/dev/null; then
                             _info "Seed genesis: ${surl}"
                             _write_genesis "$storage" "$seed_json" "$seed_dir"
+                        elif echo "$seed_json" | jq -e 'type == "array" and length > 0 and all(.[]; .class_id == "@class")' &>/dev/null; then
+                            _warn "Plain array genesis detected: ${surl} — consider wrapping in {\"classes\": [...]}"
+                            local wrapped
+                            wrapped=$(echo "$seed_json" | jq '{classes: .}')
+                            _info "Seed genesis (plain array): ${surl}"
+                            _write_genesis "$storage" "$wrapped" "$seed_dir"
                         elif echo "$seed_json" | jq -e 'type == "array"' &>/dev/null; then
                             local n
                             n=$(echo "$seed_json" | jq 'length')
@@ -612,13 +773,16 @@ _check_connectivity() {
 
     local base
     base=$(_url "$storage")
+    _timer_start
     local code
     code=$(curl -s -o /dev/null -w "%{http_code}" "${base}/health" 2>/dev/null || echo "000")
     if [[ "$code" != "200" ]]; then
         _err "Cannot reach ${base}/health (HTTP ${code})"
+        _timer_end "health check"
         return 1
     fi
     _ok "Connected → ${base}"
+    _timer_end "health check"
 }
 
 # ── Output helper: print or write to file ─────────────────────────────────────
@@ -791,33 +955,128 @@ cmd_find() {
     _output "$(_resp)"
 }
 
-# ── set / upsert ──────────────────────────────────────────────────────────────
-cmd_set() {
-    local payload=""
+# ── action / exec ─────────────────────────────────────────────────────────────
+# PUT /store/{class}/{id}/{prop} with JSON params body
+# Usage: es.sh action --class infra:vm --id vm-web-01 --prop refresh --params '{"force":true}'
+cmd_action() {
+    local s
+    s=$(_write_storage)
+    [[ -z "$s" ]] && { _err "No target storage (--url/--to or ES_URL)"; exit 1; }
+    [[ -z "$CLASS_ID" ]] && { _err "--class required for action"; exit 1; }
+    [[ -z "$OBJECT_ID" ]] && { _err "--id required for action"; exit 1; }
+    [[ -z "$PROP_NAME" ]] && { _err "--prop required for action (property name)"; exit 1; }
 
-    # Resolve payload: inline > file > stdin
-    if [[ -n "$DATA_INLINE" ]]; then
-        payload="$DATA_INLINE"
-    elif [[ -n "$DATA_FILE" ]]; then
-        [[ ! -f "$DATA_FILE" ]] && { _err "File not found: ${DATA_FILE}"; exit 1; }
-        payload=$(cat "$DATA_FILE")
-    else
-        _err "Provide --data '<json>' or --file <path>"; exit 1
+    local base
+    base=$(_api_url "$s")
+    local params="${ACTION_PARAMS:-{}}"
+
+    _step "Execute action: ${CLASS_ID}/${OBJECT_ID}/${PROP_NAME}"
+    _dim "PUT ${base}/store/${CLASS_ID}/${OBJECT_ID}/${PROP_NAME}"
+    _dim "Params: ${params}"
+
+    if [[ "$DRY_RUN" == true ]]; then
+        _info "DRY RUN: would PUT to ${base}/store/${CLASS_ID}/${OBJECT_ID}/${PROP_NAME}"
+        return
     fi
 
+    local code
+    code=$(_http "PUT" "${base}/store/$(_urlencode "$CLASS_ID")/$(_urlencode "$OBJECT_ID")/$(_urlencode "$PROP_NAME")" "$params")
+
+    if [[ "$code" -ge 200 && "$code" -lt 300 ]]; then
+        _ok "Action executed (HTTP ${code})"
+        _output "$(_resp)"
+        PASS=$((PASS + 1))
+    else
+        _err "Action failed (HTTP ${code}): $(_resp_err)"
+        FAIL=$((FAIL + 1))
+    fi
+}
+
+# ── set / upsert ──────────────────────────────────────────────────────────────
+cmd_set() {
     local s
     s=$(_write_storage)
     [[ -z "$s" ]] && { _err "No target storage (--url/--to or ES_URL)"; exit 1; }
 
     _check_connectivity "$s" || exit 1
 
-    # Resolve genesis directory for seed file resolution
+    # ── Directory mode: process all *.json files in --dir ────────────────
+    if [[ -n "$DATA_DIR" ]]; then
+        [[ ! -d "$DATA_DIR" ]] && { _err "Directory not found: ${DATA_DIR}"; exit 1; }
+        local dir_path
+        dir_path=$(cd "$DATA_DIR" && pwd)
+        local files=()
+        while IFS= read -r -d '' f; do
+            files+=("$f")
+        done < <(find "$dir_path" -maxdepth 1 -name '*.json' -type f -print0 | sort -z)
+        [[ ${#files[@]} -eq 0 ]] && { _err "No *.json files found in: ${dir_path}"; exit 1; }
+        _step "Loading ${#files[@]} file(s) from ${dir_path}/"
+        for f in "${files[@]}"; do
+            local fname payload _genesis_dir
+            fname=$(basename "$f")
+            _info "File: ${fname}"
+            payload=$(cat "$f")
+            _genesis_dir=$(dirname "$f")
+            _set_dispatch "$s" "$payload" "$_genesis_dir"
+        done
+        return
+    fi
+
+    # ── If --file points to a directory, treat as --dir with .es/ check ─
+    if [[ -n "$DATA_FILE" && -d "$DATA_FILE" ]]; then
+        DATA_DIR=$(_resolve_es_dir "$DATA_FILE")
+        DATA_FILE=""
+        # Re-enter directory mode
+        [[ ! -d "$DATA_DIR" ]] && { _err "Directory not found: ${DATA_DIR}"; exit 1; }
+        local dir_path
+        dir_path=$(cd "$DATA_DIR" && pwd)
+        local files=()
+        while IFS= read -r -d '' f; do
+            files+=("$f")
+        done < <(find "$dir_path" -maxdepth 1 -name '*.json' -type f -print0 | sort -z)
+        [[ ${#files[@]} -eq 0 ]] && { _err "No *.json files found in: ${dir_path}"; exit 1; }
+        _step "Loading ${#files[@]} file(s) from ${dir_path}/"
+        for f in "${files[@]}"; do
+            local fname payload _genesis_dir
+            fname=$(basename "$f")
+            _info "File: ${fname}"
+            payload=$(cat "$f")
+            _genesis_dir=$(dirname "$f")
+            _set_dispatch "$s" "$payload" "$_genesis_dir"
+        done
+        return
+    fi
+
+    # ── Single payload: inline > file ────────────────────────────────────
+    local payload=""
+    if [[ -n "$DATA_INLINE" ]]; then
+        payload="$DATA_INLINE"
+    elif [[ -n "$DATA_FILE" ]]; then
+        [[ ! -f "$DATA_FILE" ]] && { _err "File not found: ${DATA_FILE}"; exit 1; }
+        payload=$(cat "$DATA_FILE")
+    else
+        _err "Provide --data '<json>', --file <path>, or --dir <directory>"; exit 1
+    fi
+
     local _genesis_dir=""
     [[ -n "$DATA_FILE" ]] && _genesis_dir="$(dirname "$DATA_FILE")"
 
-    # Detect payload type and dispatch
+    _set_dispatch "$s" "$payload" "$_genesis_dir"
+}
+
+# Detect payload type and dispatch to correct writer
+_set_dispatch() {
+    local s="$1"
+    local payload="$2"
+    local _genesis_dir="${3:-}"
+
     if echo "$payload" | jq -e 'type == "object" and (has("classes") or has("seed"))' &>/dev/null; then
         _write_genesis "$s" "$payload" "$_genesis_dir"
+    elif echo "$payload" | jq -e 'type == "array" and length > 0 and all(.[]; .class_id == "@class")' &>/dev/null; then
+        _warn "Plain array genesis detected — consider wrapping in {\"classes\": [...]}"
+        local wrapped
+        wrapped=$(echo "$payload" | jq '{classes: .}')
+        _write_genesis "$s" "$wrapped" "$_genesis_dir"
     elif echo "$payload" | jq -e 'type == "array"' &>/dev/null; then
         _write_objects "$s" "$payload"
     elif echo "$payload" | jq -e 'type == "object" and has("id") and has("class_id")' &>/dev/null; then
@@ -825,7 +1084,182 @@ cmd_set() {
         objs=$(echo "$payload" | jq '[.]')
         _write_objects "$s" "$objs"
     else
-        _err "Unrecognised payload format. Expected genesis, array, or single object."; exit 1
+        _err "Unrecognised payload format. Expected genesis, array, or single object."
+    fi
+}
+
+# ── init ─────────────────────────────────────────────────────────────────────
+# Load (or reload) genesis from an external .es/ directory into elementStore.
+# With --force: overwrites existing classes. Without: skips existing.
+# NOTE: Does NOT delete existing data — use `es delete` first for a clean slate.
+#       Deleting before init empties seed files (seedDeleteBack), so if you need
+#       a clean re-init, backup seed files, delete, restore seeds, then init.
+# Usage: es init --es-dir /var/www/platform_root/.es --url http://host/elementStore --force
+cmd_init() {
+    local es_dir="${GENESIS_DIR}"
+    [[ -z "$es_dir" ]] && { _err "Specify --es-dir <path> or set ES_DIR"; exit 1; }
+
+    local s
+    s=$(_write_storage)
+    [[ -z "$s" ]] && { _err "No API target (--url or ES_URL)"; exit 1; }
+    _is_file "$s" && { _err "init requires an HTTP API target"; exit 1; }
+    _check_connectivity "$s" || exit 1
+
+    local base
+    base=$(_url "$s")
+
+    # POST /genesis/reload with dir + force
+    _step "Loading genesis from ${es_dir}"
+    local payload code
+    payload=$(jq -n --arg dir "$es_dir" --argjson force "${FORCE}" '{dir: $dir, force: $force}')
+    code=$(_http "POST" "${base}/genesis/reload" "$payload")
+    if [[ "$code" == "200" ]]; then
+        local cls_count seed_count
+        cls_count=$(_resp | jq '.classes | length')
+        seed_count=$(_resp | jq '.seed | length')
+        _ok "Loaded ${cls_count} classes, ${seed_count} seed objects"
+        ((PASS++)) || true
+    else
+        _err "Genesis reload failed (HTTP ${code}): $(_resp_err)"
+        ((FAIL++)) || true
+    fi
+}
+
+# ── delete ───────────────────────────────────────────────────────────────────
+cmd_delete() {
+    local s
+    s=$(_write_storage)
+    [[ -z "$s" ]] && { _err "No storage specified (--url or ES_URL)"; exit 1; }
+
+    # Must be an API target (not file)
+    if _is_file "$s"; then
+        _err "Delete command requires an HTTP API target, not a local file"; exit 1
+    fi
+
+    _check_connectivity "$s" || exit 1
+
+    local base
+    base=$(_url "$s")
+
+    # ── Mode 1: --class-filter — delete all classes matching a pattern ──
+    if [[ -n "$CLASS_FILTER" ]]; then
+        [[ "$FORCE" != true ]] && { _err "--class-filter requires --force for safety"; exit 1; }
+
+        # Split CLASS_FILTER by spaces into patterns
+        local patterns=()
+        read -ra patterns <<< "$CLASS_FILTER"
+
+        # Get all classes from the API
+        local code
+        code=$(_http "GET" "${base}/class")
+        [[ "$code" != "200" ]] && { _err "Could not list classes (HTTP ${code})"; exit 1; }
+
+        local all_classes
+        all_classes=$(_resp | jq -r '.[].id')
+
+        while IFS= read -r cid; do
+            [[ -z "$cid" ]] && continue
+            local match=false
+            for pat in "${patterns[@]}"; do
+                # Prefix match: pattern is a prefix of the class ID
+                if [[ "$cid" == ${pat}* ]]; then
+                    match=true; break
+                fi
+            done
+            [[ "$match" != true ]] && continue
+
+            _step "Deleting class: ${cid}"
+            _delete_class_objects "$base" "$cid"
+            # Also delete the class definition
+            _delete_class_def "$base" "$cid"
+        done <<< "$all_classes"
+        return
+    fi
+
+    # ── Mode 2: --class + --id — delete single object ──
+    if [[ -n "$OBJECT_ID" && -n "$CLASS_ID" ]]; then
+        _timer_start
+        local enc_c enc_id code
+        enc_c=$(_urlencode "$CLASS_ID")
+        enc_id=$(_urlencode "$OBJECT_ID")
+        code=$(_http "DELETE" "${base}/store/${enc_c}/${enc_id}")
+        if [[ "$code" == "200" ]]; then
+            _ok "Deleted  ${CLASS_ID}/${OBJECT_ID}"; _timer_end "${CLASS_ID}/${OBJECT_ID}"; ((PASS++)) || true
+        else
+            _err "Failed   ${CLASS_ID}/${OBJECT_ID} (HTTP ${code}): $(_resp_err)"; _timer_end; ((FAIL++)) || true
+        fi
+        return
+    fi
+
+    # ── Mode 3: --class (repeatable, no --id) — delete all objects of class(es) ──
+    if [[ ${#CLASS_IDS[@]} -gt 0 ]]; then
+        # Require --force for multi-class or all-objects delete
+        if [[ ${#CLASS_IDS[@]} -gt 1 || -z "$OBJECT_ID" ]]; then
+            [[ "$FORCE" != true ]] && { _err "Bulk delete requires --force"; exit 1; }
+        fi
+
+        for cid in "${CLASS_IDS[@]}"; do
+            _step "Deleting objects of class: ${cid}"
+            _delete_class_objects "$base" "$cid"
+            if [[ "$INCLUDE_CLASS_DEF" == true ]]; then
+                _delete_class_def "$base" "$cid"
+            fi
+        done
+        return
+    fi
+
+    _err "Specify --class (+ optional --id), or --class-filter"
+    exit 1
+}
+
+# Delete all objects of a class via API
+_delete_class_objects() {
+    local base="$1"
+    local class_id="$2"
+
+    local enc_c
+    enc_c=$(_urlencode "$class_id")
+
+    # List all objects
+    local code
+    code=$(_http "GET" "${base}/store/${enc_c}")
+    if [[ "$code" != "200" ]]; then
+        _warn "Could not list objects of ${class_id} (HTTP ${code})"; ((SKIP++)) || true
+        return
+    fi
+
+    local ids
+    ids=$(_resp | jq -r '.[].id // empty')
+    local count=0
+    while IFS= read -r oid; do
+        [[ -z "$oid" ]] && continue
+        local enc_id del_code
+        enc_id=$(_urlencode "$oid")
+        del_code=$(_http "DELETE" "${base}/store/${enc_c}/${enc_id}")
+        if [[ "$del_code" == "200" ]]; then
+            _ok "Deleted  ${class_id}/${oid}"; ((PASS++)) || true; ((count++)) || true
+        else
+            _err "Failed   ${class_id}/${oid} (HTTP ${del_code})"; ((FAIL++)) || true
+        fi
+    done <<< "$ids"
+    if [[ $count -eq 0 ]]; then
+        _info "No objects found for ${class_id}"
+    fi
+}
+
+# Delete a class definition via API
+_delete_class_def() {
+    local base="$1"
+    local class_id="$2"
+
+    local enc_c
+    enc_c=$(_urlencode "$class_id")
+    local code
+    code=$(_http "DELETE" "${base}/class/${enc_c}")
+    if [[ "$code" == "200" ]]; then
+        _ok "Deleted class def: ${class_id}"; ((PASS++)) || true
+    else
+        _warn "Could not delete class def: ${class_id} (HTTP ${code})"; ((SKIP++)) || true
     fi
 }
 
@@ -836,10 +1270,71 @@ cmd_push() {
     local to
     to="${TO_STORAGE:-$URL_DEFAULT}"
 
-    [[ -z "$from" ]] && { _err "Specify source: --from <storage> or --file <path>"; exit 1; }
+    # ── Directory mode: push all *.json files from --dir ─────────────────
+    if [[ -n "$DATA_DIR" ]]; then
+        [[ -z "$to" ]] && { _err "Specify target: --to <storage> or --url / ES_URL"; exit 1; }
+        [[ ! -d "$DATA_DIR" ]] && { _err "Directory not found: ${DATA_DIR}"; exit 1; }
+        _check_connectivity "$to" || exit 1
+        local dir_path
+        dir_path=$(cd "$DATA_DIR" && pwd)
+        local files=()
+        while IFS= read -r -d '' f; do
+            files+=("$f")
+        done < <(find "$dir_path" -maxdepth 1 -name '*.json' -type f -print0 | sort -z)
+        [[ ${#files[@]} -eq 0 ]] && { _err "No *.json files found in: ${dir_path}"; exit 1; }
+        _step "Pushing ${#files[@]} file(s) from ${dir_path}/"
+        for f in "${files[@]}"; do
+            local fname json
+            fname=$(basename "$f")
+            _info "File: ${fname}"
+            json=$(cat "$f")
+            _set_dispatch "$to" "$json" "$(dirname "$f")"
+        done
+        return
+    fi
+
+    [[ -z "$from" ]] && { _err "Specify source: --from <storage>, --file <path>, or --dir <directory>"; exit 1; }
     [[ -z "$to"   ]] && { _err "Specify target: --to <storage> or --url / ES_URL"; exit 1; }
 
     _check_connectivity "$to" || exit 1
+
+    # If --from is a directory, auto-detect .es/ and process as directory mode
+    if _is_file "$from"; then
+        local _from_path
+        _from_path=$(_file_path "$from")
+        if [[ -d "$_from_path" ]]; then
+            _from_path=$(_resolve_es_dir "$_from_path")
+            # Process directory: find genesis files first, then remaining files
+            local _genesis_files=()
+            while IFS= read -r -d '' gf; do
+                _genesis_files+=("$gf")
+            done < <(find "$_from_path" -maxdepth 1 -name '*.genesis.json' -type f -print0 | sort -z)
+            if [[ ${#_genesis_files[@]} -gt 0 ]]; then
+                _step "Found ${#_genesis_files[@]} genesis file(s) in ${_from_path}/"
+                for gf in "${_genesis_files[@]}"; do
+                    _info "Genesis: $(basename "$gf")"
+                    local _gf_json
+                    _gf_json=$(cat "$gf")
+                    _set_dispatch "$to" "$_gf_json" "$(dirname "$gf")"
+                done
+            else
+                # No genesis — process all JSON files
+                local _dir_files=()
+                while IFS= read -r -d '' df; do
+                    _dir_files+=("$df")
+                done < <(find "$_from_path" -maxdepth 1 -name '*.json' -type f -print0 | sort -z)
+                [[ ${#_dir_files[@]} -eq 0 ]] && { _err "No *.json files found in: ${_from_path}"; exit 1; }
+                _step "Pushing ${#_dir_files[@]} file(s) from ${_from_path}/"
+                for df in "${_dir_files[@]}"; do
+                    _info "File: $(basename "$df")"
+                    local _df_json
+                    _df_json=$(cat "$df")
+                    _set_dispatch "$to" "$_df_json" "$(dirname "$df")"
+                done
+            fi
+            return
+        fi
+    fi
 
     # If source is a file, read and dispatch by format
     if _is_file "$from"; then
@@ -852,6 +1347,11 @@ cmd_push() {
 
         if echo "$json" | jq -e 'type == "object" and (has("classes") or has("seed"))' &>/dev/null; then
             _write_genesis "$to" "$json" "$(dirname "$path")"
+        elif echo "$json" | jq -e 'type == "array" and length > 0 and all(.[]; .class_id == "@class")' &>/dev/null; then
+            _warn "Plain array genesis detected — consider wrapping in {\"classes\": [...]}"
+            local wrapped
+            wrapped=$(echo "$json" | jq '{classes: .}')
+            _write_genesis "$to" "$wrapped" "$(dirname "$path")"
         elif echo "$json" | jq -e 'type == "array"' &>/dev/null; then
             _step "Pushing $(echo "$json" | jq 'length') object(s)..."
             _write_objects "$to" "$json"
@@ -976,6 +1476,8 @@ cmd_pull() {
 # MAIN
 # =============================================================================
 
+[[ "$TIMING" == true ]] && _T_TOTAL_START=$(_now_ms)
+
 case "$CMD" in
     health)  cmd_health  ;;
     classes) cmd_classes ;;
@@ -983,8 +1485,11 @@ case "$CMD" in
     list)    cmd_list    ;;
     find)    cmd_find    ;;
     set)     cmd_set     ;;
+    action)  cmd_action  ;;
     push)    cmd_push    ;;
     pull)    cmd_pull    ;;
+    delete)  cmd_delete  ;;
+    init)    cmd_init    ;;
 esac
 
 # ── Summary (only shown when multiple ops happened) ───────────────────────────
@@ -994,6 +1499,10 @@ if [[ $((PASS + FAIL + SKIP)) -gt 1 ]]; then
     [[ $PASS -gt 0 ]] && echo -e " ${GREEN}✓ OK      : ${PASS}${NC}"
     [[ $SKIP -gt 0 ]] && echo -e " ${YELLOW}⚠ Skipped : ${SKIP}${NC}"
     [[ $FAIL -gt 0 ]] && echo -e " ${RED}✗ Failed  : ${FAIL}${NC}"
+    if [[ "$TIMING" == true && $_T_TOTAL_START -gt 0 ]]; then
+        _T_TOTAL_MS=$(( $(_now_ms) - _T_TOTAL_START ))
+        echo -e " ${GRAY}⏱ Total   : ${_T_TOTAL_MS}ms${NC}"
+    fi
     echo -e "─────────────────────────────────"
 fi
 

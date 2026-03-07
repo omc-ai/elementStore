@@ -173,7 +173,7 @@ $app->get('/health', fn() => json(['status' => 'ok', 'service' => 'elementStore'
 
 $app->get('/info', fn() => json([
     'name' => 'ElementStore API',
-    'version' => '2.1.0',
+    'version' => '2.2.0',
     'endpoints' => [
         'GET /health' => 'Health check',
         'GET /class' => 'List all classes',
@@ -185,7 +185,7 @@ $app->get('/info', fn() => json([
         'GET /store/{class}/{id}' => 'Get object',
         'GET /find/{id}' => 'Find object by ID across all classes',
         'GET /store/{class}/{id}/{prop}' => 'Get property (resolves relations)',
-        'PUT /store/{class}/{id}/{prop}' => 'Set property',
+        'PUT /store/{class}/{id}/{prop}' => 'Set property, or execute action if prop data_type=action',
         'POST /store/{class}' => 'Create object',
         'PUT /store/{class}/{id}' => 'Update object',
         'DELETE /store/{class}/{id}' => 'Delete object',
@@ -194,8 +194,11 @@ $app->get('/info', fn() => json([
         'POST /test' => 'Run tests',
         'POST /genesis' => 'Initialize genesis data',
         'GET /genesis' => 'Verify genesis data',
-        'GET /genesis/data' => 'Export genesis data as JSON'
-    ]
+        'GET /genesis/data' => 'Export genesis data as JSON',
+        'POST /genesis/reload' => 'Reload genesis from .es/ directory',
+        'GET /genesis/files' => 'List genesis/seed files in .es/',
+    ],
+    'actions' => 'Props with data_type=action are executable via PUT /store/{class}/{id}/{prop}. Body = action params. Returns updated object.',
 ]));
 
 // =============================================================================
@@ -302,7 +305,7 @@ $app->get('/store/{class}/{id}/{prop}', function ($c, $id, $prop) use ($app) {
     return json($value);
 });
 
-// PUT /store/{class}/{id}/{prop} - Set property value
+// PUT /store/{class}/{id}/{prop} - Set property value OR execute action
 $app->put('/store/{class}/{id}/{prop}', function ($c, $id, $prop) use ($app) {
     /** @var ClassModel $model */
     $model = $app->di->get('model');
@@ -310,7 +313,36 @@ $app->put('/store/{class}/{id}/{prop}', function ($c, $id, $prop) use ($app) {
 
     if (!$obj) return error("Not found: {$c}/{$id}", 404);
 
-    $input = $app->request->getJsonRawBody(true);
+    $input = $app->request->getJsonRawBody(true) ?: [];
+
+    // Check if this prop references an @action (object_class_id includes '@action')
+    $objData = $obj->toArray();
+    $actionDef = resolveActionForProp($model, $c, $prop, $objData);
+
+    if ($actionDef !== null) {
+        // Execute the action — input body = action params
+        try {
+            $executor = createActionExecutor($model);
+            $result = $executor->execute($actionDef, $input, $objData);
+
+            // If action returned data, merge into object and save
+            if (is_array($result) && !empty($result)) {
+                $merged = array_merge($objData, $result);
+                $saved = $model->setObject($c, $merged);
+                return json($saved->toApiArray());
+            }
+
+            // Action returned nothing — re-read and return current state
+            $refreshed = $model->getObject($c, $id);
+            return json($refreshed ? $refreshed->toApiArray() : $objData);
+        } catch (ActionExecutorException $e) {
+            return error("Action '{$prop}' failed: " . $e->getMessage(), $e->getCode() ?: 400);
+        } catch (\Exception $e) {
+            return handleException($e);
+        }
+    }
+
+    // Normal property set
     $value = $input['value'] ?? $input;
 
     try {
@@ -322,6 +354,23 @@ $app->put('/store/{class}/{id}/{prop}', function ($c, $id, $prop) use ($app) {
     } catch (\Exception $e) {
         return handleException($e);
     }
+});
+
+// Batch upsert — best-effort: save what passes, report errors for the rest
+$app->post('/store/{class}/_batch', function ($c) use ($app) {
+    $input = $app->request->getJsonRawBody(true);
+    if (!is_array($input) || empty($input)) return error('Array of objects required');
+
+    /** @var ClassModel $model */
+    $model = $app->di->get('model');
+    $batchResult = $model->setObjects($c, $input);
+
+    $httpCode = match(true) {
+        $batchResult['summary']['errors'] === 0 => 200,
+        $batchResult['summary']['ok'] === 0 => 400,
+        default => 207,
+    };
+    return json($batchResult, $httpCode);
 });
 
 // Create new object
@@ -489,6 +538,47 @@ $app->get('/genesis/data', function () use ($app) {
     }
 });
 
+// Reload genesis from .es/ directory (uses GenesisLoader directly)
+// Accepts optional 'dir' param to load from an external .es/ directory
+$app->post('/genesis/reload', function () use ($app) {
+    try {
+        /** @var ClassModel $model */
+        $model = $app->di->get('model');
+        $loader = $model->getGenesisLoader();
+        if (!$loader) {
+            return error('Genesis loader not available — ensure .es/ directory exists', 500);
+        }
+        $input = $app->request->getJsonRawBody(true) ?? [];
+        $force = $input['force'] ?? false;
+        $dir = $input['dir'] ?? null;
+
+        if ($dir !== null) {
+            // Load from external .es/ directory
+            $result = $loader->loadExternal($dir, $force);
+        } else {
+            $result = $loader->load($force);
+        }
+        return json($result, ($result['success'] ?? false) ? 200 : 500);
+    } catch (\Exception $e) {
+        return handleException($e);
+    }
+});
+
+// List genesis/seed files in .es/ directory
+$app->get('/genesis/files', function () use ($app) {
+    try {
+        /** @var ClassModel $model */
+        $model = $app->di->get('model');
+        $loader = $model->getGenesisLoader();
+        if (!$loader) {
+            return error('Genesis loader not available — ensure .es/ directory exists', 500);
+        }
+        return json($loader->scanFiles());
+    } catch (\Exception $e) {
+        return handleException($e);
+    }
+});
+
 // =============================================================================
 // EXPORT / HISTORY
 // =============================================================================
@@ -623,6 +713,163 @@ $app->delete('/export/{hash}', function ($hash) use ($app) {
     unlink($filepath);
     return json(['deleted' => true, 'hash' => $hash]);
 });
+
+// =============================================================================
+// DIRECT ACTION EXECUTION (class-level actions, not prop-wired)
+// =============================================================================
+
+$app->post('/action/{actionId}/execute', function ($actionId) use ($app) {
+    /** @var ClassModel $model */
+    $model = $app->di->get('model');
+    $input = $app->request->getJsonRawBody(true) ?: [];
+
+    // Fetch the @action definition
+    $actionObj = $model->getObject('@action', $actionId);
+    if (!$actionObj) return error("Action not found: {$actionId}", 404);
+
+    $actionDef = $actionObj->toArray();
+    $targetClassId = $input['target_class_id'] ?? ($actionDef['target_class_id'] ?? null);
+    $targetId = $input['target_id'] ?? null;
+
+    // Remove meta keys from params
+    $params = $input;
+    unset($params['target_class_id'], $params['target_id']);
+
+    // Load target object if specified
+    $targetData = [];
+    if ($targetClassId && $targetId) {
+        $targetObj = $model->getObject($targetClassId, $targetId);
+        if (!$targetObj) return error("Target not found: {$targetClassId}/{$targetId}", 404);
+        $targetData = $targetObj->toArray();
+    }
+
+    try {
+        $executor = createActionExecutor($model);
+        $result = $executor->execute($actionDef, $params, $targetData);
+
+        // If action returned data and we have a target, merge and save
+        if (is_array($result) && !empty($result) && $targetClassId && $targetId) {
+            $merged = array_merge($targetData, $result);
+            $saved = $model->setObject($targetClassId, $merged);
+            return json([
+                'success' => true,
+                'action_id' => $actionId,
+                'result' => $result,
+                'object' => $saved->toApiArray()
+            ]);
+        }
+
+        return json([
+            'success' => true,
+            'action_id' => $actionId,
+            'result' => $result
+        ]);
+    } catch (ActionExecutorException $e) {
+        return error("Action '{$actionId}' failed: " . $e->getMessage(), $e->getCode() ?: 400);
+    } catch (\Exception $e) {
+        return handleException($e);
+    }
+});
+
+// =============================================================================
+// ACTION EXECUTION SUPPORT
+// =============================================================================
+
+use ElementStore\ActionExecutor;
+use ElementStore\ActionExecutorException;
+
+/**
+ * Create an ActionExecutor wired to the model for provider/action resolution.
+ */
+function createActionExecutor($model): ActionExecutor
+{
+    $providerResolver = function (string $providerId) use ($model): ?array {
+        $provider = $model->getObject('@provider', $providerId);
+        return $provider ? $provider->toArray() : null;
+    };
+
+    $executor = new class(null, null, $providerResolver) extends ActionExecutor {
+        private $model;
+
+        public function setModel($model): void { $this->model = $model; }
+
+        protected function resolveAction(string $actionId): ?array
+        {
+            if (!$this->model) return null;
+            $action = $this->model->getObject('@action', $actionId);
+            return $action ? $action->toArray() : null;
+        }
+    };
+
+    $executor->setModel($model);
+    return $executor;
+}
+
+/**
+ * Resolve an @action definition for a class property of data_type 'function'.
+ *
+ * A function-type prop can be either a local function (FunctionRegistry) or an
+ * @action (API call, composite, etc). This resolver checks whether the prop
+ * resolves to an @action element. If not, the caller falls through to normal
+ * function handling.
+ *
+ * Resolution order:
+ * 1. Prop's object_class_id references @action → look up that action ID
+ * 2. Instance value is an @action ID string
+ * 3. Convention: "{classId}.{propKey}" (e.g. "infra:vm.refresh")
+ *
+ * @return array|null  Action definition array, or null if not an @action
+ */
+function resolveActionForProp($model, string $classId, string $propKey, array $objData): ?array
+{
+    // Walk inheritance chain to find the prop definition
+    $propDef = null;
+    $classMeta = $model->getClass($classId);
+    if ($classMeta) {
+        $allProps = $model->getClassProps($classId);
+        foreach ($allProps as $p) {
+            $pk = $p instanceof \ElementStore\Prop ? $p->key : ($p['key'] ?? null);
+            if ($pk === $propKey) {
+                $propDef = $p instanceof \ElementStore\Prop ? $p->toArray() : $p;
+                break;
+            }
+        }
+    }
+
+    // Prop must have object_class_id referencing @action (the prop IS an @action reference)
+    if (!$propDef) return null;
+
+    $targetIds = $propDef['object_class_id'] ?? [];
+    if (is_string($targetIds)) $targetIds = [$targetIds];
+
+    // Check if @action is among the object_class_id refs
+    $isActionProp = in_array('@action', $targetIds, true);
+
+    // Also check for specific @action IDs (e.g. object_class_id: 'vm:refresh')
+    foreach ($targetIds as $candidate) {
+        if ($candidate === '@action') continue;
+        $actionObj = $model->getObject('@action', $candidate);
+        if ($actionObj) return $actionObj->toArray();
+    }
+
+    if (!$isActionProp) return null;
+
+    // Prop is typed object_class_id: '@action' — resolve the actual action
+
+    // 1. Instance value is an @action ID
+    $instanceVal = $objData[$propKey] ?? null;
+    if (is_string($instanceVal) && !empty($instanceVal)) {
+        $actionObj = $model->getObject('@action', $instanceVal);
+        if ($actionObj) return $actionObj->toArray();
+    }
+
+    // 2. Convention: "{classId}.{propKey}" e.g. "infra:vm.refresh"
+    $conventionId = "{$classId}.{$propKey}";
+    $actionObj = $model->getObject('@action', $conventionId);
+    if ($actionObj) return $actionObj->toArray();
+
+    return null;
+}
 
 // =============================================================================
 // 404 & RUN

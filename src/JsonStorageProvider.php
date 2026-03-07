@@ -48,14 +48,47 @@ class JsonStorageProvider implements IStorageProvider
     }
 
     /**
-     * Get file path for a class
+     * Get file path for a class, supporting namespace subdirectories.
      *
-     * @param string $class Class identifier
+     * Uses the full class ID as the filename (colon replaced with dot
+     * for filesystem safety). Namespaced classes go into subdirectories.
+     *
+     * Class ID mapping:
+     *   "@class"          -> {dataDir}/@class.json
+     *   "user"            -> {dataDir}/user.json
+     *   "ui:button"       -> {dataDir}/ui/ui.button.json
+     *   "billing:invoice" -> {dataDir}/billing/billing.invoice.json
+     *
+     * Creates subdirectories automatically if they don't exist.
+     *
+     * @param string $class Class identifier (may contain namespace separator ':')
      * @return string Full file path
      */
     private function getFile(string $class): string
     {
+        $nsPos = strpos($class, Constants::NS_SEPARATOR);
+        if ($nsPos !== false) {
+            $namespace = substr($class, 0, $nsPos);
+            // Full class ID as filename, colon replaced with dot
+            $safeFilename = str_replace(Constants::NS_SEPARATOR, '.', $class);
+            $dir = $this->dataDir . '/' . $namespace;
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            return $dir . '/' . $safeFilename . '.json';
+        }
+
         return $this->dataDir . '/' . $class . '.json';
+    }
+
+    /**
+     * Get the data directory path
+     *
+     * @return string
+     */
+    public function getDataDir(): string
+    {
+        return $this->dataDir;
     }
 
     /**
@@ -65,6 +98,16 @@ class JsonStorageProvider implements IStorageProvider
      * @return array Associative array of objects keyed by ID
      * @throws StorageException On file read error
      */
+    private function isMangoOperator(array $value): bool
+    {
+        foreach (array_keys($value) as $k) {
+            if (is_string($k) && str_starts_with($k, '$')) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private function load(string $class): array
     {
         $file = $this->getFile($class);
@@ -215,14 +258,29 @@ class JsonStorageProvider implements IStorageProvider
     {
         $results = array_values($this->load($class));
 
-        // Apply filters
+        // Apply filters (supports Mango-style operators for compatibility)
         if (!empty($filters)) {
             $results = array_filter($results, function ($obj) use ($filters) {
                 foreach ($filters as $key => $value) {
                     if (!isset($obj[$key])) {
                         return false;
                     }
-                    if (is_array($value)) {
+                    if (is_array($value) && $this->isMangoOperator($value)) {
+                        $fieldVal = $obj[$key];
+                        if (isset($value['$regex'])) {
+                            if (!preg_match('/' . str_replace('/', '\/', $value['$regex']) . '/', (string)$fieldVal)) {
+                                return false;
+                            }
+                        } elseif (isset($value['$gt'])) {
+                            if ($fieldVal <= $value['$gt']) return false;
+                        } elseif (isset($value['$gte'])) {
+                            if ($fieldVal < $value['$gte']) return false;
+                        } elseif (isset($value['$lt'])) {
+                            if ($fieldVal >= $value['$lt']) return false;
+                        } elseif (isset($value['$lte'])) {
+                            if ($fieldVal > $value['$lte']) return false;
+                        }
+                    } elseif (is_array($value)) {
                         // IN match
                         if (!in_array($obj[$key], $value)) {
                             return false;
@@ -327,6 +385,12 @@ class JsonStorageProvider implements IStorageProvider
                 'renameClass',
                 ['oldFile' => $oldFile, 'newFile' => $newFile, 'error' => error_get_last()['message'] ?? 'Unknown error']
             );
+        }
+
+        // Clean up empty namespace directory if applicable
+        $oldDir = dirname($oldFile);
+        if ($oldDir !== $this->dataDir && is_dir($oldDir) && count(glob($oldDir . '/*.json')) === 0) {
+            @rmdir($oldDir);
         }
 
         return $count;

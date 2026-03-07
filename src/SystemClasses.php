@@ -37,6 +37,7 @@ class SystemClasses
             self::getEventClassDefinition(),
             self::getProviderClassDefinition(),
             self::getCrudProviderClassDefinition(),
+            self::getSeedClassDefinition(),
         ];
     }
 
@@ -382,6 +383,16 @@ class SystemClasses
                 Prop::PF_DISPLAY_ORDER => 100,
                 Prop::PF_GROUP_NAME => 'Internal',
             ],
+            [
+                Prop::PF_KEY => Constants::F_GENESIS_FILE,
+                Prop::PF_LABEL => 'Genesis File',
+                Prop::PF_DESCRIPTION => 'Source genesis/seed file in .es/ directory. Set automatically by GenesisLoader for seed write-back.',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_SERVER_ONLY => true,
+                Prop::PF_HIDDEN => true,
+                Prop::PF_DISPLAY_ORDER => 101,
+                Prop::PF_GROUP_NAME => 'Internal',
+            ],
         ];
 
         return [
@@ -517,11 +528,11 @@ class SystemClasses
             [
                 Prop::PF_KEY => 'type',
                 Prop::PF_LABEL => 'Type',
-                Prop::PF_DESCRIPTION => 'Execution type: api (HTTP call), function (FunctionRegistry), event (EventBus), composite (chain), ui (JS handler)',
+                Prop::PF_DESCRIPTION => 'Execution type: api (HTTP), cli (shell), function (registry), event (bus), composite (chain), ui (JS handler)',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_REQUIRED => true,
                 Prop::PF_OPTIONS => [
-                    'values' => ['api', 'function', 'event', 'composite', 'ui'],
+                    'values' => ['api', 'cli', 'function', 'event', 'composite', 'ui'],
                 ],
                 Prop::PF_DISPLAY_ORDER => 3,
             ],
@@ -533,13 +544,21 @@ class SystemClasses
                 Prop::PF_DISPLAY_ORDER => 4,
             ],
             [
+                Prop::PF_KEY => 'target_class_id',
+                Prop::PF_LABEL => 'Target Class',
+                Prop::PF_DESCRIPTION => 'Class this action applies to. Determines which objects can invoke this action.',
+                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_CLASS],
+                Prop::PF_DISPLAY_ORDER => 5,
+            ],
+            [
                 Prop::PF_KEY => 'params',
                 Prop::PF_LABEL => 'Parameters',
-                Prop::PF_DESCRIPTION => 'Input parameters schema',
+                Prop::PF_DESCRIPTION => 'Input parameters schema — defines what the action accepts',
                 Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
                 Prop::PF_IS_ARRAY => true,
                 Prop::PF_OBJECT_CLASS_ID => [Constants::K_PROP],
-                Prop::PF_DISPLAY_ORDER => 5,
+                Prop::PF_DISPLAY_ORDER => 6,
             ],
             [
                 Prop::PF_KEY => 'returns',
@@ -550,10 +569,33 @@ class SystemClasses
                     'values' => ['object', 'list', 'void'],
                 ],
                 Prop::PF_DEFAULT_VALUE => 'void',
-                Prop::PF_DISPLAY_ORDER => 6,
+                Prop::PF_DISPLAY_ORDER => 7,
+            ],
+            [
+                Prop::PF_KEY => 'request_mapping',
+                Prop::PF_LABEL => 'Request Mapping',
+                Prop::PF_DESCRIPTION => 'Source object field → request field mapping. Maps object properties to action input.',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_DISPLAY_ORDER => 8,
+            ],
+            [
+                Prop::PF_KEY => 'response_mapping',
+                Prop::PF_LABEL => 'Response Mapping',
+                Prop::PF_DESCRIPTION => 'Response field → target object field mapping. Maps action output back to object.',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_DISPLAY_ORDER => 9,
             ],
 
             // API group
+            [
+                Prop::PF_KEY => 'provider_id',
+                Prop::PF_LABEL => 'Provider',
+                Prop::PF_DESCRIPTION => 'Provider that owns this action. Inherits base_url and auth (type=api).',
+                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_OBJECT_CLASS_ID => [Constants::K_PROVIDER],
+                Prop::PF_DISPLAY_ORDER => 10,
+                Prop::PF_GROUP_NAME => 'API',
+            ],
             [
                 Prop::PF_KEY => 'method',
                 Prop::PF_LABEL => 'HTTP Method',
@@ -563,15 +605,15 @@ class SystemClasses
                     'values' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
                 ],
                 Prop::PF_DEFAULT_VALUE => 'GET',
-                Prop::PF_DISPLAY_ORDER => 10,
+                Prop::PF_DISPLAY_ORDER => 11,
                 Prop::PF_GROUP_NAME => 'API',
             ],
             [
                 Prop::PF_KEY => 'endpoint',
                 Prop::PF_LABEL => 'Endpoint',
-                Prop::PF_DESCRIPTION => 'URL path relative to provider base_url, may use {id} substitution (type=api)',
+                Prop::PF_DESCRIPTION => 'URL path relative to provider base_url. Supports {field} placeholders (type=api)',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_DISPLAY_ORDER => 11,
+                Prop::PF_DISPLAY_ORDER => 12,
                 Prop::PF_GROUP_NAME => 'API',
             ],
             [
@@ -579,16 +621,27 @@ class SystemClasses
                 Prop::PF_LABEL => 'Headers',
                 Prop::PF_DESCRIPTION => 'Additional HTTP headers as key:value object (type=api)',
                 Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
-                Prop::PF_DISPLAY_ORDER => 12,
-                Prop::PF_GROUP_NAME => 'API',
-            ],
-            [
-                Prop::PF_KEY => 'mapping',
-                Prop::PF_LABEL => 'Field Mapping',
-                Prop::PF_DESCRIPTION => 'API response field → ES field mapping, e.g. {api_name: es_name} (type=api)',
-                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
                 Prop::PF_DISPLAY_ORDER => 13,
                 Prop::PF_GROUP_NAME => 'API',
+            ],
+
+            // CLI group
+            [
+                Prop::PF_KEY => 'command',
+                Prop::PF_LABEL => 'Command',
+                Prop::PF_DESCRIPTION => 'Shell command template with {field} placeholders from source object (type=cli)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_FIELD_TYPE => 'code',
+                Prop::PF_DISPLAY_ORDER => 20,
+                Prop::PF_GROUP_NAME => 'CLI',
+            ],
+            [
+                Prop::PF_KEY => 'working_dir',
+                Prop::PF_LABEL => 'Working Directory',
+                Prop::PF_DESCRIPTION => 'Directory to run command from. Supports {field} placeholders (type=cli)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 21,
+                Prop::PF_GROUP_NAME => 'CLI',
             ],
 
             // Function group
@@ -597,7 +650,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Function Key',
                 Prop::PF_DESCRIPTION => "FunctionRegistry key to call (type=function), e.g. 'billing.calculate'",
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_DISPLAY_ORDER => 20,
+                Prop::PF_DISPLAY_ORDER => 30,
                 Prop::PF_GROUP_NAME => 'Function',
             ],
 
@@ -607,7 +660,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Event Name',
                 Prop::PF_DESCRIPTION => 'EventBus event name to emit (type=event)',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_DISPLAY_ORDER => 30,
+                Prop::PF_DISPLAY_ORDER => 40,
                 Prop::PF_GROUP_NAME => 'Event',
             ],
             [
@@ -615,7 +668,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Payload Map',
                 Prop::PF_DESCRIPTION => 'param→event_field mapping for event payload (type=event)',
                 Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
-                Prop::PF_DISPLAY_ORDER => 31,
+                Prop::PF_DISPLAY_ORDER => 41,
                 Prop::PF_GROUP_NAME => 'Event',
             ],
 
@@ -627,7 +680,7 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_RELATION,
                 Prop::PF_OBJECT_CLASS_ID => [Constants::K_ACTION],
                 Prop::PF_IS_ARRAY => true,
-                Prop::PF_DISPLAY_ORDER => 40,
+                Prop::PF_DISPLAY_ORDER => 50,
                 Prop::PF_GROUP_NAME => 'Composite',
             ],
             [
@@ -639,7 +692,7 @@ class SystemClasses
                     'values' => ['sequential', 'parallel'],
                 ],
                 Prop::PF_DEFAULT_VALUE => 'sequential',
-                Prop::PF_DISPLAY_ORDER => 41,
+                Prop::PF_DISPLAY_ORDER => 51,
                 Prop::PF_GROUP_NAME => 'Composite',
             ],
 
@@ -650,16 +703,7 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'JS handler code: (scope) => result (type=ui)',
                 Prop::PF_DATA_TYPE => Constants::DT_FUNCTION,
                 Prop::PF_FIELD_TYPE => 'javascript',
-                Prop::PF_DISPLAY_ORDER => 50,
-                Prop::PF_GROUP_NAME => 'UI',
-            ],
-            [
-                Prop::PF_KEY => 'target_class_id',
-                Prop::PF_LABEL => 'Target Class',
-                Prop::PF_DESCRIPTION => 'Class this action applies to (type=ui)',
-                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
-                Prop::PF_OBJECT_CLASS_ID => [Constants::K_CLASS],
-                Prop::PF_DISPLAY_ORDER => 51,
+                Prop::PF_DISPLAY_ORDER => 60,
                 Prop::PF_GROUP_NAME => 'UI',
             ],
             [
@@ -668,7 +712,7 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'Action requires selected object(s) (type=ui)',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => true,
-                Prop::PF_DISPLAY_ORDER => 52,
+                Prop::PF_DISPLAY_ORDER => 61,
                 Prop::PF_GROUP_NAME => 'UI',
             ],
             [
@@ -677,7 +721,7 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'Can apply to multiple objects (type=ui)',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
-                Prop::PF_DISPLAY_ORDER => 53,
+                Prop::PF_DISPLAY_ORDER => 62,
                 Prop::PF_GROUP_NAME => 'UI',
             ],
             [
@@ -685,7 +729,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Confirm',
                 Prop::PF_DESCRIPTION => 'Confirmation message before running (empty = no confirm)',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_DISPLAY_ORDER => 54,
+                Prop::PF_DISPLAY_ORDER => 63,
                 Prop::PF_GROUP_NAME => 'UI',
             ],
             [
@@ -693,7 +737,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Icon',
                 Prop::PF_DESCRIPTION => 'Icon name for UI display',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_DISPLAY_ORDER => 55,
+                Prop::PF_DISPLAY_ORDER => 64,
                 Prop::PF_GROUP_NAME => 'UI',
             ],
         ];
@@ -1139,6 +1183,77 @@ class SystemClasses
             Constants::F_EXTENDS_ID => Constants::K_PROVIDER,
             Constants::F_NAME => 'CRUD Provider',
             'description' => 'Concrete provider template for standard REST CRUD APIs. Inherits base_url and auth from @provider.',
+            'is_system' => true,
+            Constants::F_PROPS => $props,
+        ];
+    }
+
+    /**
+     * Get @seed class definition
+     *
+     * Seed objects define declarative data loading — a list of classes to create
+     * and storage descriptors to load data from.
+     * Objects without class_id at root level are assumed to be @seed.
+     *
+     * @return array
+     */
+    public static function getSeedClassDefinition(): array
+    {
+        $props = [
+            [
+                Prop::PF_KEY => 'name',
+                Prop::PF_LABEL => 'Name',
+                Prop::PF_DESCRIPTION => 'Seed definition name',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 1,
+            ],
+            [
+                Prop::PF_KEY => 'description',
+                Prop::PF_LABEL => 'Description',
+                Prop::PF_DESCRIPTION => 'What this seed definition provides',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                'editor' => 'textarea',
+                Prop::PF_DISPLAY_ORDER => 2,
+            ],
+            [
+                Prop::PF_KEY => 'version',
+                Prop::PF_LABEL => 'Version',
+                Prop::PF_DESCRIPTION => 'Seed format version',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 3,
+            ],
+            [
+                Prop::PF_KEY => 'classes',
+                Prop::PF_LABEL => 'Classes',
+                Prop::PF_DESCRIPTION => 'Class definitions to create or update',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_IS_ARRAY => true,
+                'object_class_id' => [Constants::K_CLASS],
+                Prop::PF_DISPLAY_ORDER => 10,
+            ],
+            [
+                Prop::PF_KEY => 'seed',
+                Prop::PF_LABEL => 'Seed Sources',
+                Prop::PF_DESCRIPTION => 'Storage descriptors — files or URLs to load data from',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_IS_ARRAY => true,
+                Prop::PF_DISPLAY_ORDER => 20,
+            ],
+            [
+                Prop::PF_KEY => 'objects',
+                Prop::PF_LABEL => 'Inline Objects',
+                Prop::PF_DESCRIPTION => 'Objects to create directly (optional — prefer seed sources for large datasets)',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_IS_ARRAY => true,
+                Prop::PF_DISPLAY_ORDER => 30,
+            ],
+        ];
+
+        return [
+            Constants::F_ID => Constants::K_SEED,
+            Constants::F_CLASS_ID => Constants::K_CLASS,
+            Constants::F_NAME => 'Seed',
+            'description' => 'Declarative data loading definition — classes to create and storage descriptors to load data from. Objects without class_id at root level are assumed to be @seed.',
             'is_system' => true,
             Constants::F_PROPS => $props,
         ];

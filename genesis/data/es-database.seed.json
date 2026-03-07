@@ -1,0 +1,32 @@
+[
+  {
+    "id": "couchdb-local",
+    "class_id": "@provider",
+    "name": "Local CouchDB",
+    "description": "CouchDB instance running alongside ElementStore",
+    "provider_type": "couchdb",
+    "base_url": "http://elementstore_couchdb:5984",
+    "auth": {
+      "type": "basic",
+      "username": "admin",
+      "password": "elementstore"
+    }
+  },
+  {
+    "id": "es:database.refresh",
+    "class_id": "@action",
+    "name": "Refresh Database Stats",
+    "description": "Fetch live stats from CouchDB for this database",
+    "type": "api",
+    "target_class_id": "es:database",
+    "provider_id": "couchdb-local",
+    "method": "GET",
+    "endpoint": "/{_link_id}",
+    "response_mapping": {
+      "doc_count": "doc_count",
+      "doc_del_count": "del_count",
+      "compact_running": "compact"
+    },
+    "icon": "refresh-cw"
+  }
+]

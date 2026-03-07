@@ -180,28 +180,45 @@ class Genesis
     }
 
     /**
-     * Load system class definitions from genesis/data/system.genesis.json
+     * Load system class definitions — checks .es/ first, falls back to genesis/data/
      */
     private function getSystemClassDefinitions(): array
     {
-        $file = __DIR__ . '/data/system.genesis.json';
+        $file = $this->resolveGenesisFile('system.genesis.json');
         return json_decode(file_get_contents($file), true)['classes'];
     }
 
     /**
-     * Load seed editor definitions from genesis/data/editors.seed.json
+     * Load seed editor definitions — checks .es/ first, falls back to genesis/data/
      */
     private function getSeedEditorDefinitions(): array
     {
-        return json_decode(file_get_contents(__DIR__ . '/data/editors.seed.json'), true);
+        $file = $this->resolveGenesisFile('editors.seed.json');
+        return json_decode(file_get_contents($file), true);
     }
 
     /**
-     * Load seed function definitions from genesis/data/functions.seed.json
+     * Load seed function definitions — checks .es/ first, falls back to genesis/data/
      */
     private function getSeedFunctionDefinitions(): array
     {
-        return json_decode(file_get_contents(__DIR__ . '/data/functions.seed.json'), true);
+        $file = $this->resolveGenesisFile('functions.seed.json');
+        return json_decode(file_get_contents($file), true);
+    }
+
+    /**
+     * Resolve genesis file path — .es/ takes priority over genesis/data/
+     *
+     * @param string $filename File name (e.g., 'system.genesis.json')
+     * @return string Resolved absolute file path
+     */
+    private function resolveGenesisFile(string $filename): string
+    {
+        $esFile = dirname(__DIR__) . '/.es/' . $filename;
+        if (file_exists($esFile)) {
+            return $esFile;
+        }
+        return __DIR__ . '/data/' . $filename;
     }
 
     /**

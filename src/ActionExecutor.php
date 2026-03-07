@@ -3,8 +3,9 @@
  * ActionExecutor — Universal action dispatcher
  *
  * Executes @action objects defined in the ElementStore schema.
- * Supports four execution types:
+ * Supports six execution types:
  *   - api      : HTTP call to external provider (via cURL)
+ *   - cli      : Shell command execution with {field} placeholders
  *   - function : Named function in FunctionRegistry
  *   - event    : EventBus event dispatch
  *   - composite: Chain of other actions (sequential or parallel)
@@ -31,14 +32,19 @@ class ActionExecutor
     /** @var callable|null Event bus: fn(string $event, array $payload): void */
     private $eventBus;
 
+    /** @var callable|null Provider resolver: fn(string $providerId): ?array — returns provider object */
+    private $providerResolver;
+
     /**
      * @param callable|null $functionRegistry  fn(string $key, array $params): mixed
      * @param callable|null $eventBus          fn(string $event, array $payload): void
+     * @param callable|null $providerResolver  fn(string $providerId): ?array
      */
-    public function __construct(?callable $functionRegistry = null, ?callable $eventBus = null)
+    public function __construct(?callable $functionRegistry = null, ?callable $eventBus = null, ?callable $providerResolver = null)
     {
         $this->functionRegistry = $functionRegistry;
         $this->eventBus         = $eventBus;
+        $this->providerResolver = $providerResolver;
     }
 
     // =========================================================================
@@ -63,6 +69,7 @@ class ActionExecutor
 
         return match ($type) {
             'api'       => $this->executeApi($action, $params, $context),
+            'cli'       => $this->executeCli($action, $params, $context),
             'function'  => $this->executeFunction($action, $params),
             'event'     => $this->executeEvent($action, $params, $context),
             'composite' => $this->executeComposite($action, $params, $context),
@@ -92,11 +99,18 @@ class ActionExecutor
         $endpoint = $action['endpoint'] ?? '';
         $method   = strtoupper($action['method'] ?? 'GET');
         $headers  = $action['headers'] ?? [];
-        $mapping  = $action['mapping'] ?? [];
+        $mapping  = $action['request_mapping'] ?? $action['mapping'] ?? [];
 
-        // Resolve base URL from context's provider if available
-        $baseUrl = $this->resolveBaseUrl($context);
-        $url     = $this->buildUrl($baseUrl . $endpoint, $params, $context);
+        // Resolve provider: action.provider_id → provider object → base_url + auth
+        $provider = $this->resolveProvider($action);
+        $baseUrl  = $provider ? rtrim($provider['base_url'] ?? '', '/') : $this->resolveBaseUrl($context);
+        $url      = $this->buildUrl($baseUrl . $endpoint, $params, $context, $action);
+
+        // Apply provider auth headers
+        if ($provider) {
+            $authHeaders = $this->buildAuthHeaders($provider['auth'] ?? null);
+            $headers = array_merge($authHeaders, $headers);
+        }
 
         $body = null;
         if (in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
@@ -109,8 +123,12 @@ class ActionExecutor
             return null;
         }
 
-        // Apply field mapping (api_field → es_field)
-        if (!empty($mapping)) {
+        // Apply response mapping (response_field → object_field)
+        $responseMapping = $action['response_mapping'] ?? [];
+        if (!empty($responseMapping)) {
+            $response = $this->applyReverseMapping($responseMapping, $response);
+        } elseif (!empty($mapping)) {
+            // Fallback: use request_mapping in reverse for backwards compat
             $response = $this->applyReverseMapping($mapping, $response);
         }
 
@@ -120,6 +138,70 @@ class ActionExecutor
         }
 
         return $response;
+    }
+
+    // =========================================================================
+    // CLI TYPE
+    // =========================================================================
+
+    /**
+     * Execute a cli-type action — shell command with {field} placeholders.
+     *
+     * Substitutes {field} placeholders from params, then context object fields.
+     * Runs the command via shell_exec in the specified working directory.
+     *
+     * @param array  $action
+     * @param array  $params
+     * @param mixed  $context
+     * @return array ['exit_code' => int, 'output' => string]
+     */
+    private function executeCli(array $action, array $params, mixed $context): array
+    {
+        $command    = $action['command'] ?? '';
+        $workingDir = $action['working_dir'] ?? null;
+
+        if (empty($command)) {
+            throw new ActionExecutorException("action.command is required for cli-type actions");
+        }
+
+        // Merge context fields into available values for placeholder resolution
+        $values = $params;
+        if (is_array($context)) {
+            $values = array_merge($context, $values); // params override context
+        }
+
+        // Substitute {field} placeholders
+        $resolved = preg_replace_callback('/\{(\w+)\}/', function ($m) use ($values) {
+            $key = $m[1];
+            if (isset($values[$key])) {
+                return escapeshellarg((string) $values[$key]);
+            }
+            return $m[0]; // Leave unreplaced
+        }, $command);
+
+        // Resolve working_dir placeholders too
+        if ($workingDir) {
+            $workingDir = preg_replace_callback('/\{(\w+)\}/', function ($m) use ($values) {
+                $key = $m[1];
+                return isset($values[$key]) ? (string) $values[$key] : $m[0];
+            }, $workingDir);
+        }
+
+        // Build full command with cd prefix if working_dir specified
+        $fullCommand = $workingDir ? "cd " . escapeshellarg($workingDir) . " && " . $resolved : $resolved;
+        $fullCommand .= ' 2>&1';
+
+        $output   = [];
+        $exitCode = 0;
+        exec($fullCommand, $output, $exitCode);
+
+        $outputStr = implode("\n", $output);
+
+        if ($exitCode !== 0) {
+            throw new ActionExecutorException("CLI command failed (exit {$exitCode}): {$outputStr}", $exitCode);
+        }
+
+        return ['exit_code' => $exitCode, 'output' => $outputStr];
     }
 
     // =========================================================================
@@ -329,13 +411,28 @@ class ActionExecutor
      * @param mixed  $context      Object context (array)
      * @return string
      */
-    private function buildUrl(string $urlTemplate, array $params, mixed $context): string
+    private function buildUrl(string $urlTemplate, array $params, mixed $context, array $action = []): string
     {
         $usedKeys = [];
 
         // Substitute {placeholder} from params, then context
-        $url = preg_replace_callback('/\{(\w+)\}/', function ($m) use ($params, $context, &$usedKeys) {
+        $url = preg_replace_callback('/\{(\w+)\}/', function ($m) use ($params, $context, $action, &$usedKeys) {
             $key = $m[1];
+
+            // Special: {_link_id} resolves from context._links using provider_id
+            if ($key === '_link_id' && is_array($context)) {
+                $providerId = $action['provider_id'] ?? null;
+                $links = $context['_links'] ?? [];
+                if ($providerId && isset($links[$providerId])) {
+                    return urlencode((string) $links[$providerId]);
+                }
+                // Fallback: if only one link exists, use it
+                if (count($links) === 1) {
+                    return urlencode((string) reset($links));
+                }
+                return $m[0]; // Leave unreplaced
+            }
+
             if (isset($params[$key])) {
                 $usedKeys[] = $key;
                 return urlencode((string) $params[$key]);
@@ -420,7 +517,42 @@ class ActionExecutor
     }
 
     /**
-     * Resolve base URL from context object's linked provider.
+     * Resolve provider from action.provider_id via providerResolver.
+     *
+     * @param array $action
+     * @return array|null Provider object or null
+     */
+    private function resolveProvider(array $action): ?array
+    {
+        $providerId = $action['provider_id'] ?? null;
+        if (empty($providerId) || $this->providerResolver === null) {
+            return null;
+        }
+        return ($this->providerResolver)($providerId);
+    }
+
+    /**
+     * Build HTTP auth headers from provider.auth config.
+     *
+     * @param array|null $auth  {type: bearer|basic|apikey, token?, username?, password?, header?, key?}
+     * @return array Key-value headers
+     */
+    private function buildAuthHeaders(?array $auth): array
+    {
+        if (empty($auth) || empty($auth['type'])) {
+            return [];
+        }
+
+        return match ($auth['type']) {
+            'bearer' => ['Authorization' => 'Bearer ' . ($auth['token'] ?? '')],
+            'basic'  => ['Authorization' => 'Basic ' . base64_encode(($auth['username'] ?? '') . ':' . ($auth['password'] ?? ''))],
+            'apikey' => [($auth['header'] ?? 'X-API-Key') => ($auth['key'] ?? '')],
+            default  => [],
+        };
+    }
+
+    /**
+     * Resolve base URL from context object's linked provider (legacy fallback).
      *
      * @param mixed $context
      * @return string

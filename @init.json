@@ -8,5 +8,10 @@
       "username": "admin",
       "password": "elementstore"
     }
+  },
+  "genesis": {
+    "mode": "local",
+    "url": null,
+    "auto_load": true
   }
 }
