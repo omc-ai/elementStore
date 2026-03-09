@@ -16,6 +16,5 @@ publish-es-client:
     - |
       echo "@agura:registry=https://git.agura.tech/api/v4/projects/${CI_PROJECT_ID}/packages/npm/" >> .npmrc
       echo "//git.agura.tech/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" >> .npmrc
-    # Set version from git tag (strips leading 'v')
-    - npm version ${CI_COMMIT_TAG#v} --no-git-tag-version
+    # Publish — version in package.json must already match the tag
     - npm publish
