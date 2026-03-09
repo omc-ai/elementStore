@@ -1,0 +1,23 @@
+{
+  "name": "@agura/es-client",
+  "version": "0.1.0",
+  "description": "ElementStore client — AtomObj, AtomCollection, AtomStorage, ActionExecutor and supporting modules",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  },
+  "types": "./src/index.ts",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "publishConfig": {
+    "registry": "https://git.agura.tech/api/v4/projects/123/packages/npm/",
+    "access": "restricted"
+  },
+  "keywords": ["elementstore", "atomobj", "client"],
+  "license": "UNLICENSED"
+}

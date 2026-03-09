@@ -1,0 +1,21 @@
+stages:
+  - publish
+
+# ============================================================
+# Publish @agura/es-client to GitLab Package Registry
+# Triggered by git tags: git tag v1.x.x && git push --tags
+# ============================================================
+publish-es-client:
+  stage: publish
+  image: node:20-alpine
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+  script:
+    - cd packages/es-client
+    # Configure registry auth using GitLab job token (auto-injected)
+    - |
+      echo "@agura:registry=https://git.agura.tech/api/v4/projects/${CI_PROJECT_ID}/packages/npm/" >> .npmrc
+      echo "//git.agura.tech/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" >> .npmrc
+    # Set version from git tag (strips leading 'v')
+    - npm version ${CI_COMMIT_TAG#v} --no-git-tag-version
+    - npm publish
