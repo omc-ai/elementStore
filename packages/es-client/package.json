@@ -12,12 +12,31 @@
     "src"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "tsup",
+    "build:browser": "tsup --config tsup.config.ts --entry.element-store src/browser.ts",
+    "dev": "tsup --watch"
   },
   "publishConfig": {
     "registry": "https://git.agura.tech/api/v4/projects/123/packages/npm/",
     "access": "restricted"
   },
-  "keywords": ["elementstore", "atomobj", "client"],
-  "license": "UNLICENSED"
+  "peerDependencies": {
+    "react": ">=17"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "elementstore",
+    "atomobj",
+    "client"
+  ],
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
 }

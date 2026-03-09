@@ -87,15 +87,29 @@ export type EditorType =
 // Property Definition (Prop)
 // ============================================
 
-/** Editor configuration */
-export interface EditorConfig {
-  type: EditorType;
-  placeholder?: string;
-  disabled?: boolean;
-  readonly?: boolean;
-  options?: Array<{ value: string; label: string }>;
+/**
+ * Embedded @editor instance shape.
+ * Stored inline on a Prop when the user selects an editor.
+ * Candidates are filtered by: @editor.data_types includes prop.data_type
+ */
+export interface EditorInstance {
+  id?: string;
+  name?: string;
+  data_types?: string[];
+  is_default?: boolean;
+  is_system?: boolean;
+  validator?: string;
+  component?: string;
+  render?: string;
+  props?: unknown[];
   [key: string]: unknown;
 }
+
+/**
+ * @deprecated Use EditorInstance.
+ * Kept temporarily so existing code that uses EditorConfig doesn't break.
+ */
+export type EditorConfig = EditorInstance;
 
 /** Validator configuration */
 export interface ValidatorConfig {
@@ -153,6 +167,25 @@ export interface FunctionOptions {
 }
 
 /**
+ * filter_by — cross-field filter for object-typed props with object_class_id.
+ *
+ * When an object prop has object_class_id defined (picker from another class),
+ * filter_by restricts which candidates are shown in the picker UI:
+ *   candidates where candidate[field] includes/equals thisObject[source]
+ *
+ * Example: @prop.editor
+ *   object_class_id: ['@editor']
+ *   options.filter_by: { field: 'data_types', source: 'data_type' }
+ *   → show @editor instances where @editor.data_types includes this_prop.data_type
+ */
+export interface FilterBy {
+  /** Field on the candidate object to check (e.g. 'data_types') */
+  field: string;
+  /** Field on the current object to match against (e.g. 'data_type') */
+  source: string;
+}
+
+/**
  * Property options - varies by data_type
  */
 export interface PropOptions {
@@ -163,6 +196,12 @@ export interface PropOptions {
   // For functions
   function?: string;
   args?: string[];
+
+  // For string enums
+  values?: string[];
+
+  // For object/relation props with object_class_id — filter picker candidates
+  filter_by?: FilterBy;
 
   // Generic options
   [key: string]: unknown;
@@ -187,7 +226,8 @@ export interface Prop {
    * For data_type: 'string' with enumerated values - contains values: string[]
    */
   options?: PropOptions | Array<{ value: string; label: string }>;
-  editor?: EditorConfig;
+  /** Embedded @editor instance — filtered by data_types matching this prop's data_type */
+  editor?: EditorInstance;
   validators?: ValidatorConfig[];
   field_type?: string;
   required?: boolean;

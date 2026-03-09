@@ -14,11 +14,102 @@ import { AtomObj, type RawData } from '../core/AtomObj.ts';
 import { elementStoreClient } from '../modules/ElementStoreClient.ts';
 import type { ElementStore } from '../core/ElementStore.ts';
 
+/** Auth data stored by setAuth() — mirrors login/refresh response shape */
+export interface AuthData {
+  user?: Record<string, unknown>;
+  tokens?: { accessToken: string; refreshToken: string };
+  app?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 export class AtomStorage extends AtomObj {
   static override CLASS_ID = '@storage';
 
+  // ── Auth state (used by admin dashboard and any browser client) ──
+  auth: AuthData | null = null;
+  authUrl: string | null = null;        // e.g. '/api/auth'
+  onAuthRequired: (() => void) | null = null;
+  private _refreshing = false;
+  private _refreshPromise: Promise<boolean> | null = null;
+
   constructor(raw: RawData | string, store?: ElementStore) {
     super(raw, store);
+  }
+
+  // --- Auth management ---
+
+  /** Store auth data from login/refresh response. Syncs store token + localStorage. */
+  setAuth(data: AuthData | null): void {
+    this.auth = data;
+    const token = data?.tokens?.accessToken ?? null;
+    this.store?.setToken(token);
+    try {
+      if (data) {
+        localStorage.setItem('es_auth', JSON.stringify(data));
+      } else {
+        localStorage.removeItem('es_auth');
+      }
+    } catch { /* quota exceeded or SSR */ }
+  }
+
+  /** Get current access token from auth state */
+  getToken(): string | null {
+    return this.auth?.tokens?.accessToken ?? null;
+  }
+
+  /** Clear all auth state */
+  clearAuth(): void {
+    this.auth = null;
+    this.store?.setToken(null);
+    try { localStorage.removeItem('es_auth'); } catch { /* SSR */ }
+  }
+
+  /** Restore auth from localStorage (call on app startup). Returns true if token found. */
+  restoreAuth(): boolean {
+    try {
+      const raw = localStorage.getItem('es_auth');
+      if (raw) {
+        this.auth = JSON.parse(raw) as AuthData;
+        const token = this.auth?.tokens?.accessToken ?? null;
+        this.store?.setToken(token);
+        return true;
+      }
+    } catch { /* corrupt storage */ }
+    return false;
+  }
+
+  /** Async token refresh with deduplication. Returns true if refreshed successfully. */
+  refreshAuth(): Promise<boolean> {
+    if (this._refreshing && this._refreshPromise) return this._refreshPromise;
+    this._refreshing = true;
+    this._refreshPromise = this._doRefreshAsync().finally(() => {
+      this._refreshing = false;
+      this._refreshPromise = null;
+    });
+    return this._refreshPromise;
+  }
+
+  private async _doRefreshAsync(): Promise<boolean> {
+    const rt = this.auth?.tokens?.refreshToken;
+    if (!rt || !this.authUrl) return false;
+    try {
+      const res = await fetch(this.authUrl + '/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rt }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json() as { accessToken: string; refreshToken: string };
+      if (this.auth?.tokens) {
+        this.auth.tokens.accessToken = data.accessToken;
+        this.auth.tokens.refreshToken = data.refreshToken;
+      }
+      this.store?.setToken(data.accessToken);
+      try { localStorage.setItem('es_auth', JSON.stringify(this.auth)); } catch { /* quota */ }
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // --- CRUD helpers ---

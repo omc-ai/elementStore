@@ -3,6 +3,10 @@ keys/
 vendor/
 node_modules/
 
+# es-client build outputs
+packages/es-client/dist/
+admin/dist/
+
 # .es/ directory: track genesis/seed files, ignore runtime data
 .es/*.json
 !.es/*.genesis.json

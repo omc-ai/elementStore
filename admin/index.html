@@ -1494,8 +1494,11 @@
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-    <!-- Element Store (object model — loads first, creates window.store) -->
-    <script src="element-store.js"></script>
+    <!-- Element Store — built from packages/es-client (TypeScript source of truth) -->
+    <!-- Run: cd packages/es-client && npm run build  to rebuild after changes -->
+    <script src="dist/element-store.js"></script>
+    <!-- Admin seed data — system class + prop definitions (admin-specific) -->
+    <script src="js/seed-data.js"></script>
 
     <!-- Admin UI modules (order matters) -->
     <script src="js/utils.js"></script>
