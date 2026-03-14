@@ -280,7 +280,9 @@ export class AtomStorage extends AtomObj {
     const parentClassId = obj.data.class_id;
 
     for (const propObj of props) {
-      if (propObj.data.data_type !== 'relation' || !propObj.data.is_array) continue;
+      // Only cascade for indexed array relations (not assoc, not single)
+      const arrMode = propObj.data.is_array;
+      if (propObj.data.data_type !== 'relation' || !(arrMode === true || arrMode === 'indexed')) continue;
       const dotIdx = propObj.data.id.lastIndexOf('.');
       const key = dotIdx >= 0 ? propObj.data.id.substring(dotIdx + 1) : propObj.data.id;
       const targetClassId = propObj.data.object_class_id;
@@ -290,7 +292,8 @@ export class AtomStorage extends AtomObj {
       let backRefKey: string | null = null;
       const childProps = obj.store.collectClassProps(targetClassId);
       for (const cp of childProps) {
-        if (cp.data.data_type !== 'relation' || cp.data.is_array) continue;
+        // Back-ref must be a single relation (not array, not assoc)
+        if (cp.data.data_type !== 'relation' || cp.data.is_array === true || cp.data.is_array === 'indexed' || cp.data.is_array === 'assoc') continue;
         const targets = Array.isArray(cp.data.object_class_id)
           ? cp.data.object_class_id : [cp.data.object_class_id];
         if (targets.includes(parentClassId)) {
@@ -333,7 +336,25 @@ export class AtomStorage extends AtomObj {
     if (type === 'local') {
       if (!id) return;
       try {
-        localStorage.setItem(`es:${id}`, JSON.stringify(obj.data));
+        let dataToSave = obj.data;
+
+        // When exclude_readonly is set, filter out readonly props
+        if (this.data.exclude_readonly && obj.store) {
+          const classId = obj.data.class_id as string;
+          const allProps = obj.store.collectClassProps(classId);
+          const readonlyKeys = new Set<string>();
+          for (const p of allProps) {
+            if (p.data.readonly) readonlyKeys.add(p.data.key as string);
+          }
+          if (readonlyKeys.size > 0) {
+            dataToSave = {};
+            for (const [k, v] of Object.entries(obj.data)) {
+              if (!readonlyKeys.has(k)) dataToSave[k] = v;
+            }
+          }
+        }
+
+        localStorage.setItem(`es:${id}`, JSON.stringify(dataToSave));
       } catch { /* quota exceeded */ }
     } else if (type === 'api') {
       const classId = obj.data.class_id;
