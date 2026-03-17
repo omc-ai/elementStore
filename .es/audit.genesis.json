@@ -1,0 +1,72 @@
+{
+  "version": "1.0.0",
+  "namespace": "es",
+  "description": "Audit, findings, tasks, and plans — managed as elementStore objects so agents can query and update them through the API",
+  "classes": [
+    {
+      "id": "es:finding",
+      "class_id": "@class",
+      "name": "Finding",
+      "description": "Architecture audit finding — a discovered issue, duplicate, or optimization opportunity",
+      "props": [
+        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "severity", "data_type": "string", "display_order": 2, "options": {"values": ["critical", "high", "medium", "low", "info"]}, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "category", "data_type": "string", "display_order": 3, "options": {"values": ["duplicate", "security", "performance", "unification", "production", "missing"]}, "class_id": "@prop_string"},
+        {"key": "description", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 4, "class_id": "@prop_string"},
+        {"key": "location", "data_type": "string", "is_array": true, "display_order": 5, "description": "File paths where the issue exists", "class_id": "@prop_string"},
+        {"key": "fix", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 6, "description": "How to resolve this finding", "class_id": "@prop_string"},
+        {"key": "status", "data_type": "string", "display_order": 7, "options": {"values": ["open", "in_progress", "resolved", "wont_fix"]}, "default_value": "open", "class_id": "@prop_string"},
+        {"key": "project", "data_type": "string", "display_order": 8, "options": {"values": ["elementStore", "auth-service", "cwm-architect", "arc3d", "all"]}, "class_id": "@prop_string"},
+        {"key": "tasks", "data_type": "relation", "is_array": true, "object_class_id": ["es:task"], "display_order": 9, "class_id": "@prop_relation"},
+        {"key": "discovered_at", "data_type": "string", "display_order": 10, "class_id": "@prop_string"}
+      ]
+    },
+    {
+      "id": "es:task",
+      "class_id": "@class",
+      "name": "Task",
+      "description": "An actionable work item derived from a finding or plan",
+      "props": [
+        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "priority", "data_type": "string", "display_order": 2, "options": {"values": ["P1", "P2", "P3"]}, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "status", "data_type": "string", "display_order": 3, "options": {"values": ["open", "in_progress", "blocked", "done", "wont_do"]}, "default_value": "open", "class_id": "@prop_string"},
+        {"key": "description", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 4, "class_id": "@prop_string"},
+        {"key": "project", "data_type": "string", "display_order": 5, "options": {"values": ["elementStore", "auth-service", "cwm-architect", "arc3d", "all"]}, "class_id": "@prop_string"},
+        {"key": "finding_id", "data_type": "relation", "object_class_id": ["es:finding"], "display_order": 6, "class_id": "@prop_relation"},
+        {"key": "blocks", "data_type": "relation", "is_array": true, "object_class_id": ["es:task"], "display_order": 7, "class_id": "@prop_relation"},
+        {"key": "blocked_by", "data_type": "relation", "is_array": true, "object_class_id": ["es:task"], "display_order": 8, "class_id": "@prop_relation"},
+        {"key": "files", "data_type": "string", "is_array": true, "display_order": 9, "description": "Files that need modification", "class_id": "@prop_string"},
+        {"key": "step", "data_type": "integer", "display_order": 10, "description": "Migration step number (for ordered execution)", "class_id": "@prop_number"}
+      ]
+    },
+    {
+      "id": "es:plan",
+      "class_id": "@class",
+      "name": "Plan",
+      "description": "A strategic plan grouping related tasks into phases",
+      "props": [
+        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "description", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 2, "class_id": "@prop_string"},
+        {"key": "phase", "data_type": "string", "display_order": 3, "options": {"values": ["security", "unification", "production", "optimization", "features"]}, "class_id": "@prop_string"},
+        {"key": "tasks", "data_type": "relation", "is_array": true, "object_class_id": ["es:task"], "display_order": 4, "class_id": "@prop_relation"},
+        {"key": "status", "data_type": "string", "display_order": 5, "options": {"values": ["draft", "active", "completed", "cancelled"]}, "default_value": "draft", "class_id": "@prop_string"},
+        {"key": "progress_pct", "data_type": "integer", "display_order": 6, "default_value": 0, "class_id": "@prop_number"}
+      ]
+    },
+    {
+      "id": "es:agent_prompt",
+      "class_id": "@class",
+      "name": "Agent Prompt",
+      "description": "A reusable prompt template for AI agents — defines what an agent checks, when, and how it reports",
+      "props": [
+        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "description", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 2, "class_id": "@prop_string"},
+        {"key": "prompt_text", "data_type": "string", "editor": {"id": "code"}, "display_order": 3, "description": "The prompt template with {placeholders}", "class_id": "@prop_string"},
+        {"key": "schedule", "data_type": "string", "display_order": 4, "description": "Cron expression or interval (e.g. '60m', '0 * * * *')", "class_id": "@prop_string"},
+        {"key": "target_tasks", "data_type": "relation", "is_array": true, "object_class_id": ["es:task"], "display_order": 5, "description": "Tasks this prompt monitors", "class_id": "@prop_relation"},
+        {"key": "last_run", "data_type": "string", "display_order": 6, "flags": {"readonly": true}, "class_id": "@prop_string"},
+        {"key": "last_result", "data_type": "object", "display_order": 7, "flags": {"readonly": true}, "class_id": "@prop_object"}
+      ]
+    }
+  ]
+}

@@ -459,7 +459,7 @@ esws.on('delete', function(item) { ... });
 |---|---|
 | Local (Agura) | `ws://arc3d.master.local/elementStore/ws` |
 | Staging | `wss://arc3d.dev.agura.tech/elementStore/ws` |
-| Standalone | `ws://elementstore.master.local/ws` |
+| Standalone | `ws://arc3d.master.local/elementStore/ws` |
 
 ## REST API Reference
 
@@ -541,11 +541,154 @@ Configure via `@init.json`:
 }
 ```
 
+## CLI Tools
+
+ElementStore ships with command-line utilities in `util/`:
+
+| Tool | Purpose |
+|------|---------|
+| `es-cli.sh` | Universal CLI — CRUD, push/pull, init, query, actions |
+| `es-view.sh` | Data viewer — tables, cards, pivot matrices, raw JSON |
+| `es-features.sh` | Feature registry catalog — status matrix, gaps, stats |
+| `es-pull.sh` / `es-push.sh` | Sync data between local files and server |
+
+### `es-cli.sh` Reference
+
+The universal CLI for all ElementStore operations. Set `ES_URL` to avoid passing `--url` on every call:
+
+```bash
+export ES_URL="http://arc3d.master.local/elementStore"
+alias es="bash /path/to/elementStore/util/es-cli.sh"
+```
+
+**Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `health` | Connectivity check |
+| `classes` | List all class IDs |
+| `get` | Fetch a single object |
+| `list` / `query` | List/search objects with filters & pagination |
+| `find` | Find object by ID across all classes |
+| `set` / `upsert` | Create or update objects |
+| `push` | Bulk import: storage → storage |
+| `pull` | Bulk export: storage → storage |
+| `init` / `reinit` | Load genesis from `.es/` directory (server-side reload) |
+| `delete` | Delete objects or classes |
+| `action` / `exec` | Execute action on object |
+
+**CRUD operations:**
+
+```bash
+# Get one object
+es get --class Customer --id 123
+
+# List with filter and pagination
+es list --class Customer --filter balCode=220 --limit 20 --sort fullName
+
+# Create/update (inline JSON)
+es set --class Customer --data '{"id":"123","fullName":"John Doe","email":"john@example.com"}'
+
+# Create/update from file
+es set --file customers.json
+
+# Delete an object
+es delete --class Customer --id 123
+```
+
+**Loading project data (`.es/` directory):**
+
+```bash
+# Push from a project's .es/ directory — auto-detects genesis + seed files
+es push --from /path/to/billing.omc.co.il --to http://localhost/elementStore
+
+# Same — .es/ auto-detection means these are equivalent:
+es push --from /path/to/billing.omc.co.il/.es --to $ES_URL
+
+# Server-side init (elementStore reads .es/ from its own filesystem)
+es init --es-dir /var/www/billing.omc.co.il/.es --url $ES_URL --force
+
+# Force overwrite existing classes
+es push --from /path/to/project --to $ES_URL --force
+
+# Dry run — show what would be loaded without making changes
+es push --from /path/to/project --to $ES_URL --dry-run
+```
+
+The push command processes `*.genesis.json` files first (class definitions), then remaining `*.json` files (seed/provider objects). See [ES Directory Convention](docs/ES_DIRECTORY_CONVENTION.md).
+
+**Pull (export) data:**
+
+```bash
+# Pull one class to a file
+es pull --class Customer --from $ES_URL --to ./Customer.json
+
+# Pull all classes into a directory
+es pull --all --from $ES_URL --to-dir ./backup/
+```
+
+**Options reference:**
+
+| Option | Description |
+|--------|-------------|
+| `--url <url>` | ElementStore API URL (or set `ES_URL`) |
+| `--from <storage>` | Source (URL or file path) |
+| `--to <storage>` | Target (URL or file path) |
+| `--class <id>` | Target class |
+| `--id <id>` | Object ID |
+| `--data <json>` | Inline JSON payload |
+| `--file <path>` | Read from JSON file |
+| `--dir <path>` | Load all JSON files from directory |
+| `--filter <k=v>` | Filter (repeatable) |
+| `--limit <n>` | Max objects to return |
+| `--offset <n>` | Skip first N objects |
+| `--sort <field>` | Sort by field |
+| `--order <asc/desc>` | Sort direction |
+| `--force` | Overwrite existing on push/init |
+| `--dry-run` | Preview without making changes |
+| `--token <jwt>` | Bearer token (or set `ES_TOKEN`) |
+| `-v` / `--verbose` | Show HTTP request/response details |
+
+### Feature Registry (`es-features.sh`)
+
+The feature registry tracks 24 canonical capabilities across all clients. Use `es-features.sh` to inspect it:
+
+```bash
+# Full catalog grouped by category with descriptions and notes
+bash util/es-features.sh
+
+# Compact status matrix (feature x client)
+bash util/es-features.sh matrix
+
+# Summary stats per client (coverage %)
+bash util/es-features.sh stats
+
+# Show gaps for a specific client
+bash util/es-features.sh gaps app:es-admin
+
+# Deep-dive on a single feature (description, notes, per-client status)
+bash util/es-features.sh detail feat:object_crud
+
+# Filter by category or progress
+bash util/es-features.sh matrix --category core
+bash util/es-features.sh gaps --progress partial
+
+# JSON output for scripting
+bash util/es-features.sh stats --json
+
+# Fetch from live API instead of local .es/ files
+bash util/es-features.sh matrix --url http://arc3d.master.local/elementStore
+```
+
+By default reads from local `.es/` JSON files. Use `--url` or `--from-api` to query a running server.
+
 ## AI Interaction Guide
 
 > **For Claude and other AI agents working in this repository.**
 
 ElementStore is self-describing — features, apps, and implementation status are stored as regular objects in the running server. **Always query the live server via `es-cli.sh`, never read `.es/*.json` files directly.** This validates the full recursive genesis→seed loading chain on every query.
+
+**Before planning or implementing features**, run `bash util/es-features.sh matrix` to see current progress across all clients, or `bash util/es-features.sh gaps app:<target>` to identify what needs work.
 
 ### Setup
 
