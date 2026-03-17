@@ -1,24 +1,22 @@
 {
-  "version": "1.1.0",
-  "namespace": "billing",
-  "source_project": "billing.omc.co.il",
-  "description": "Billing platform data models — customers, invoices, products, payments, and charge workflows. Property keys use original billing API field names.",
+  "version": "1.0.0",
+  "namespace": "accounting",
+  "description": "Accounting class library — customers, invoices, products, payments, balances, and charge workflows. A complete domain model demonstrating relations, multi-currency, composite keys, and provider integration.",
   "classes": [
     {
-      "id": "bl_customer",
+      "id": "acc_customer",
       "class_id": "@class",
       "name": "Customer",
-      "description": "Billing customer/client account with balances, wallets, and service history",
-      "_version": 1771177835,
+      "description": "Customer/client account with balances, wallets, and service history",
       "providers": [
-        "bl_customer_crud"
+        "acc_customer_crud"
       ],
       "props": [
         {
           "key": "accountID",
           "label": "Account ID",
           "data_type": "string",
-          "description": "External account identifier (10-char padded)",
+          "description": "External account identifier",
           "display_order": 1,
           "flags": {
             "required": true
@@ -123,7 +121,7 @@
               "EUR"
             ]
           },
-          "default_value": "ILS",
+          "default_value": "USD",
           "display_order": 12,
           "class_id": "@prop_string"
         },
@@ -132,7 +130,7 @@
           "label": "Agent",
           "data_type": "relation",
           "object_class_id": [
-            "bl_agent"
+            "acc_agent"
           ],
           "display_order": 13,
           "class_id": "@prop_relation"
@@ -145,119 +143,89 @@
           "class_id": "@prop_string"
         },
         {
-          "key": "brandCode",
-          "label": "Brand Code",
-          "data_type": "string",
-          "description": "2-char brand identifier from custFlags",
-          "display_order": 15,
-          "class_id": "@prop_string"
-        },
-        {
           "key": "custType",
           "label": "Customer Type",
           "data_type": "string",
           "options": {
             "type": "string_options",
             "values": [
-              "05",
-              "06",
-              "07",
-              "08",
-              "15",
-              "16",
-              "17",
-              "18",
-              "19",
-              "20",
-              "21",
-              "22",
-              "23",
-              "24"
+              "individual",
+              "business",
+              "enterprise",
+              "government"
             ]
           },
-          "description": "05-19=local, 20-24=foreign",
-          "display_order": 16,
+          "display_order": 15,
           "class_id": "@prop_string"
         },
         {
           "key": "custGroup",
           "label": "Customer Group",
           "data_type": "string",
-          "display_order": 17,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "custFlags",
-          "label": "Customer Flags",
-          "data_type": "string",
-          "description": "10-char encoded flags",
-          "display_order": 18,
-          "flags": {
-            "hidden": true
-          },
+          "display_order": 16,
           "class_id": "@prop_string"
         },
         {
           "key": "priceCode",
           "label": "Price Code",
           "data_type": "string",
-          "display_order": 19,
+          "display_order": 17,
           "class_id": "@prop_string"
         },
         {
           "key": "extID",
           "label": "External ID",
           "data_type": "string",
-          "display_order": 20,
+          "display_order": 18,
           "class_id": "@prop_string"
         },
         {
           "key": "street",
           "label": "Street",
           "data_type": "string",
-          "display_order": 21,
+          "display_order": 19,
           "class_id": "@prop_string"
         },
         {
           "key": "city",
           "label": "City",
           "data_type": "string",
-          "display_order": 22,
+          "display_order": 20,
           "class_id": "@prop_string"
         },
         {
           "key": "zip",
           "label": "ZIP",
           "data_type": "string",
-          "display_order": 23,
+          "display_order": 21,
           "class_id": "@prop_string"
         },
         {
           "key": "country",
           "label": "Country",
           "data_type": "string",
-          "display_order": 24,
+          "display_order": 22,
           "class_id": "@prop_string"
         },
         {
           "key": "countryCode",
           "label": "Country Code",
           "data_type": "string",
-          "display_order": 25,
+          "display_order": 23,
           "class_id": "@prop_string"
         },
         {
           "key": "stateCode",
           "label": "State Code",
           "data_type": "string",
-          "display_order": 26,
+          "display_order": 24,
           "class_id": "@prop_string"
         },
         {
           "key": "website",
           "label": "Website",
           "data_type": "string",
-          "display_order": 27,
+          "display_order": 25,
           "class_id": "@prop_string"
         },
         {
@@ -265,7 +233,7 @@
           "label": "Due Balance",
           "data_type": "float",
           "description": "Amount due now (computed)",
-          "display_order": 28,
+          "display_order": 26,
           "flags": {
             "readonly": true
           },
@@ -276,18 +244,18 @@
           "label": "Open Balance",
           "data_type": "float",
           "description": "Total open balance (computed)",
-          "display_order": 29,
+          "display_order": 27,
           "flags": {
             "readonly": true
           },
           "class_id": "@prop_number"
         },
         {
-          "key": "isForeignCst",
+          "key": "isForeign",
           "label": "Is Foreign",
           "data_type": "boolean",
           "description": "Computed from custType",
-          "display_order": 30,
+          "display_order": 28,
           "flags": {
             "readonly": true
           },
@@ -297,7 +265,7 @@
           "key": "serviceAge",
           "label": "Service Age (months)",
           "data_type": "integer",
-          "display_order": 31,
+          "display_order": 29,
           "flags": {
             "readonly": true
           },
@@ -310,7 +278,7 @@
           "editor": {
             "id": "date"
           },
-          "display_order": 32,
+          "display_order": 30,
           "flags": {
             "readonly": true
           },
@@ -323,7 +291,7 @@
           "editor": {
             "id": "date"
           },
-          "display_order": 33,
+          "display_order": 31,
           "flags": {
             "readonly": true
           },
@@ -336,7 +304,7 @@
           "editor": {
             "id": "datetime"
           },
-          "display_order": 34,
+          "display_order": 32,
           "flags": {
             "readonly": true
           },
@@ -347,59 +315,8 @@
           "label": "Disabled",
           "data_type": "boolean",
           "default_value": false,
-          "display_order": 35,
+          "display_order": 33,
           "class_id": "@prop_boolean"
-        },
-        {
-          "key": "postponeChargeDate",
-          "label": "Postpone Charge Until",
-          "data_type": "string",
-          "editor": {
-            "id": "datetime"
-          },
-          "display_order": 36,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "chargeFreezeDueDate",
-          "label": "Charge Freeze Until",
-          "data_type": "string",
-          "editor": {
-            "id": "datetime"
-          },
-          "display_order": 37,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "cloudwmUserID",
-          "label": "CloudWM User ID",
-          "data_type": "string",
-          "display_order": 38,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "cloudwmBillingState",
-          "label": "CloudWM Billing State",
-          "data_type": "string",
-          "display_order": 39,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "cloudwmAccountState",
-          "label": "CloudWM Account State",
-          "data_type": "string",
-          "display_order": 40,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "giuylDetails",
-          "label": "Billing Details",
-          "data_type": "object",
-          "display_order": 41,
-          "flags": {
-            "hidden": true
-          },
-          "class_id": "@prop_object"
         },
         {
           "key": "wallets",
@@ -407,9 +324,9 @@
           "data_type": "relation",
           "is_array": true,
           "object_class_id": [
-            "bl_wallet"
+            "acc_wallet"
           ],
-          "display_order": 42,
+          "display_order": 34,
           "class_id": "@prop_relation"
         },
         {
@@ -418,32 +335,20 @@
           "data_type": "relation",
           "is_array": true,
           "object_class_id": [
-            "bl_balance"
+            "acc_balance"
           ],
-          "display_order": 43,
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "cwmServers",
-          "label": "CWM Servers",
-          "data_type": "relation",
-          "is_array": true,
-          "object_class_id": [
-            "bl_cwm_server"
-          ],
-          "display_order": 44,
+          "display_order": 35,
           "class_id": "@prop_relation"
         }
       ]
     },
     {
-      "id": "bl_agent",
+      "id": "acc_agent",
       "class_id": "@class",
       "name": "Agent",
       "description": "Sales agent linked to customers",
-      "_version": 1771177835,
       "providers": [
-        "bl_agent_crud"
+        "acc_agent_crud"
       ],
       "props": [
         {
@@ -494,7 +399,7 @@
           "class_id": "@prop_string"
         },
         {
-          "key": "agentCodeStartDate",
+          "key": "startDate",
           "label": "Start Date",
           "data_type": "string",
           "editor": {
@@ -504,7 +409,7 @@
           "class_id": "@prop_string"
         },
         {
-          "key": "agentCodeEndDate",
+          "key": "endDate",
           "label": "End Date",
           "data_type": "string",
           "editor": {
@@ -514,73 +419,30 @@
           "class_id": "@prop_string"
         },
         {
-          "key": "agentFirstDocDate",
-          "label": "First Document",
-          "data_type": "string",
-          "editor": {
-            "id": "date"
-          },
-          "display_order": 8,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "agentLastDocDate",
-          "label": "Last Document",
-          "data_type": "string",
-          "editor": {
-            "id": "date"
-          },
-          "display_order": 9,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
           "key": "commission",
           "label": "Commission",
           "data_type": "object",
           "description": "Commission rate configuration",
-          "display_order": 10,
+          "display_order": 8,
           "class_id": "@prop_object"
         },
         {
-          "key": "beHidden",
+          "key": "hidden",
           "label": "Hidden",
           "data_type": "boolean",
           "default_value": false,
-          "display_order": 11,
+          "display_order": 9,
           "class_id": "@prop_boolean"
-        },
-        {
-          "key": "webAgent",
-          "label": "Web Agent",
-          "data_type": "boolean",
-          "default_value": false,
-          "display_order": 12,
-          "class_id": "@prop_boolean"
-        },
-        {
-          "key": "names",
-          "label": "Names",
-          "data_type": "object",
-          "description": "Multilingual names {eng, heb}",
-          "display_order": 13,
-          "class_id": "@prop_object"
         }
       ]
     },
     {
-      "id": "bl_product",
+      "id": "acc_product",
       "class_id": "@class",
       "name": "Product",
-      "description": "Billing product/service definition",
-      "_version": 1771177835,
+      "description": "Product/service definition for invoicing",
       "providers": [
-        "bl_product_crud"
+        "acc_product_crud"
       ],
       "props": [
         {
@@ -594,16 +456,22 @@
           "class_id": "@prop_string"
         },
         {
-          "key": "hebDesc",
-          "label": "Hebrew Description",
+          "key": "name",
+          "label": "Name",
           "data_type": "string",
           "display_order": 2,
+          "flags": {
+            "required": true
+          },
           "class_id": "@prop_string"
         },
         {
-          "key": "engDesc",
-          "label": "English Description",
+          "key": "description",
+          "label": "Description",
           "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
           "display_order": 3,
           "class_id": "@prop_string"
         },
@@ -615,10 +483,9 @@
             "type": "string_options",
             "values": [
               "monthly",
-              "previous_monthly",
               "hourly",
               "one_time",
-              "unknown"
+              "usage"
             ]
           },
           "display_order": 4,
@@ -633,99 +500,60 @@
             "values": [
               "server",
               "license",
-              "contract"
+              "contract",
+              "support"
             ]
           },
           "display_order": 5,
           "class_id": "@prop_string"
         },
         {
-          "key": "servType",
-          "label": "Secondary Type",
+          "key": "unitType",
+          "label": "Unit Type",
           "data_type": "string",
           "display_order": 6,
           "class_id": "@prop_string"
         },
         {
-          "key": "unitType",
-          "label": "Unit Type",
-          "data_type": "string",
-          "display_order": 7,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "providerCode",
-          "label": "Provider Code",
-          "data_type": "string",
-          "display_order": 8,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "sale",
-          "label": "Discount %",
+          "key": "unitPrice",
+          "label": "Unit Price",
           "data_type": "float",
-          "display_order": 9,
+          "editor": {
+            "id": "currency"
+          },
+          "display_order": 7,
           "class_id": "@prop_number"
         },
         {
-          "key": "tax",
+          "key": "discount",
+          "label": "Discount %",
+          "data_type": "float",
+          "display_order": 8,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "taxCode",
           "label": "Tax Code",
           "data_type": "string",
-          "display_order": 10,
+          "display_order": 9,
           "class_id": "@prop_string"
         },
         {
           "key": "taxPercent",
           "label": "Tax %",
           "data_type": "float",
-          "display_order": 11,
+          "display_order": 10,
           "class_id": "@prop_number"
-        },
-        {
-          "key": "unitMeasurement",
-          "label": "Unit Measurement",
-          "data_type": "string",
-          "display_order": 12,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "quantityPerUnit",
-          "label": "Qty Per Unit",
-          "data_type": "float",
-          "display_order": 13,
-          "class_id": "@prop_number"
-        },
-        {
-          "key": "profitPercent",
-          "label": "Profit %",
-          "data_type": "float",
-          "display_order": 14,
-          "class_id": "@prop_number"
-        },
-        {
-          "key": "inventoryManage",
-          "label": "Manage Inventory",
-          "data_type": "boolean",
-          "display_order": 15,
-          "class_id": "@prop_boolean"
-        },
-        {
-          "key": "inventoryType",
-          "label": "Inventory Type",
-          "data_type": "string",
-          "display_order": 16,
-          "class_id": "@prop_string"
         }
       ]
     },
     {
-      "id": "bl_invoice",
+      "id": "acc_invoice",
       "class_id": "@class",
       "name": "Invoice",
       "description": "Document header — invoices, receipts, credit notes. Composite key: docType/docID",
-      "_version": 1771177835,
       "providers": [
-        "bl_invoice_crud"
+        "acc_invoice_crud"
       ],
       "props": [
         {
@@ -735,13 +563,12 @@
           "options": {
             "type": "string_options",
             "values": [
-              "D55",
-              "D56",
-              "D47",
-              "D33"
+              "invoice",
+              "receipt",
+              "credit_note",
+              "proforma"
             ]
           },
-          "description": "D55=Tax Invoice, D56=Receipt, D47=Credit Note, D33=Proforma",
           "display_order": 1,
           "flags": {
             "required": true
@@ -766,11 +593,11 @@
           "class_id": "@prop_number"
         },
         {
-          "key": "cstID",
+          "key": "customerID",
           "label": "Customer",
           "data_type": "relation",
           "object_class_id": [
-            "bl_customer"
+            "acc_customer"
           ],
           "display_order": 4,
           "flags": {
@@ -783,7 +610,7 @@
           "label": "Agent",
           "data_type": "relation",
           "object_class_id": [
-            "bl_agent"
+            "acc_agent"
           ],
           "display_order": 5,
           "class_id": "@prop_relation"
@@ -812,25 +639,18 @@
           "class_id": "@prop_string"
         },
         {
-          "key": "primaryDocType",
+          "key": "relatedDocType",
           "label": "Related Doc Type",
           "data_type": "string",
           "display_order": 8,
           "class_id": "@prop_string"
         },
         {
-          "key": "primaryDocID",
+          "key": "relatedDocID",
           "label": "Related Doc ID",
           "data_type": "integer",
           "display_order": 9,
           "class_id": "@prop_number"
-        },
-        {
-          "key": "primaryDocStatus",
-          "label": "Related Doc Status",
-          "data_type": "string",
-          "display_order": 10,
-          "class_id": "@prop_string"
         },
         {
           "key": "totalPrice",
@@ -839,27 +659,27 @@
           "editor": {
             "id": "currency"
           },
-          "display_order": 11,
+          "display_order": 10,
           "flags": {
             "required": true
           },
           "class_id": "@prop_number"
         },
         {
-          "key": "totalPay",
+          "key": "totalPaid",
           "label": "Total Paid",
           "data_type": "float",
           "editor": {
             "id": "currency"
           },
-          "display_order": 12,
+          "display_order": 11,
           "class_id": "@prop_number"
         },
         {
           "key": "vatPercent",
           "label": "VAT %",
           "data_type": "float",
-          "display_order": 13,
+          "display_order": 12,
           "class_id": "@prop_number"
         },
         {
@@ -869,25 +689,35 @@
           "editor": {
             "id": "currency"
           },
-          "display_order": 14,
+          "display_order": 13,
           "class_id": "@prop_number"
         },
         {
           "key": "discountPercent",
           "label": "Discount %",
           "data_type": "float",
-          "display_order": 15,
+          "display_order": 14,
           "class_id": "@prop_number"
         },
         {
-          "key": "docStatus",
+          "key": "status",
           "label": "Status",
           "data_type": "string",
-          "display_order": 16,
+          "options": {
+            "type": "string_options",
+            "values": [
+              "draft",
+              "issued",
+              "paid",
+              "cancelled",
+              "overdue"
+            ]
+          },
+          "display_order": 15,
           "class_id": "@prop_string"
         },
         {
-          "key": "coinID",
+          "key": "currency",
           "label": "Currency",
           "data_type": "string",
           "options": {
@@ -898,24 +728,14 @@
               "EUR"
             ]
           },
-          "display_order": 17,
+          "display_order": 16,
           "class_id": "@prop_string"
         },
         {
-          "key": "cstFullName",
+          "key": "customerName",
           "label": "Customer Name",
           "data_type": "string",
-          "display_order": 18,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "cstPhoneNum",
-          "label": "Customer Phone",
-          "data_type": "string",
-          "display_order": 19,
+          "display_order": 17,
           "flags": {
             "readonly": true
           },
@@ -925,21 +745,21 @@
           "key": "address",
           "label": "Address",
           "data_type": "string",
-          "display_order": 20,
+          "display_order": 18,
           "class_id": "@prop_string"
         },
         {
           "key": "city",
           "label": "City",
           "data_type": "string",
-          "display_order": 21,
+          "display_order": 19,
           "class_id": "@prop_string"
         },
         {
           "key": "contactPerson",
           "label": "Contact Person",
           "data_type": "string",
-          "display_order": 22,
+          "display_order": 20,
           "class_id": "@prop_string"
         },
         {
@@ -948,31 +768,20 @@
           "data_type": "relation",
           "is_array": true,
           "object_class_id": [
-            "bl_invoice_line"
+            "acc_invoice_line"
           ],
-          "display_order": 23,
+          "display_order": 21,
           "class_id": "@prop_relation"
-        },
-        {
-          "key": "taxApi",
-          "label": "Tax API Reference",
-          "data_type": "string",
-          "display_order": 24,
-          "flags": {
-            "hidden": true
-          },
-          "class_id": "@prop_string"
         }
       ]
     },
     {
-      "id": "bl_invoice_line",
+      "id": "acc_invoice_line",
       "class_id": "@class",
       "name": "Invoice Line",
       "description": "Document line item. Composite key: docType+docID+lineID",
-      "_version": 1771177835,
       "providers": [
-        "bl_invoice_line_crud"
+        "acc_invoice_line_crud"
       ],
       "props": [
         {
@@ -1006,31 +815,24 @@
           "class_id": "@prop_number"
         },
         {
-          "key": "prdID",
+          "key": "productID",
           "label": "Product",
           "data_type": "relation",
           "object_class_id": [
-            "bl_product"
+            "acc_product"
           ],
           "display_order": 4,
           "class_id": "@prop_relation"
         },
         {
-          "key": "prdDesc",
-          "label": "Product Description",
+          "key": "description",
+          "label": "Description",
           "data_type": "string",
           "display_order": 5,
           "class_id": "@prop_string"
         },
         {
-          "key": "serviceID",
-          "label": "Service ID",
-          "data_type": "string",
-          "display_order": 6,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "coinID",
+          "key": "currency",
           "label": "Currency",
           "data_type": "string",
           "options": {
@@ -1041,41 +843,31 @@
               "EUR"
             ]
           },
-          "display_order": 7,
+          "display_order": 6,
           "class_id": "@prop_string"
         },
         {
-          "key": "amount",
+          "key": "quantity",
           "label": "Quantity",
           "data_type": "float",
+          "display_order": 7,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "unitPrice",
+          "label": "Unit Price",
+          "data_type": "float",
+          "editor": {
+            "id": "currency"
+          },
           "display_order": 8,
           "class_id": "@prop_number"
         },
         {
-          "key": "price",
-          "label": "Unit Price (Foreign)",
-          "data_type": "float",
-          "editor": {
-            "id": "currency"
-          },
-          "display_order": 9,
-          "class_id": "@prop_number"
-        },
-        {
-          "key": "priceILS",
-          "label": "Unit Price (ILS)",
-          "data_type": "float",
-          "editor": {
-            "id": "currency"
-          },
-          "display_order": 10,
-          "class_id": "@prop_number"
-        },
-        {
-          "key": "rate",
+          "key": "exchangeRate",
           "label": "Exchange Rate",
           "data_type": "float",
-          "display_order": 11,
+          "display_order": 9,
           "class_id": "@prop_number"
         },
         {
@@ -1085,14 +877,14 @@
           "editor": {
             "id": "currency"
           },
-          "display_order": 12,
+          "display_order": 10,
           "class_id": "@prop_number"
         },
         {
           "key": "discountPercent",
           "label": "Discount %",
           "data_type": "float",
-          "display_order": 13,
+          "display_order": 11,
           "class_id": "@prop_number"
         },
         {
@@ -1102,7 +894,7 @@
           "editor": {
             "id": "date"
           },
-          "display_order": 14,
+          "display_order": 12,
           "class_id": "@prop_string"
         },
         {
@@ -1112,91 +904,62 @@
           "editor": {
             "id": "date"
           },
-          "display_order": 15,
+          "display_order": 13,
           "class_id": "@prop_string"
         },
         {
           "key": "reference",
           "label": "Reference",
           "data_type": "string",
-          "display_order": 16,
+          "display_order": 14,
           "class_id": "@prop_string"
-        },
-        {
-          "key": "lineDesc",
-          "label": "Line Description",
-          "data_type": "object",
-          "display_order": 17,
-          "flags": {
-            "hidden": true
-          },
-          "class_id": "@prop_object"
         }
       ]
     },
     {
-      "id": "bl_cmv_document",
+      "id": "acc_ledger_entry",
       "class_id": "@class",
-      "name": "CMV Document",
-      "description": "Balance/movement document for customer accounting. Multi-currency with ILS, user currency, and USD",
-      "_version": 1771177835,
+      "name": "Ledger Entry",
+      "description": "Balance/movement entry for customer accounting. Multi-currency support.",
       "providers": [
-        "bl_cmv_document_crud"
+        "acc_ledger_entry_crud"
       ],
       "props": [
         {
-          "key": "docType",
-          "label": "Document Type",
-          "data_type": "string",
-          "default_value": "CMV",
-          "display_order": 1,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "docID",
-          "label": "Document ID",
+          "key": "entryID",
+          "label": "Entry ID",
           "data_type": "integer",
-          "display_order": 2,
+          "display_order": 1,
           "flags": {
             "required": true
           },
           "class_id": "@prop_number"
         },
         {
-          "key": "docYear",
-          "label": "Year",
-          "data_type": "integer",
-          "display_order": 3,
-          "class_id": "@prop_number"
-        },
-        {
-          "key": "cstID",
+          "key": "customerID",
           "label": "Customer",
           "data_type": "relation",
           "object_class_id": [
-            "bl_customer"
+            "acc_customer"
           ],
-          "display_order": 4,
+          "display_order": 2,
           "flags": {
             "required": true
           },
           "class_id": "@prop_relation"
         },
         {
-          "key": "primaryDocType",
+          "key": "sourceDocType",
           "label": "Source Doc Type",
           "data_type": "string",
-          "display_order": 5,
+          "display_order": 3,
           "class_id": "@prop_string"
         },
         {
-          "key": "primaryDocID",
+          "key": "sourceDocID",
           "label": "Source Doc ID",
           "data_type": "integer",
-          "display_order": 6,
+          "display_order": 4,
           "class_id": "@prop_number"
         },
         {
@@ -1206,20 +969,10 @@
           "editor": {
             "id": "datetime"
           },
-          "display_order": 7,
+          "display_order": 5,
           "flags": {
             "readonly": true
           },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "dateIssue",
-          "label": "Issue Date",
-          "data_type": "string",
-          "editor": {
-            "id": "datetime"
-          },
-          "display_order": 8,
           "class_id": "@prop_string"
         },
         {
@@ -1229,52 +982,51 @@
           "editor": {
             "id": "datetime"
           },
-          "display_order": 9,
+          "display_order": 6,
           "class_id": "@prop_string"
         },
         {
-          "key": "totalLocalCurrency",
-          "label": "Total (ILS)",
+          "key": "amountLocal",
+          "label": "Amount (Local)",
           "data_type": "float",
           "editor": {
             "id": "currency"
           },
-          "display_order": 10,
+          "display_order": 7,
           "class_id": "@prop_number"
         },
         {
-          "key": "totalUserCurrency",
-          "label": "Total (User Currency)",
+          "key": "amountForeign",
+          "label": "Amount (Foreign)",
           "data_type": "float",
           "editor": {
             "id": "currency"
           },
-          "display_order": 11,
+          "display_order": 8,
           "class_id": "@prop_number"
         },
         {
-          "key": "totalSystemCurrency",
-          "label": "Total (USD)",
+          "key": "amountSystem",
+          "label": "Amount (System)",
           "data_type": "float",
           "editor": {
             "id": "currency"
           },
-          "display_order": 12,
+          "display_order": 9,
           "class_id": "@prop_number"
         },
         {
-          "key": "docStatus",
-          "label": "Status",
+          "key": "direction",
+          "label": "Direction",
           "data_type": "string",
           "options": {
             "type": "string_options",
             "values": [
-              "1+",
-              "1-"
+              "debit",
+              "credit"
             ]
           },
-          "description": "1+=debit, 1-=credit",
-          "display_order": 13,
+          "display_order": 10,
           "class_id": "@prop_string"
         },
         {
@@ -1282,62 +1034,32 @@
           "label": "Match ID",
           "data_type": "integer",
           "description": "Payment matching reference",
-          "display_order": 14,
+          "display_order": 11,
           "class_id": "@prop_number"
         },
         {
           "key": "details",
           "label": "Details",
           "data_type": "string",
-          "display_order": 15,
+          "display_order": 12,
           "class_id": "@prop_string"
         },
         {
           "key": "balCode",
           "label": "Balance Code",
           "data_type": "string",
-          "display_order": 16,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "curSelector",
-          "label": "Currency Selector",
-          "data_type": "integer",
-          "options": {
-            "type": "string_options",
-            "values": [
-              "0",
-              "1",
-              "2"
-            ]
-          },
-          "description": "0=ILS, 1=User currency, 2=USD",
-          "display_order": 17,
-          "flags": {
-            "hidden": true
-          },
-          "class_id": "@prop_number"
-        },
-        {
-          "key": "docDesc",
-          "label": "Description (XML)",
-          "data_type": "string",
-          "display_order": 18,
-          "flags": {
-            "hidden": true
-          },
+          "display_order": 13,
           "class_id": "@prop_string"
         }
       ]
     },
     {
-      "id": "bl_charge_request",
+      "id": "acc_charge_request",
       "class_id": "@class",
       "name": "Charge Request",
-      "description": "Card/wallet charge request workflow",
-      "_version": 1771177835,
+      "description": "Payment charge request workflow",
       "providers": [
-        "bl_charge_request_crud"
+        "acc_charge_request_crud"
       ],
       "props": [
         {
@@ -1351,28 +1073,29 @@
           "class_id": "@prop_string"
         },
         {
-          "key": "uniqueTransactID",
+          "key": "transactionID",
           "label": "Transaction ID",
           "data_type": "string",
           "display_order": 2,
           "class_id": "@prop_string"
         },
         {
-          "key": "objType",
+          "key": "type",
           "label": "Type",
           "data_type": "string",
           "options": {
             "type": "string_options",
             "values": [
-              "CHARGE_REQUEST",
-              "CHARGE_REQUEST_AUTH"
+              "charge",
+              "authorize",
+              "refund"
             ]
           },
           "display_order": 3,
           "class_id": "@prop_string"
         },
         {
-          "key": "totalCharge",
+          "key": "amount",
           "label": "Charge Amount",
           "data_type": "float",
           "editor": {
@@ -1382,7 +1105,7 @@
           "class_id": "@prop_number"
         },
         {
-          "key": "totalBalance",
+          "key": "balanceAtTime",
           "label": "Balance at Time",
           "data_type": "float",
           "editor": {
@@ -1399,65 +1122,54 @@
           "class_id": "@prop_string"
         },
         {
-          "key": "syncFlag",
-          "label": "Sync Flag",
-          "data_type": "string",
-          "editor": {
-            "id": "datetime"
-          },
-          "display_order": 7,
-          "class_id": "@prop_string"
-        },
-        {
           "key": "chargeSource",
           "label": "Charge Source",
           "data_type": "string",
-          "display_order": 8,
+          "display_order": 7,
           "class_id": "@prop_string"
         },
         {
           "key": "providerID",
           "label": "Provider ID",
           "data_type": "string",
-          "display_order": 9,
+          "display_order": 8,
           "class_id": "@prop_string"
         },
         {
-          "key": "walletStatus",
-          "label": "Wallet Status",
+          "key": "status",
+          "label": "Status",
           "data_type": "string",
-          "display_order": 10,
+          "options": {
+            "type": "string_options",
+            "values": [
+              "pending",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "display_order": 9,
           "class_id": "@prop_string"
         },
         {
           "key": "lastError",
           "label": "Last Error",
           "data_type": "string",
-          "display_order": 11,
+          "display_order": 10,
           "class_id": "@prop_string"
         },
         {
           "key": "reference",
           "label": "Reference",
           "data_type": "string",
-          "display_order": 12,
+          "display_order": 11,
           "class_id": "@prop_string"
         },
         {
           "key": "walletInfo",
           "label": "Wallet Info",
           "data_type": "object",
-          "display_order": 13,
-          "class_id": "@prop_object"
-        },
-        {
-          "key": "requestLog",
-          "label": "Request Log",
-          "data_type": "object",
-          "display_order": 14,
-          "flags": {
-            "hidden": true
-          },
+          "display_order": 12,
           "class_id": "@prop_object"
         },
         {
@@ -1466,122 +1178,20 @@
           "data_type": "relation",
           "is_array": true,
           "object_class_id": [
-            "bl_charge_log"
+            "acc_charge_log"
           ],
-          "display_order": 15,
+          "display_order": 13,
           "class_id": "@prop_relation"
         }
       ]
     },
     {
-      "id": "bl_reference_token",
-      "class_id": "@class",
-      "name": "Reference Token",
-      "description": "Tracking/reference token for invoices, receipts, charges, and other workflows",
-      "_version": 1771177835,
-      "providers": [
-        "bl_reference_token_crud"
-      ],
-      "props": [
-        {
-          "key": "name",
-          "label": "Token Key",
-          "data_type": "string",
-          "display_order": 1,
-          "flags": {
-            "required": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "objType",
-          "label": "Token Type",
-          "data_type": "string",
-          "description": "Prefix type identifier",
-          "display_order": 2,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "subType",
-          "label": "Sub Type",
-          "data_type": "string",
-          "display_order": 3,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "status",
-          "label": "Status",
-          "data_type": "integer",
-          "options": {
-            "type": "string_options",
-            "values": [
-              "4",
-              "2"
-            ]
-          },
-          "description": "4=In Work, 2=Done",
-          "display_order": 4,
-          "class_id": "@prop_number"
-        },
-        {
-          "key": "orderID",
-          "label": "Related Entity ID",
-          "data_type": "integer",
-          "display_order": 5,
-          "class_id": "@prop_number"
-        },
-        {
-          "key": "date",
-          "label": "Date",
-          "data_type": "string",
-          "editor": {
-            "id": "datetime"
-          },
-          "display_order": 6,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "syncFlag",
-          "label": "Sync Flag",
-          "data_type": "string",
-          "editor": {
-            "id": "datetime"
-          },
-          "display_order": 7,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "externalID",
-          "label": "External ID",
-          "data_type": "string",
-          "display_order": 8,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "value",
-          "label": "Token Data",
-          "data_type": "string",
-          "display_order": 9,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "log",
-          "label": "Activity Log",
-          "data_type": "object",
-          "is_array": true,
-          "display_order": 10,
-          "class_id": "@prop_object"
-        }
-      ]
-    },
-    {
-      "id": "bl_wallet",
+      "id": "acc_wallet",
       "class_id": "@class",
       "name": "Wallet",
       "description": "Customer payment method — credit cards, IBANs, wire transfer details",
-      "_version": 1771177835,
       "providers": [
-        "bl_wallet_crud"
+        "acc_wallet_crud"
       ],
       "props": [
         {
@@ -1604,11 +1214,11 @@
           "class_id": "@prop_string"
         },
         {
-          "key": "cstID",
+          "key": "customerID",
           "label": "Customer",
           "data_type": "relation",
           "object_class_id": [
-            "bl_customer"
+            "acc_customer"
           ],
           "display_order": 2,
           "flags": {
@@ -1683,21 +1293,20 @@
       ]
     },
     {
-      "id": "bl_balance",
+      "id": "acc_balance",
       "class_id": "@class",
       "name": "Balance",
-      "description": "Customer balance by year and currency (cstCount table)",
-      "_version": 1771177835,
+      "description": "Customer balance by year and currency",
       "providers": [
-        "bl_balance_crud"
+        "acc_balance_crud"
       ],
       "props": [
         {
-          "key": "cstID",
+          "key": "customerID",
           "label": "Customer",
           "data_type": "relation",
           "object_class_id": [
-            "bl_customer"
+            "acc_customer"
           ],
           "display_order": 1,
           "flags": {
@@ -1716,7 +1325,7 @@
           "class_id": "@prop_string"
         },
         {
-          "key": "coinID",
+          "key": "currency",
           "label": "Currency",
           "data_type": "string",
           "options": {
@@ -1734,7 +1343,7 @@
           "class_id": "@prop_string"
         },
         {
-          "key": "accountCredit",
+          "key": "credit",
           "label": "Credit",
           "data_type": "float",
           "editor": {
@@ -1744,7 +1353,7 @@
           "class_id": "@prop_number"
         },
         {
-          "key": "accountDebit",
+          "key": "debit",
           "label": "Debit",
           "data_type": "float",
           "editor": {
@@ -1754,7 +1363,7 @@
           "class_id": "@prop_number"
         },
         {
-          "key": "accountBalance",
+          "key": "balance",
           "label": "Balance",
           "data_type": "float",
           "editor": {
@@ -1770,13 +1379,12 @@
       ]
     },
     {
-      "id": "bl_charge_log",
+      "id": "acc_charge_log",
       "class_id": "@class",
       "name": "Charge Log",
       "description": "Charge execution log entry — provider responses and transaction status",
-      "_version": 1771177835,
       "providers": [
-        "bl_charge_log_crud"
+        "acc_charge_log_crud"
       ],
       "props": [
         {
@@ -1784,7 +1392,7 @@
           "label": "Charge Request",
           "data_type": "relation",
           "object_class_id": [
-            "bl_charge_request"
+            "acc_charge_request"
           ],
           "display_order": 1,
           "flags": {
@@ -1865,21 +1473,20 @@
       ]
     },
     {
-      "id": "bl_service_product",
+      "id": "acc_service_product",
       "class_id": "@class",
       "name": "Service Product",
       "description": "Service-specific product instance linked to a customer subscription",
-      "_version": 1771177835,
       "providers": [
-        "bl_service_product_crud"
+        "acc_service_product_crud"
       ],
       "props": [
         {
-          "key": "cstID",
+          "key": "customerID",
           "label": "Customer",
           "data_type": "relation",
           "object_class_id": [
-            "bl_customer"
+            "acc_customer"
           ],
           "display_order": 1,
           "flags": {
@@ -1888,11 +1495,11 @@
           "class_id": "@prop_relation"
         },
         {
-          "key": "prdID",
+          "key": "productID",
           "label": "Product",
           "data_type": "relation",
           "object_class_id": [
-            "bl_product"
+            "acc_product"
           ],
           "display_order": 2,
           "flags": {
@@ -1926,7 +1533,7 @@
           "class_id": "@prop_number"
         },
         {
-          "key": "coinID",
+          "key": "currency",
           "label": "Currency",
           "data_type": "string",
           "options": {
@@ -1972,11 +1579,8 @@
     }
   ],
   "notes": {
-    "api_pattern": "Billing uses a custom WebService command pattern (/api?cmd={command}&sel_company={company}), not standard REST routes. The sel_company parameter selects the billing database (omc, gns, tyco).",
     "composite_keys": "Invoices and lines use composite keys (docType+docID, docType+docID+lineID) rather than single IDs.",
-    "multi_currency": "Three currency layers: ILS (local), user currency (customer's coinID), USD (system). CMV documents track all three.",
-    "prop_table": "Many customer properties are stored in a key-value prop table rather than direct columns. The genesis maps them as flat properties.",
-    "multi_tenant": "sel_company parameter (omc/gns/tyco) selects different database prefixes for multi-tenant isolation.",
-    "field_naming": "Property keys use original billing API field names (camelCase) for zero-transformation data flow. Provider mapping is only needed for computed/derived fields."
+    "multi_currency": "Three currency layers: local currency, user/customer currency, and system currency. Ledger entries track all three.",
+    "provider_integration": "Each class references a crud_provider instance for external API integration. Provider IDs follow the pattern acc_{class}_crud."
   }
 }
