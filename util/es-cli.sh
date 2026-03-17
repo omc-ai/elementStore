@@ -384,7 +384,16 @@ _storage_read_class() {
         local enc
         enc=$(_urlencode "$class")
         local code
-        code=$(_http "GET" "${base}/store/${enc}${qs}")
+        # Use /query/ with high limit to avoid server's default 25-object cap
+        local read_endpoint
+        if [[ -z "$qs" ]]; then
+            read_endpoint="/query/${enc}?_limit=500"
+        elif [[ "$qs" != *"_limit"* ]]; then
+            read_endpoint="/query/${enc}${qs}&_limit=500"
+        else
+            read_endpoint="/query/${enc}${qs}"
+        fi
+        code=$(_http "GET" "${base}${read_endpoint}")
         if [[ "$code" != "200" ]]; then
             _err "GET ${base}/store/${enc} → HTTP ${code}: $(_resp_err)"
             return 1
@@ -1435,7 +1444,7 @@ cmd_pull() {
             _info "Pulling ${cid}..."
             local enc data
             enc=$(_urlencode "$cid")
-            code=$(_http "GET" "${base}/store/${enc}")
+            code=$(_http "GET" "${base}/query/${enc}?_limit=500")
             [[ "$code" != "200" ]] && { _warn "Skipped ${cid} (HTTP ${code})"; continue; }
             data=$(_resp)
             local dest

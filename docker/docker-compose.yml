@@ -41,6 +41,7 @@ services:
       - ./init-couchdb.json:/var/www/elementStore/@init.json:ro
     environment:
       - TZ=${TZ:-UTC}
+      - ES_WS_URL=http://elementstore_ws:3100/broadcast
     depends_on:
       couchdb:
         condition: service_healthy
@@ -52,6 +53,26 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+  # ==========================================================================
+  # WebSocket Server (real-time sync)
+  # ==========================================================================
+  ws:
+    image: node:20-alpine
+    container_name: elementstore_ws
+    restart: unless-stopped
+    working_dir: /app
+    command: node server.js
+    ports:
+      - "${WS_PORT:-3101}:${WS_PORT:-3101}"
+    volumes:
+      - ../ws:/app:ro
+      - ../ws/node_modules:/app/node_modules
+    environment:
+      - WS_PORT=${WS_PORT:-3101}
+      - TZ=${TZ:-UTC}
+    networks:
+      - elementstore_network
 
   # ==========================================================================
   # CouchDB Document Store

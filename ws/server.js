@@ -91,6 +91,32 @@ const server = http.createServer(function (req, res) {
         return;
     }
 
+    // Log broadcast endpoint (called by PHP for errors/exceptions)
+    if (req.method === 'POST' && req.url === '/broadcast/log') {
+        var logBody = '';
+        req.on('data', function (chunk) { logBody += chunk; });
+        req.on('end', function () {
+            try {
+                var logMsg = JSON.parse(logBody);
+                // Broadcast as a log event to all wildcard subscribers
+                var logPayload = JSON.stringify({ type: 'log', entries: Array.isArray(logMsg) ? logMsg : [logMsg] });
+                var count = 0;
+                connections.forEach(function (ws) {
+                    if (ws._subscriptions.all && ws.readyState === 1) {
+                        ws.send(logPayload);
+                        count++;
+                    }
+                });
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ sent: count }));
+            } catch (e) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: e.message }));
+            }
+        });
+        return;
+    }
+
     res.writeHead(404);
     res.end('Not found');
 });
@@ -164,7 +190,11 @@ wss.on('connection', function (ws, req) {
 function handleClientMessage(ws, msg) {
     switch (msg.action) {
         case 'subscribe':
-            if (msg.scope_id) {
+            if (msg.class_id === '*') {
+                // Wildcard: receive ALL broadcasts
+                ws._subscriptions.all = true;
+                wsSend(ws, { event: 'subscribed', class_id: '*' });
+            } else if (msg.scope_id) {
                 // Subscribe to a scope (any parent element/container) — all items tagged with this scope_id
                 addToSet(scopeSubs, msg.scope_id, ws);
                 ws._subscriptions.scopes.add(msg.scope_id);
@@ -230,6 +260,11 @@ function broadcast(msg, senderUserId) {
             count++;
         }
     }
+
+    // Wildcard subscribers — receive everything
+    connections.forEach(function (ws) {
+        if (ws._subscriptions.all) trySend(ws);
+    });
 
     for (var i = 0; i < items.length; i++) {
         var item = items[i];
