@@ -28,3 +28,5 @@ export * from './modules/ElementStoreClient.ts';
 
 // Widgets (native DOM binding — no framework dependency)
 export * from './widgets/WidgetBinding.ts';
+export * from './widgets/PropertyResolver.ts';
+export * from './widgets/FunctionProxy.ts';

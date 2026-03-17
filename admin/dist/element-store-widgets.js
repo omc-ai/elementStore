@@ -250,9 +250,140 @@
     return binding;
   }
 
+  // src/widgets/PropertyResolver.ts
+  function resolveProperties(store, objOrId) {
+    var _a;
+    const obj = typeof objOrId === "string" ? store.getObject(objOrId) : objOrId;
+    if (!obj) return [];
+    const data = obj.data || {};
+    const classId = data.class_id;
+    if (!classId) return [];
+    const propDefs = store.collectClassProps(classId);
+    if (!propDefs || propDefs.length === 0) {
+      return Object.entries(data).filter(([k]) => k !== "id" && k !== "class_id" && !k.startsWith("_")).map(([k, v]) => ({
+        key: k,
+        value: v,
+        schema: null,
+        isDefault: false,
+        dataType: typeof v,
+        label: k,
+        description: "",
+        required: false,
+        readonly: false,
+        hidden: false,
+        displayOrder: 0,
+        groupName: "",
+        editor: null,
+        options: null,
+        isArray: false,
+        objectClassId: null
+      }));
+    }
+    const defaults = store.getResolvedDefaults ? store.getResolvedDefaults(classId) : {};
+    const result = [];
+    for (const propObj of propDefs) {
+      const pd = propObj.data || propObj;
+      const key = pd.key;
+      if (!key) continue;
+      const hasOwnValue = key in data && data[key] !== void 0;
+      const defaultValue = (_a = defaults[key]) != null ? _a : pd.default_value;
+      const flags = pd.flags || {};
+      result.push({
+        key,
+        value: hasOwnValue ? data[key] : defaultValue,
+        schema: pd,
+        isDefault: !hasOwnValue,
+        dataType: pd.data_type || "string",
+        label: pd.label || key,
+        description: pd.description || "",
+        required: flags.required || pd.required || false,
+        readonly: flags.readonly || pd.readonly || false,
+        hidden: flags.hidden || pd.hidden || false,
+        displayOrder: pd.display_order || 0,
+        groupName: pd.group_name || "",
+        editor: pd.editor || null,
+        options: pd.options || null,
+        isArray: pd.is_array || false,
+        objectClassId: normalizeClassIds(pd.object_class_id)
+      });
+    }
+    result.sort((a, b) => a.displayOrder - b.displayOrder);
+    return result;
+  }
+  function groupProperties(props) {
+    const groups = {};
+    for (const p of props) {
+      const g = p.groupName || "General";
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(p);
+    }
+    return groups;
+  }
+  function normalizeClassIds(val) {
+    if (val === null || val === void 0) return null;
+    if (Array.isArray(val)) return val.length > 0 ? val : null;
+    if (typeof val === "string" && val.trim()) return [val.trim()];
+    return null;
+  }
+
+  // src/widgets/FunctionProxy.ts
+  var FUNCTION_REGISTRY = /* @__PURE__ */ new Map();
+  function registerFunction(name, fn) {
+    FUNCTION_REGISTRY.set(name, fn);
+  }
+  function getFunction(name) {
+    return FUNCTION_REGISTRY.get(name);
+  }
+  function executeFunction(name, args) {
+    const fn = FUNCTION_REGISTRY.get(name);
+    if (!fn) {
+      console.warn(`[FunctionProxy] Function not found: ${name}`);
+      return void 0;
+    }
+    return fn(...args);
+  }
+  function bindFunctions(store, element) {
+    var _a;
+    const classId = (_a = element.data) == null ? void 0 : _a.class_id;
+    if (!classId) return;
+    const propDefs = store.collectClassProps(classId);
+    if (!propDefs) return;
+    for (const propObj of propDefs) {
+      const pd = propObj.data || propObj;
+      if (pd.data_type !== "function") continue;
+      const options = pd.options;
+      if (!(options == null ? void 0 : options.function)) continue;
+      const funcRef = options.function;
+      const argKeys = options.args || [];
+      const propKey = pd.key;
+      Object.defineProperty(element, propKey, {
+        configurable: true,
+        enumerable: false,
+        get: () => {
+          return (...runtimeArgs) => {
+            const args = argKeys.map((key, index) => {
+              if (key.startsWith("$")) {
+                const argIndex = parseInt(key.slice(1), 10);
+                return runtimeArgs[argIndex];
+              }
+              return element[key];
+            });
+            return executeFunction(funcRef, args);
+          };
+        }
+      });
+    }
+  }
+
   // src/browser-widgets.ts
   var w = window;
   w["WidgetBinding"] = WidgetBinding;
   w["autobind"] = autobind;
+  w["resolveProperties"] = resolveProperties;
+  w["groupProperties"] = groupProperties;
+  w["registerFunction"] = registerFunction;
+  w["getFunction"] = getFunction;
+  w["executeFunction"] = executeFunction;
+  w["bindFunctions"] = bindFunctions;
 })();
 //# sourceMappingURL=element-store-widgets.js.map
