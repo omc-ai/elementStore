@@ -84,6 +84,62 @@ export type EditorType =
   | 'function-picker';
 
 // ============================================
+// Array Multiplicity
+// ============================================
+
+/**
+ * Property multiplicity — controls whether a property holds a single value,
+ * an ordered array, or an associative key-value map.
+ *
+ * - false:     scalar (single value)
+ * - true:      backward compat alias for 'indexed'
+ * - 'indexed': ordered array [val1, val2, ...]
+ * - 'assoc':   key→value map {key1: val1, key2: val2, ...}
+ */
+export type ArrayMode = boolean | 'indexed' | 'assoc';
+
+/** Normalize any is_array value to canonical form */
+export function normalizeArrayMode(mode: ArrayMode | undefined): 'false' | 'indexed' | 'assoc' {
+  if (mode === true || mode === 'indexed') return 'indexed';
+  if (mode === 'assoc') return 'assoc';
+  return 'false';
+}
+
+/** Check if mode represents any kind of collection (indexed or assoc) */
+export function isCollectionMode(mode: ArrayMode | undefined): boolean {
+  return mode === true || mode === 'indexed' || mode === 'assoc';
+}
+
+// ============================================
+// Context Definitions
+// ============================================
+
+/**
+ * Per-property context override — controls visibility, editability,
+ * label, editor, and display order within a named context.
+ */
+export interface PropContext {
+  visible?: boolean;
+  editable?: boolean;
+  required?: boolean;
+  label?: string;
+  editor?: string;
+  width?: number;
+  display_order?: number;
+}
+
+/**
+ * Per-class context — defines which fields to show, sort order,
+ * and available actions in a named context.
+ */
+export interface ClassContext {
+  fields?: string[] | null;
+  sort_by?: string;
+  actions?: string[];
+  page_size?: number;
+}
+
+// ============================================
 // Property Definition (Prop)
 // ============================================
 
@@ -111,7 +167,7 @@ export interface EditorInstance {
  */
 export type EditorConfig = EditorInstance;
 
-/** Validator configuration */
+/** @deprecated Validation is now driven by options + data_type */
 export interface ValidatorConfig {
   type: string;
   message?: string;
@@ -215,7 +271,8 @@ export interface Prop {
   label?: string;
   description?: string;
   data_type: DataType;
-  is_array?: boolean;
+  /** Multiplicity: false=scalar, true/'indexed'=ordered array, 'assoc'=key-value map */
+  is_array?: ArrayMode;
   object_class_id?: string;
   object_class_strict?: boolean;
   on_orphan?: 'keep' | 'delete' | 'nullify';
@@ -226,9 +283,9 @@ export interface Prop {
    * For data_type: 'string' with enumerated values - contains values: string[]
    */
   options?: PropOptions | Array<{ value: string; label: string }>;
-  /** Embedded @editor instance — filtered by data_types matching this prop's data_type */
-  editor?: EditorInstance;
-  validators?: ValidatorConfig[];
+  /** @editor ID — selects which editor to use for this property */
+  editor?: string;
+  /** @deprecated Use editor + options instead */
   field_type?: string;
   required?: boolean;
   readonly?: boolean;
@@ -239,6 +296,8 @@ export interface Prop {
   hidden?: boolean;
   server_only?: boolean;
   master_only?: boolean;
+  /** Per-context overrides — assoc map of context_name → PropContext */
+  contexts?: Record<string, PropContext>;
 }
 
 // ============================================
@@ -370,6 +429,8 @@ export interface Element {
   props?: Prop[];
   table_name?: string;
   is_abstract?: boolean;
+  /** Named view contexts — assoc map of context_name → ClassContext */
+  contexts?: Record<string, ClassContext>;
   is_container?: boolean;
   icon?: string;
   color?: string;

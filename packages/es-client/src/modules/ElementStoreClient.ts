@@ -7,7 +7,7 @@
  * variables detected at load time.
  *
  * Frontend (Vite):  VITE_ELEMENT_STORE_URL or /api/esProxy (via Vite proxy)
- * Backend (Node):   ELEMENT_STORE_URL or http://elementstore.master.local
+ * Backend (Node):   ELEMENT_STORE_URL or https://arc3d.master.local/elementStore
  */
 
 import type {
@@ -32,7 +32,7 @@ const _nodeProcess = (typeof globalThis !== 'undefined' ? (globalThis as any).pr
 function _resolveDefaultBaseUrl(): string {
   // Node.js / tsx
   if (_nodeProcess?.env) {
-    return _nodeProcess.env['ELEMENT_STORE_URL'] || 'http://elementstore.master.local';
+    return _nodeProcess.env['ELEMENT_STORE_URL'] || 'https://arc3d.master.local/elementStore';
   }
   // Browser / Vite
   if (typeof import.meta !== 'undefined' && (import.meta as any).env) {

@@ -9,6 +9,7 @@
 import { AtomObj, type RawData } from './AtomObj.ts';
 import { AtomCollection } from './AtomCollection.ts';
 import type { ElementStore } from './ElementStore.ts';
+import { normalizeArrayMode } from '../types.ts';
 
 export class AtomProp extends AtomObj {
   static override CLASS_ID = '@prop';
@@ -19,14 +20,12 @@ export class AtomProp extends AtomObj {
   declare label: string | null;
   declare description: string | null;
   declare data_type: string | null;
-  declare is_array: boolean;
+  declare is_array: boolean | string;
   declare object_class_id: string | null;
   declare object_class_strict: boolean;
   declare on_orphan: string | null;
   declare options: unknown;
-  declare editor: unknown;
-  declare validators: unknown;
-  declare field_type: string | null;
+  declare editor: string | null;
   declare required: boolean;
   declare readonly: boolean;
   declare create_only: boolean;
@@ -48,20 +47,20 @@ export class AtomProp extends AtomObj {
     return (this.data?.data_type ?? this.data_type) === 'relation';
   }
 
-  /** True when data_type is 'object', has target classes, and is NOT an array */
+  /** True when data_type is 'object', has target classes, and is NOT any collection */
   isEmbeddedObject(): boolean {
     const dt = this.data?.data_type ?? this.data_type;
-    return dt === 'object' && this.hasTargetClasses() && !this.data?.is_array;
+    return dt === 'object' && this.hasTargetClasses() && this.getArrayMode() === 'false';
   }
 
-  /** True when data_type is 'relation', has target classes, and is NOT an array (single ownership) */
+  /** True when data_type is 'relation', has target classes, and is NOT any collection (single ownership) */
   isOwnershipRelation(): boolean {
-    return this.isRelation() && this.hasTargetClasses() && !this.data?.is_array;
+    return this.isRelation() && this.hasTargetClasses() && this.getArrayMode() === 'false';
   }
 
-  /** True when data_type is 'relation', has target classes, and IS an array (many-refs) */
+  /** True when data_type is 'relation', has target classes, and IS an indexed array (many-refs) */
   isReferenceRelation(): boolean {
-    return this.isRelation() && this.hasTargetClasses() && !!this.data?.is_array;
+    return this.isRelation() && this.hasTargetClasses() && this.isIndexedArray();
   }
 
   /** True when object_class_id is a non-empty string or array */
@@ -89,6 +88,29 @@ export class AtomProp extends AtomObj {
   /** True when on_orphan === 'delete' */
   shouldDeleteOnOrphan(): boolean {
     return (this.data?.on_orphan ?? this.on_orphan) === 'delete';
+  }
+
+  // ── Array mode helpers ─────────────────────────────────────
+
+  /** Normalized array mode: 'false' | 'indexed' | 'assoc' */
+  getArrayMode(): 'false' | 'indexed' | 'assoc' {
+    return normalizeArrayMode(this.data?.is_array);
+  }
+
+  /** True when is_array is true, 'indexed', or 'assoc' (any collection) */
+  isCollection(): boolean {
+    const mode = this.getArrayMode();
+    return mode === 'indexed' || mode === 'assoc';
+  }
+
+  /** True when is_array is true or 'indexed' (ordered array) */
+  isIndexedArray(): boolean {
+    return this.getArrayMode() === 'indexed';
+  }
+
+  /** True when is_array is 'assoc' (key-value map) */
+  isAssocArray(): boolean {
+    return this.getArrayMode() === 'assoc';
   }
 
   // ── Value access ──────────────────────────────────────────
@@ -122,34 +144,51 @@ export class AtomProp extends AtomObj {
     const val = senderObj.data[propName];
     const store = senderObj.store;
     const dataType = this.data.data_type;
+    const arrayMode = this.getArrayMode();
+    const isIndexed = arrayMode === 'indexed';
+    const isAssoc = arrayMode === 'assoc';
 
     // Early return for non-relation types when value is missing
     if ((val === undefined || val === null) && dataType !== 'relation') return val;
 
+    // Assoc maps: return as-is (typed object), coerce values per data_type
+    if (isAssoc && val && typeof val === 'object' && !Array.isArray(val)) {
+      const coerce = this._getScalarCoercer(dataType);
+      if (coerce) {
+        const result: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(val)) {
+          result[k] = coerce(v);
+        }
+        return result;
+      }
+      // For object/relation assoc: return raw (each value is an object)
+      return val;
+    }
+
     switch (dataType) {
       case 'string':
-        if (this.data.is_array && Array.isArray(val)) {
+        if (isIndexed && Array.isArray(val)) {
           return val.map((v: unknown) => String(v));
         }
         return String(val);
       case 'boolean':
-        if (this.data.is_array && Array.isArray(val)) {
+        if (isIndexed && Array.isArray(val)) {
           return val.map((v: unknown) => !!v);
         }
         return !!val;
       case 'integer':
-        if (this.data.is_array && Array.isArray(val)) {
+        if (isIndexed && Array.isArray(val)) {
           return val.map((v: unknown) => parseInt(v as string, 10) || 0);
         }
         return parseInt(val as string, 10) || 0;
       case 'float':
       case 'number':
-        if (this.data.is_array && Array.isArray(val)) {
+        if (isIndexed && Array.isArray(val)) {
           return val.map((v: unknown) => parseFloat(v as string) || 0);
         }
         return parseFloat(val as string) || 0;
       case 'object':
-        if (this.data.is_array && Array.isArray(val)) {
+        if (isIndexed && Array.isArray(val)) {
           return new AtomCollection(val, store!, this.data.object_class_id, senderObj, propName);
         }
         if (typeof val === 'object' && this.data.object_class_id && store) {
@@ -159,7 +198,7 @@ export class AtomProp extends AtomObj {
         return val;
       case 'relation':
         if (!store) return val;
-        if (this.data.is_array) {
+        if (isIndexed) {
           // Explicit ID array in data → resolve to objects
           if (Array.isArray(val) && val.length > 0) {
             if (!senderObj.objects[propName]) {
@@ -211,23 +250,53 @@ export class AtomProp extends AtomObj {
     }
   }
 
+  /** Helper: return a scalar coercion function for the given data_type, or null for complex types */
+  private _getScalarCoercer(dataType: string): ((v: unknown) => unknown) | null {
+    switch (dataType) {
+      case 'string': return (v) => String(v ?? '');
+      case 'boolean': return (v) => !!v;
+      case 'integer': return (v) => parseInt(v as string, 10) || 0;
+      case 'float': case 'number': return (v) => parseFloat(v as string) || 0;
+      default: return null;
+    }
+  }
+
   /**
    * Set and validate value on sender object
    */
   setPropValue(senderObj: AtomObj, propName: string, value: unknown): boolean {
     const dataType = this.data.data_type;
+    const arrayMode = this.getArrayMode();
+    const isIndexed = arrayMode === 'indexed';
+    const isAssoc = arrayMode === 'assoc';
+
+    // Assoc maps: coerce each value per data_type, pass through as object
+    if (isAssoc && value && typeof value === 'object' && !Array.isArray(value)) {
+      const coerce = this._getScalarCoercer(dataType);
+      if (coerce) {
+        const result: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+          result[k] = coerce(v);
+        }
+        value = result;
+      }
+      // For object/relation assoc: store as-is
+      senderObj.data[propName] = value;
+      this._notifyChange(senderObj, propName, value, senderObj.data[propName]);
+      return true;
+    }
 
     // Type coercion/validation
     switch (dataType) {
       case 'boolean':
-        if (this.data.is_array && Array.isArray(value)) {
+        if (isIndexed && Array.isArray(value)) {
           value = (value as unknown[]).map(v => !!v);
         } else {
           value = !!value;
         }
         break;
       case 'integer':
-        if (this.data.is_array && Array.isArray(value)) {
+        if (isIndexed && Array.isArray(value)) {
           value = (value as unknown[]).map(v => {
             const n = parseInt(v as string, 10);
             return isNaN(n) ? 0 : n;
@@ -242,7 +311,7 @@ export class AtomProp extends AtomObj {
         break;
       case 'float':
       case 'number':
-        if (this.data.is_array && Array.isArray(value)) {
+        if (isIndexed && Array.isArray(value)) {
           value = (value as unknown[]).map(v => {
             const n = parseFloat(v as string);
             return isNaN(n) ? 0 : n;
@@ -257,7 +326,7 @@ export class AtomProp extends AtomObj {
         break;
       case 'string':
         if (value !== null && value !== undefined) {
-          if (this.data.is_array && Array.isArray(value)) {
+          if (isIndexed && Array.isArray(value)) {
             value = (value as unknown[]).map(v => String(v));
           } else {
             value = String(value);
@@ -279,7 +348,7 @@ export class AtomProp extends AtomObj {
           }
           value = value._id;
         }
-        if (this.data.is_array && Array.isArray(value)) {
+        if (isIndexed && Array.isArray(value)) {
           const relObjs: AtomObj[] = [];
           value = (value as unknown[]).map((v) => {
             if (v instanceof AtomObj) {
@@ -304,7 +373,7 @@ export class AtomProp extends AtomObj {
         if (value instanceof AtomObj) {
           value = value.data;
         }
-        if (this.data.is_array && Array.isArray(value)) {
+        if (isIndexed && Array.isArray(value)) {
           value = (value as unknown[]).map((v) =>
             v instanceof AtomObj ? v.data : v
           );
@@ -317,6 +386,15 @@ export class AtomProp extends AtomObj {
       console.warn(`setPropValue: "${propName}" is required`);
     }
 
+    const oldVal = senderObj.data[propName];
+    senderObj.data[propName] = value;
+    this._notifyChange(senderObj, propName, value, oldVal);
+
+    return true;
+  }
+
+  /** Notify owner and fire onChange callbacks */
+  private _notifyChange(senderObj: AtomObj, propName: string, value: unknown, oldValue: unknown): void {
     // Notify owner this object is dirty
     if (senderObj._belongsTo) {
       if (senderObj._belongsTo._dirtyRelated.indexOf(senderObj) === -1) {
@@ -324,17 +402,12 @@ export class AtomProp extends AtomObj {
       }
     }
 
-    const oldVal = senderObj.data[propName];
-    senderObj.data[propName] = value;
-
     // Fire onChange callbacks
     if (senderObj._onChange && senderObj._onChange.length > 0) {
-      const info = { obj: senderObj, prop: propName, value, oldValue: oldVal };
+      const info = { obj: senderObj, prop: propName, value, oldValue };
       for (const fn of senderObj._onChange) {
         fn(info);
       }
     }
-
-    return true;
   }
 }

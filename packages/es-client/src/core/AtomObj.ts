@@ -318,7 +318,8 @@ export class AtomObj {
       const key = dotIdx >= 0 ? propObj.data.id.substring(dotIdx + 1) : propObj.data.id;
       const relObjs = objects[key];
       if (!relObjs) continue;
-      if (propObj.data.is_array && Array.isArray(relObjs)) {
+      const isArr = propObj.data.is_array === true || propObj.data.is_array === 'indexed';
+      if (isArr && Array.isArray(relObjs)) {
         data[key] = relObjs.map((o: AtomObj) => o.data.id ?? o._id);
       } else if (relObjs instanceof AtomObj) {
         data[key] = relObjs.data.id ?? relObjs._id;
