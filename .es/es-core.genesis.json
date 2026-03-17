@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "namespace": "es",
+  "description": "Shared base classes for all applications — agents, tasks, prompts, tools, decisions, preferences, rounds, findings, plans. Every project extends these, never duplicates.",
+  "classes": [
+    {
+      "id": "es:agent",
+      "class_id": "@class",
+      "name": "Agent",
+      "description": "Base agent class — an AI agent that can execute tasks, use tools, and make decisions. Projects extend this with project-specific fields.",
+      "props": [
+        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "description", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 2, "class_id": "@prop_string"},
+        {"key": "title", "data_type": "string", "display_order": 3, "description": "Job title / role description", "class_id": "@prop_string"},
+        {"key": "prompt", "data_type": "string", "editor": {"id": "code"}, "display_order": 4, "description": "System prompt template", "class_id": "@prop_string"},
+        {"key": "tools", "data_type": "relation", "is_array": "indexed", "object_class_id": ["@action"], "display_order": 5, "description": "Actions this agent can execute (tools ARE actions)", "class_id": "@prop_relation"},
+        {"key": "domain", "data_type": "string", "is_array": "indexed", "display_order": 6, "description": "Areas of responsibility", "class_id": "@prop_string"},
+        {"key": "is_active", "data_type": "boolean", "default_value": true, "display_order": 7, "class_id": "@prop_boolean"},
+        {"key": "execution_order", "data_type": "integer", "display_order": 8, "description": "Run sequence within a round (lower = first)", "class_id": "@prop_number"},
+        {"key": "last_run", "data_type": "string", "display_order": 9, "flags": {"readonly": true}, "class_id": "@prop_string"},
+        {"key": "run_count", "data_type": "integer", "default_value": 0, "display_order": 10, "flags": {"readonly": true}, "class_id": "@prop_number"},
+        {"key": "model", "data_type": "string", "display_order": 11, "description": "LLM model ID (e.g. claude-opus-4-6)", "class_id": "@prop_string"},
+        {"key": "avatar", "data_type": "string", "display_order": 12, "description": "Avatar image URL", "class_id": "@prop_string"}
+      ]
+    },
+    {
+      "id": "es:task",
+      "class_id": "@class",
+      "name": "Task",
+      "description": "Base task class — an actionable work item. Used by audit, aic.sh, and any project that tracks work.",
+      "props": [
+        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "description", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 2, "class_id": "@prop_string"},
+        {"key": "priority", "data_type": "string", "display_order": 3, "options": {"values": ["P0", "P1", "P2", "P3"]}, "class_id": "@prop_string"},
+        {"key": "status", "data_type": "string", "display_order": 4, "options": {"values": ["open", "in_progress", "blocked", "done", "wont_do"]}, "default_value": "open", "class_id": "@prop_string"},
+        {"key": "project", "data_type": "string", "display_order": 5, "description": "Project this task belongs to", "class_id": "@prop_string"},
+        {"key": "agent_id", "data_type": "relation", "object_class_id": ["es:agent"], "display_order": 6, "description": "Assigned agent", "class_id": "@prop_relation"},
+        {"key": "finding_id", "data_type": "relation", "object_class_id": ["es:finding"], "display_order": 7, "description": "Related finding", "class_id": "@prop_relation"},
+        {"key": "blocks", "data_type": "relation", "is_array": "indexed", "object_class_id": ["es:task"], "display_order": 8, "class_id": "@prop_relation"},
+        {"key": "blocked_by", "data_type": "relation", "is_array": "indexed", "object_class_id": ["es:task"], "display_order": 9, "class_id": "@prop_relation"},
+        {"key": "step", "data_type": "integer", "display_order": 10, "description": "Execution step number", "class_id": "@prop_number"},
+        {"key": "files", "data_type": "string", "is_array": "indexed", "display_order": 11, "description": "Files to modify", "class_id": "@prop_string"},
+        {"key": "source", "data_type": "string", "display_order": 12, "options": {"values": ["manual", "ceo_directive", "roadmap", "agent", "audit", "human_request"]}, "class_id": "@prop_string"},
+        {"key": "result", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 13, "description": "Outcome summary", "class_id": "@prop_string"},
+        {"key": "started", "data_type": "string", "display_order": 14, "flags": {"readonly": true}, "class_id": "@prop_string"},
+        {"key": "completed", "data_type": "string", "display_order": 15, "flags": {"readonly": true}, "class_id": "@prop_string"},
+        {"key": "round_id", "data_type": "relation", "object_class_id": ["es:round"], "display_order": 16, "class_id": "@prop_relation"},
+        {"key": "tokens_used", "data_type": "integer", "display_order": 17, "flags": {"readonly": true}, "class_id": "@prop_number"},
+        {"key": "commits", "data_type": "string", "is_array": "indexed", "display_order": 18, "flags": {"readonly": true}, "class_id": "@prop_string"}
+      ]
+    },
+    {
+      "id": "es:prompt",
+      "class_id": "@class",
+      "name": "Prompt",
+      "description": "Base prompt template — reusable instruction for an agent. Can be shared context, role-specific, or task-specific.",
+      "props": [
+        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "description", "data_type": "string", "display_order": 2, "class_id": "@prop_string"},
+        {"key": "type", "data_type": "string", "display_order": 3, "options": {"values": ["shared_context", "system", "first_run", "every_run", "review", "domain", "task"]}, "class_id": "@prop_string"},
+        {"key": "template", "data_type": "string", "editor": {"id": "code"}, "display_order": 4, "description": "Prompt text with {{variable}} placeholders", "class_id": "@prop_string"},
+        {"key": "variables", "data_type": "string", "is_array": "indexed", "display_order": 5, "description": "Variables to substitute", "class_id": "@prop_string"},
+        {"key": "agent_id", "data_type": "relation", "object_class_id": ["es:agent"], "display_order": 6, "description": "Agent this prompt belongs to (null = shared)", "class_id": "@prop_relation"},
+        {"key": "version", "data_type": "string", "display_order": 7, "class_id": "@prop_string"}
+      ]
+    },
+    {
+      "id": "es:decision",
+      "class_id": "@class",
+      "name": "Decision",
+      "description": "A recorded decision with rationale, assignment, and approval tracking.",
+      "props": [
+        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "topic", "data_type": "string", "display_order": 2, "class_id": "@prop_string"},
+        {"key": "decision", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 3, "class_id": "@prop_string"},
+        {"key": "rationale", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 4, "class_id": "@prop_string"},
+        {"key": "priority", "data_type": "string", "display_order": 5, "options": {"values": ["P0", "P1", "P2", "P3"]}, "class_id": "@prop_string"},
+        {"key": "assigned_agents", "data_type": "relation", "is_array": "indexed", "object_class_id": ["es:agent"], "display_order": 6, "class_id": "@prop_relation"},
+        {"key": "round_id", "data_type": "relation", "object_class_id": ["es:round"], "display_order": 7, "class_id": "@prop_relation"},
+        {"key": "implemented", "data_type": "boolean", "default_value": false, "display_order": 8, "class_id": "@prop_boolean"},
+        {"key": "owner_approved", "data_type": "boolean", "default_value": false, "display_order": 9, "class_id": "@prop_boolean"},
+        {"key": "auto_decided", "data_type": "boolean", "default_value": false, "display_order": 10, "class_id": "@prop_boolean"},
+        {"key": "preference_id", "data_type": "relation", "object_class_id": ["es:preference"], "display_order": 11, "class_id": "@prop_relation"}
+      ]
+    },
+    {
+      "id": "es:preference",
+      "class_id": "@class",
+      "name": "Preference",
+      "description": "A learned preference rule with confidence scoring. As confidence grows, the system decides more autonomously.",
+      "props": [
+        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "category", "data_type": "string", "display_order": 2, "options": {"values": ["security", "architecture", "product", "design", "marketing", "finance", "devops", "content", "general"]}, "class_id": "@prop_string"},
+        {"key": "rule", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 3, "description": "The preference rule", "class_id": "@prop_string"},
+        {"key": "confidence", "data_type": "string", "display_order": 4, "options": {"values": ["low", "medium", "high", "autonomous"]}, "default_value": "low", "class_id": "@prop_string"},
+        {"key": "times_confirmed", "data_type": "integer", "default_value": 0, "display_order": 5, "class_id": "@prop_number"},
+        {"key": "applies_to", "data_type": "relation", "is_array": "indexed", "object_class_id": ["es:agent"], "display_order": 6, "description": "Agents this applies to (empty = all)", "class_id": "@prop_relation"},
+        {"key": "learned_from", "data_type": "string", "display_order": 7, "description": "Context where this was learned", "class_id": "@prop_string"},
+        {"key": "last_used", "data_type": "string", "display_order": 8, "flags": {"readonly": true}, "class_id": "@prop_string"},
+        {"key": "overridden", "data_type": "boolean", "default_value": false, "display_order": 9, "class_id": "@prop_boolean"}
+      ]
+    },
+    {
+      "id": "es:round",
+      "class_id": "@class",
+      "name": "Round",
+      "description": "An execution round — one cycle where agents run sequentially and CEO reviews.",
+      "props": [
+        {"key": "name", "data_type": "string", "display_order": 1, "class_id": "@prop_string"},
+        {"key": "round_number", "data_type": "integer", "display_order": 2, "class_id": "@prop_number"},
+        {"key": "session_id", "data_type": "string", "display_order": 3, "class_id": "@prop_string"},
+        {"key": "started", "data_type": "string", "display_order": 4, "class_id": "@prop_string"},
+        {"key": "completed", "data_type": "string", "display_order": 5, "class_id": "@prop_string"},
+        {"key": "agents_completed", "data_type": "relation", "is_array": "indexed", "object_class_id": ["es:agent"], "display_order": 6, "class_id": "@prop_relation"},
+        {"key": "decisions_made", "data_type": "integer", "default_value": 0, "display_order": 7, "class_id": "@prop_number"},
+        {"key": "summary", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 8, "class_id": "@prop_string"},
+        {"key": "all_tasks_complete", "data_type": "boolean", "default_value": false, "display_order": 9, "class_id": "@prop_boolean"}
+      ]
+    },
+    {
+      "id": "es:finding",
+      "class_id": "@class",
+      "name": "Finding",
+      "description": "An audit finding — issue, duplicate, or optimization opportunity.",
+      "props": [
+        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "severity", "data_type": "string", "display_order": 2, "options": {"values": ["critical", "high", "medium", "low", "info"]}, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "category", "data_type": "string", "display_order": 3, "options": {"values": ["duplicate", "security", "performance", "unification", "production", "missing"]}, "class_id": "@prop_string"},
+        {"key": "description", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 4, "class_id": "@prop_string"},
+        {"key": "location", "data_type": "string", "is_array": "indexed", "display_order": 5, "description": "File paths", "class_id": "@prop_string"},
+        {"key": "fix", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 6, "class_id": "@prop_string"},
+        {"key": "status", "data_type": "string", "display_order": 7, "options": {"values": ["open", "in_progress", "resolved", "wont_fix"]}, "default_value": "open", "class_id": "@prop_string"},
+        {"key": "project", "data_type": "string", "display_order": 8, "class_id": "@prop_string"},
+        {"key": "tasks", "data_type": "relation", "is_array": "indexed", "object_class_id": ["es:task"], "display_order": 9, "class_id": "@prop_relation"},
+        {"key": "discovered_at", "data_type": "string", "display_order": 10, "class_id": "@prop_string"}
+      ]
+    },
+    {
+      "id": "es:plan",
+      "class_id": "@class",
+      "name": "Plan",
+      "description": "A strategic plan grouping tasks into phases.",
+      "props": [
+        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
+        {"key": "description", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 2, "class_id": "@prop_string"},
+        {"key": "phase", "data_type": "string", "display_order": 3, "options": {"values": ["security", "unification", "production", "optimization", "features"]}, "class_id": "@prop_string"},
+        {"key": "tasks", "data_type": "relation", "is_array": "indexed", "object_class_id": ["es:task"], "display_order": 4, "class_id": "@prop_relation"},
+        {"key": "status", "data_type": "string", "display_order": 5, "options": {"values": ["draft", "active", "completed", "cancelled"]}, "default_value": "draft", "class_id": "@prop_string"},
+        {"key": "progress_pct", "data_type": "integer", "display_order": 6, "default_value": 0, "class_id": "@prop_number"}
+      ]
+    }
+  ]
+}
