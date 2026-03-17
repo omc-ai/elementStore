@@ -15,6 +15,21 @@ const elementStore = {
         return Array.isArray(prop.object_class_id) ? prop.object_class_id[0] : prop.object_class_id;
     },
 
+    /** Get editor ID from prop — handles both string (legacy) and object (inline) formats */
+    getEditorId(prop) {
+        if (!prop.editor) return null;
+        if (typeof prop.editor === 'string') return prop.editor;
+        return prop.editor.id || null;
+    },
+
+    /** Get editor config from prop — returns the full inline object or a minimal one */
+    getEditorConfig(prop) {
+        if (!prop.editor) return null;
+        if (typeof prop.editor === 'string') return { id: prop.editor };
+        return prop.editor;
+    },
+
+
     /** Generate fold ID from path */
     getFoldId(path) {
         return `fold_${path.replace(/[\[\].]/g, '_')}`;
@@ -31,13 +46,29 @@ const elementStore = {
         return prop.label || prop.key;
     },
 
+    /** Normalize is_array to canonical form: 'false' | 'indexed' | 'assoc' */
+    getArrayMode(prop) {
+        const v = prop.is_array;
+        if (v === true || v === 'indexed') return 'indexed';
+        if (v === 'assoc') return 'assoc';
+        return 'false';
+    },
+
+    /** Check if prop is any collection type (indexed or assoc) */
+    isCollection(prop) {
+        const m = this.getArrayMode(prop);
+        return m === 'indexed' || m === 'assoc';
+    },
+
     /** Build type badge text */
     getPropType(prop) {
         const dt = prop.data_type || 'string';
         const cls = this.getCls(prop);
+        const mode = this.getArrayMode(prop);
         let label = dt;
         if (cls) label = `${dt} \u2192 ${cls}`;
-        if (prop.is_array) label += '[]';
+        if (mode === 'indexed') label += '[]';
+        if (mode === 'assoc') label += '{}';
         return label;
     },
 
@@ -64,7 +95,9 @@ const elementStore = {
         if (dt === 'relation' && cls && value) {
             return `<a href="#" onclick="viewObject('${cls}','${value}');return false">${esc(value)}</a>`;
         }
-        if (prop.is_array) return `[${Array.isArray(value) ? value.length : 0}]`;
+        const arrMode = this.getArrayMode(prop);
+        if (arrMode === 'indexed') return `[${Array.isArray(value) ? value.length : 0}]`;
+        if (arrMode === 'assoc') return `{${value && typeof value === 'object' ? Object.keys(value).length : 0}}`;
         if (dt === 'object') return value ? '{...}' : '\u2014';
         return esc(String(value ?? ''));
     },
@@ -110,14 +143,24 @@ const elementStore = {
         </tr>`;
     },
 
+    /** Stack of parent objects being rendered — used by @obj_ref to resolve ref="self" */
+    _parentStack: [],
+
     /** Render props table for object */
     async getPropsTable(meta, obj, path, lvl, cls) {
+        const ctx = { obj: obj || {}, meta, path, cls };
+        this._parentStack.push(ctx);
+        if (typeof window !== 'undefined' && window.es) {
+            window.es.editors[path] = ctx;
+        }
+
         const sorted = this.getSortedProps(meta);
         let html = `<table class="ge" data-path="${path}" data-class="${cls || ''}" data-level="${lvl + 1}">${this.getColgroup()}<tbody>`;
         for (const p of sorted) {
-            html += await geField(p, obj[p.key], `${path}.${p.key}`, lvl + 1);
+            html += await geField(p, (obj || {})[p.key], `${path}.${p.key}`, lvl + 1);
         }
         html += `</tbody></table>`;
+        this._parentStack.pop();
         return html;
     },
 
@@ -185,6 +228,18 @@ const elementStore = {
             const basePath = freeObj.dataset.path;
             if (!basePath || basePath === '_nested') return;
             setNestedValue(data, basePath, _geFreeCollectObj(freeObj));
+        });
+
+        // Collect assoc arrays — build objects from key inputs + nested values
+        container.querySelectorAll('.ge-assoc-tbl').forEach(assocTbl => {
+            // Only process top-level assoc tables
+            if (assocTbl.closest('.ge-assoc-tbl') !== assocTbl && assocTbl.parentElement.closest('.ge-assoc-tbl')) return;
+            const basePath = assocTbl.dataset.assocPath;
+            if (!basePath) return;
+            // The nested data-path inputs will be collected below via the normal path
+            // But we need to ensure the assoc structure is created as an object, not flattened
+            // The setNestedValue with dot-notation handles this naturally since assoc keys
+            // are encoded as path segments: basePath.keyName.propName
         });
 
         container.querySelectorAll('[data-path]').forEach(el => {
@@ -416,6 +471,13 @@ const elementStore = {
 
         this._isNewObject = !data?.id;
         this._typedObjRegistry = {}; // Reset for new editor session
+        // Clear inline grid registry for fresh editor
+        if (typeof _geGrids !== 'undefined') {
+            for (const k of Object.keys(_geGrids)) {
+                if (_geGrids[k].gridApi) { try { _geGrids[k].gridApi.destroy(); } catch(_){} }
+                delete _geGrids[k];
+            }
+        }
         const sorted = this.getSortedProps(meta);
         const groups = this.groupProps(sorted);
         const hasGroups = groups.some(g => g.name !== null);

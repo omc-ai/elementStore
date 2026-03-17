@@ -119,7 +119,9 @@ class ObjectListPanel {
             gridDiv.innerHTML = '';
 
             const self = this;
-            const gridOptions = {
+            // Grid defaults — can be overridden by @class.contexts.grid options
+            const gridContext = classMeta?.contexts?.grid || {};
+            const gridOptions = Object.assign({
                 columnDefs,
                 rowData: objects,
                 defaultColDef: {
@@ -134,8 +136,8 @@ class ObjectListPanel {
                 onSelectionChanged: () => self._updateBatchCount(),
                 animateRows: true,
                 pagination: true,
-                paginationPageSize: 20
-            };
+                paginationAutoPageSize: true,
+            }, gridContext);
 
             this.gridApi = agGrid.createGrid(gridDiv, gridOptions);
 

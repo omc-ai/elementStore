@@ -26,50 +26,155 @@ function geObjPreview(obj, maxProps = 4) {
 }
 
 /**
+ * Render @obj_ref — dynamic typed value.
+ * Resolves the ref to a @prop definition and renders the value using that prop's type/editor/options.
+ * ref="self" means use the parent object as the @prop definition (reads data_type, options from parent).
+ */
+async function geObjRef(prop, value, path, lvl, label, req, metaBtn, typeLabel) {
+    const refValue = prop.options?.ref || (typeof value === 'object' && value?.ref) || 'self';
+    const rawValue = (typeof value === 'object' && value !== null) ? value.value : value;
+
+    // Resolve the ref to a @prop definition
+    let refProp = null;
+
+    if (refValue === 'self') {
+        // "self" = use the parent object as the @prop definition
+        // The parent is the object that contains this field — read from the render stack
+        const parent = elementStore._parentStack[elementStore._parentStack.length - 1];
+        if (parent?.obj) {
+            const parentObj = parent.obj;
+            refProp = {
+                key: 'value',
+                data_type: parentObj.data_type || 'string',
+                options: parentObj.options || {},
+                editor: parentObj.editor || null,
+                object_class_id: parentObj.object_class_id || null,
+                label: label
+            };
+        }
+    } else {
+        // Fetch the referenced @prop by ID from the store
+        try {
+            refProp = await api('GET', `/store/@prop/${refValue}`);
+        } catch (_) {}
+    }
+
+    if (!refProp) {
+        refProp = { key: 'value', data_type: 'string', label: label };
+    }
+
+    // Render the value using the resolved @prop's type — always use geInput (no recursion)
+    const refInput = `<input type="hidden" data-path="${path}.ref" value="${esc(refValue)}">`;
+    const valuePath = `${path}.value`;
+    const resolvedType = refProp.data_type || 'string';
+
+    // For relation, use geRelation
+    if (resolvedType === 'relation') {
+        const valueHtml = await geRelation(refProp, rawValue, valuePath);
+        return elementStore.renderRow(label, req, metaBtn, resolvedType, refInput + valueHtml);
+    }
+
+    // For all other types, use geInput directly (no geField — avoids @obj_ref recursion)
+    const valueHtml = await geInput(refProp, rawValue, valuePath);
+    return elementStore.renderRow(label, req, metaBtn, resolvedType, refInput + valueHtml);
+}
+
+/**
  * Render a single field (recursive)
  */
 async function geField(prop, value, path, lvl) {
     const dt = prop.data_type || 'string';
-    const isArr = prop.is_array;
+    const arrMode = elementStore.getArrayMode(prop);
+    const isIndexed = arrMode === 'indexed';
+    const isAssoc = arrMode === 'assoc';
     const cls = elementStore.getCls(prop);
     const label = elementStore.getPropLabel(prop);
     const typeLabel = elementStore.getPropType(prop);
-    const req = prop.required ? '<span class="req">*</span>' : '';
+    const req = prop.flags?.required ? '<span class="req">*</span>' : '';
     const propJson = esc(JSON.stringify(prop));
     const metaBtn = `<button type="button" class="ge-meta-btn" onclick="showPropMeta(this)" data-prop="${propJson}" title="View @prop meta">@</button>`;
     const foldId = elementStore.getFoldId(path);
 
     let html = '';
 
-    if (isArr) {
+    if (isAssoc) {
+        // Associative array: key→value map
+        const obj = (value && typeof value === 'object' && !Array.isArray(value)) ? value : {};
+        const keyCount = Object.keys(obj).length;
+        const valContent = `<span class="ge-arr-inline"><span class="count">{${keyCount}}</span></span>`;
+        const actContent = `<button type="button" class="ge-fold" onclick="geFoldAllToggle(this,'${esc(foldId)}')" title="Fold/Unfold all">⊟</button>` +
+            `<button type="button" class="ge-btn ge-btn-add" onclick="geAddAssocItem('${path}', '${esc(dt)}', '${esc(cls || '')}')">+ Add</button>`;
+        html += elementStore.renderSectionHeader(label, req, metaBtn, typeLabel, foldId, valContent, actContent, keyCount === 0);
+        html += elementStore.renderSectionBody(lvl, foldId, await geAssocArray(prop, obj, path, lvl));
+    } else if (isIndexed && elementStore.getEditorId(prop) === 'grid' && cls) {
+        // Explicit grid editor for typed arrays
         const arr = Array.isArray(value) ? value : [];
         const valContent = `<span class="ge-arr-inline"><span class="count">${arr.length}</span></span>`;
-        const actContent = `<button type="button" class="ge-btn ge-btn-add" onclick="geAddItem('${path}')">+ Add</button>`;
+        const actContent = `<button type="button" class="ge-btn ge-btn-add" onclick="geGridAddRow('${esc(path)}')">+ New</button>`;
+        html += elementStore.renderSectionHeader(label, req, metaBtn, typeLabel, foldId, valContent, actContent);
+        html += elementStore.renderSectionBody(lvl, foldId, geGrid(prop, arr, path));
+    } else if (isIndexed) {
+        const arr = Array.isArray(value) ? value : [];
+        const valContent = `<span class="ge-arr-inline"><span class="count">${arr.length}</span></span>`;
+        const actContent = `<button type="button" class="ge-fold" onclick="geFoldAllToggle(this,'${esc(foldId)}')" title="Fold/Unfold all">⊟</button>` +
+            `<button type="button" class="ge-btn ge-btn-add" onclick="geAddItem('${path}')">+ Add</button>`;
         html += elementStore.renderSectionHeader(label, req, metaBtn, typeLabel, foldId, valContent, actContent);
         html += elementStore.renderSectionBody(lvl, foldId, await geArray(prop, value, path, lvl));
+    } else if (dt === 'object' && cls === '@obj_ref') {
+        // @obj_ref — dynamic typed value. Resolve ref and render value as the referenced @prop type.
+        html += await geObjRef(prop, value, path, lvl, label, req, metaBtn, typeLabel);
     } else if (dt === 'object' && cls) {
         const classes = Array.isArray(prop.object_class_id) ? prop.object_class_id : [cls];
         const isMulti = classes.length > 1;
-        const obj = (typeof value === 'object' && value !== null) ? value : null;
+        // Resolve string values as IDs — metadata-driven via object_class_id
+        let obj;
+        if (typeof value === 'object' && value !== null) {
+            obj = value;
+        } else if (typeof value === 'string' && value && prop.object_class_id) {
+            try { obj = await api('GET', `/store/${cls}/${value}`); } catch (_) { obj = null; }
+        } else {
+            obj = null;
+        }
         // Register for Create/Null re-rendering
         elementStore._typedObjRegistry[path] = { prop, lvl };
 
         if (obj === null) {
-            // NULL STATE: no fold, Create button in act
-            const valContent = `<span class="ge-null">null</span><input type="hidden" data-path="${path}" data-type="json" value="null">`;
-            let actContent;
-            if (isMulti) {
-                const clsOpts = classes.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+            // NULL STATE: select from existing instances, child classes, or create new
+            const storeObjects = await _geLoadClassObjects(cls, prop);
+            const childClasses = await _geGetChildClasses(cls);
+            // Build available class options: explicit classes + discovered children
+            const allClasses = [...classes];
+            for (const ch of childClasses) {
+                if (!allClasses.includes(ch.id)) allClasses.push(ch.id);
+            }
+            const hasClassChoice = allClasses.length > 1;
+            let valContent, actContent;
+            if (storeObjects.length > 0 && !hasClassChoice) {
+                // Single class with existing instances — show select dropdown
+                const opts = _geBuildOptions(storeObjects, '');
+                valContent = `<select class="ge-class-select" onchange="geSelectTypedObj('${esc(path)}', this.value)">
+                    <option value="">-- Select ${esc(cls)} --</option>${opts}
+                </select>`;
+                actContent = `<button type="button" class="ge-btn ge-btn-add" onclick="geCreateTypedObj('${path}','${esc(cls)}')">New</button>`;
+            } else if (hasClassChoice) {
+                // Multiple classes or child classes — show class selector
+                valContent = `<span class="ge-null">null</span><input type="hidden" data-path="${path}" data-type="json" value="null">`;
+                const clsOpts = allClasses.map(c => {
+                    const meta = childClasses.find(ch => ch.id === c);
+                    const label = meta?.name || c;
+                    return `<option value="${esc(c)}">${esc(c)}${label !== c ? ` (${esc(label)})` : ''}</option>`;
+                }).join('');
                 actContent = `<select class="ge-obj-cls-sel">${clsOpts}</select>` +
                     `<button type="button" class="ge-btn ge-btn-add" onclick="geCreateTypedObj('${path}')">Create</button>`;
             } else {
+                valContent = `<span class="ge-null">null</span><input type="hidden" data-path="${path}" data-type="json" value="null">`;
                 actContent = `<button type="button" class="ge-btn ge-btn-add" onclick="geCreateTypedObj('${path}','${esc(cls)}')">Create</button>`;
             }
             html += elementStore.renderRow(label, req, metaBtn, typeLabel, valContent, actContent)
                 .replace('<tr', `<tr data-typed-obj="${esc(path)}"`);
         } else {
             // EXISTING STATE: fold + props + Null in act
-            const activeClass = obj._class_id || cls;
+            const activeClass = obj._class_id || obj.class_id || cls;
             const valContent = `<span class="ge-obj-inline"><span class="cls">${esc(activeClass)}</span></span> ${geObjPreview(obj)}`;
             const actContent = `<button type="button" class="ge-btn ge-btn-del" onclick="geNullTypedObj('${path}')">Null</button>`;
             const nestedContent = `<input type="hidden" data-path="${path}._class_id" value="${esc(activeClass)}">` +
@@ -92,6 +197,44 @@ async function geField(prop, value, path, lvl) {
         html += elementStore.renderRow(label, req, metaBtn, typeLabel, await geInput(prop, value, path));
     }
     return html;
+}
+
+// =====================================================================
+// AtomObj binding — sync DOM changes to the parent AtomObj
+// =====================================================================
+
+/**
+ * Delegated change handler — writes input values to the parent AtomObj.
+ * Attach to the editor container once after rendering.
+ */
+function geBindEditorToAtomObj(container) {
+    if (!container || typeof store === 'undefined') return;
+    container.addEventListener('change', (e) => {
+        const el = e.target;
+        const path = el.dataset?.path;
+        if (!path) return;
+        // Find which editor context this path belongs to
+        const parts = path.split('.');
+        // Walk up to find the parent context in es.editors
+        for (let i = parts.length - 1; i >= 0; i--) {
+            const parentPath = parts.slice(0, i).join('.') || parts[0];
+            const ctx = window.es?.editors?.[parentPath];
+            if (ctx?.atomObj) {
+                const propKey = parts.slice(i).join('.');
+                const type = el.dataset.type;
+                let val;
+                if (type === 'boolean') val = el.checked;
+                else if (type === 'integer' || type === 'number') val = el.value ? parseInt(el.value, 10) : null;
+                else if (type === 'float') val = el.value ? parseFloat(el.value) : null;
+                else if (type === 'json' || type === 'object') {
+                    try { val = JSON.parse(el.value || 'null'); } catch (_) { val = el.value; }
+                } else val = el.value;
+                // Write to AtomObj — triggers subscribe callbacks
+                try { ctx.atomObj.data[propKey] = val; } catch (_) {}
+                break;
+            }
+        }
+    });
 }
 
 // Show @prop meta in JSON viewer dialog
@@ -130,7 +273,7 @@ async function geInput(prop, value, path) {
     const v = value ?? prop.default_value ?? '';
     const safeVal = esc(typeof v === 'object' ? JSON.stringify(v) : String(v));
     const ph = esc(prop.description || '');
-    const ro = (prop.readonly || (prop.create_only && !elementStore._isNewObject)) ? 'disabled' : '';
+    const ro = (prop.flags?.readonly || (prop.flags?.create_only && !elementStore._isNewObject)) ? 'disabled' : '';
 
     // String with options from a class (Select2 dropdown)
     const cls = elementStore.getCls(prop);
@@ -148,26 +291,40 @@ async function geInput(prop, value, path) {
         </label>`;
     }
 
-    // Select (string/integer/float with options.values)
-    if (opts.values?.length) {
-        const values = opts.values;
-        const allowCustom = opts.allow_custom;
-        const optHtml = values.map(o => `<option value="${esc(o)}" ${v === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
+    // Select — options.values as array (static) or object (class selector)
+    if (opts.values) {
+        const isClassSelector = !Array.isArray(opts.values) && typeof opts.values === 'object';
 
-        if (allowCustom) {
-            const isCustom = v && !values.includes(v);
-            return `<div class="ge-combo">
-                <select data-path="${path}" data-type="select" onchange="geComboChange(this)" ${ro}>
-                    <option value="">--</option>
-                    ${optHtml}
-                    <option value="__custom__" ${isCustom ? 'selected' : ''}>Custom...</option>
-                </select>
-                <input type="text" class="ge-combo-custom" value="${isCustom ? safeVal : ''}"
-                       style="display:${isCustom ? 'block' : 'none'}" placeholder="Enter custom value"
-                       onchange="geComboCustomChange(this, '${path}')" ${ro}>
-            </div>`;
+        if (isClassSelector) {
+            // Class selector: keys are display values, values are class_ids
+            const keys = Object.keys(opts.values);
+            const optHtml = keys.map(k => `<option value="${esc(k)}" ${v === k ? 'selected' : ''}>${esc(k)}</option>`).join('');
+            return `<select data-path="${path}" data-type="select" data-class-selector='${esc(JSON.stringify(opts.values))}' onchange="geClassSelectorChange(this)" ${ro}>
+                <option value="">--</option>${optHtml}
+            </select>`;
         }
-        return `<select data-path="${path}" data-type="select" ${ro}><option value="">--</option>${optHtml}</select>`;
+
+        // Static select: array of values
+        const values = opts.values;
+        if (values.length > 0) {
+            const allowCustom = opts.allow_custom;
+            const optHtml = values.map(o => `<option value="${esc(o)}" ${v === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
+
+            if (allowCustom) {
+                const isCustom = v && !values.includes(v);
+                return `<div class="ge-combo">
+                    <select data-path="${path}" data-type="select" onchange="geComboChange(this)" ${ro}>
+                        <option value="">--</option>
+                        ${optHtml}
+                        <option value="__custom__" ${isCustom ? 'selected' : ''}>Custom...</option>
+                    </select>
+                    <input type="text" class="ge-combo-custom" value="${isCustom ? safeVal : ''}"
+                           style="display:${isCustom ? 'block' : 'none'}" placeholder="Enter custom value"
+                           onchange="geComboCustomChange(this, '${path}')" ${ro}>
+                </div>`;
+            }
+            return `<select data-path="${path}" data-type="select" ${ro}><option value="">--</option>${optHtml}</select>`;
+        }
     }
 
     // Number types
@@ -200,7 +357,7 @@ async function geInput(prop, value, path) {
     if (dt === 'datetime') return `<input type="datetime-local" data-path="${path}" data-type="datetime" value="${safeVal}" ${ro}>`;
 
     // Textarea for description/long text
-    if (prop.field_type === 'textarea' || prop.key === 'description') {
+    if (elementStore.getEditorId(prop) === 'textarea' || prop.key === 'description') {
         return `<textarea data-path="${path}" data-type="string" placeholder="${ph}" ${ro}>${safeVal}</textarea>`;
     }
 
@@ -214,6 +371,108 @@ async function geInput(prop, value, path) {
     const maxLen = opts.max_length !== undefined ? `maxlength="${opts.max_length}"` : '';
 
     return `<input type="text" data-path="${path}" data-type="${dt}" value="${safeVal}" ${minLen} ${maxLen} placeholder="${ph}" ${ro}>`;
+}
+
+// Class selector — values as assoc map (value → class_id)
+// Works in any context: array item, typed object, or top-level modal
+async function geClassSelectorChange(select) {
+    const val = select.value;
+    if (!val || select.disabled) return;
+    const classMap = JSON.parse(select.dataset.classSelector || '{}');
+    const newClassId = classMap[val];
+    if (!newClassId) return;
+
+    const fieldKey = select.dataset.path?.split('.').pop() || '';
+
+    // Context 1: Inside an array item
+    const arrRow = select.closest('tr.ge-arr-row');
+    if (arrRow) {
+        const tbody = arrRow.closest('tbody');
+        const table = arrRow.closest('.ge-arr-tbl');
+        if (!table) return;
+        const rowId = arrRow.dataset.rowId;
+        const idx = parseInt(arrRow.dataset.idx || '0');
+        const lvl = parseInt(table.dataset.level || '1') - 1;
+        const arrPath = table.dataset.arrPath;
+        const path = `${arrPath}[${idx}]`;
+
+        const bodyRow = tbody.querySelector(`:scope > tr.ge-section-body[data-row-id="${rowId}"]`);
+        const container = bodyRow?.querySelector('.ge-nest-content');
+        let currentData = {};
+        if (container) currentData = elementStore.collectData(container);
+        currentData.class_id = newClassId;
+        if (fieldKey) currentData[fieldKey] = val;
+
+        if (bodyRow) bodyRow.remove();
+        arrRow.remove();
+
+        const newHtml = await geArrayItem(
+            { data_type: 'object', object_class_id: newClassId },
+            currentData, path, idx, lvl, true, false, newClassId
+        );
+        const allRows = tbody.querySelectorAll(':scope > tr.ge-arr-row');
+        const insertBefore = allRows[idx] || null;
+        if (insertBefore) {
+            insertBefore.insertAdjacentHTML('beforebegin', newHtml);
+        } else {
+            tbody.insertAdjacentHTML('beforeend', newHtml);
+        }
+        const newRow = tbody.querySelector(`tr.ge-arr-row[data-idx="${idx}"]`);
+        if (newRow) {
+            const bid = newRow.dataset.rowId;
+            const bRow = tbody.querySelector(`tr.ge-section-body[data-row-id="${bid}"]`);
+            $(bRow || newRow).find('.ge-class-select').select2({ width: '100%', placeholder: 'Select...', allowClear: true });
+        }
+        return;
+    }
+
+    // Context 2: Inside a typed object (data-typed-obj)
+    const typedRow = select.closest('tr[data-typed-obj]');
+    if (typedRow) {
+        const path = typedRow.dataset.typedObj;
+        const reg = elementStore._typedObjRegistry[path];
+        if (!reg) return;
+        const { prop, lvl } = reg;
+        const tbody = typedRow.closest('tbody');
+        const rows = tbody.querySelectorAll(`:scope > tr[data-typed-obj="${path}"]`);
+        const lastRow = rows[rows.length - 1];
+        const container = lastRow?.querySelector('.ge-nest-content');
+        let currentData = {};
+        if (container) currentData = elementStore.collectData(container);
+        currentData.class_id = newClassId;
+        if (fieldKey) currentData[fieldKey] = val;
+
+        const nextSibling = lastRow?.nextElementSibling;
+        rows.forEach(r => r.remove());
+        const newHtml = await geField(prop, currentData, path, lvl);
+        if (nextSibling) {
+            nextSibling.insertAdjacentHTML('beforebegin', newHtml);
+        } else {
+            tbody.insertAdjacentHTML('beforeend', newHtml);
+        }
+        tbody.querySelectorAll(`tr[data-typed-obj="${path}"] .ge-class-select`).forEach(el => {
+            $(el).select2({ width: '100%', placeholder: 'Select...', allowClear: true });
+        });
+        return;
+    }
+
+    // Context 3: Top-level modal editor
+    const geContainer = select.closest('#geContainer') || select.closest('#modalBody');
+    if (geContainer && typeof editingClassId !== 'undefined') {
+        let currentData = elementStore.collectData(geContainer);
+        currentData.class_id = newClassId;
+        if (fieldKey) currentData[fieldKey] = val;
+        // Re-render the modal with the new class
+        const editorHtml = await elementStore.renderEditor(newClassId, currentData);
+        const container = document.getElementById('geContainer');
+        if (container) {
+            container.innerHTML = editorHtml;
+            setTimeout(() => {
+                $('#geContainer .ge-class-select').select2({ width: '100%', placeholder: 'Select...', allowClear: true });
+                if (typeof geGridInitAll === 'function') geGridInitAll();
+            }, 0);
+        }
+    }
 }
 
 // Combo box helpers
@@ -269,29 +528,14 @@ async function geStringClassSelect(prop, value, path, cls, ro) {
 async function geRelation(prop, value, path) {
     const cls = elementStore.getCls(prop);
     const v = value || '';
-    const ro = (prop.readonly || (prop.create_only && !elementStore._isNewObject)) ? 'disabled' : '';
+    const ro = (prop.flags?.readonly || (prop.flags?.create_only && !elementStore._isNewObject)) ? 'disabled' : '';
 
     if (!cls) {
         return `<input type="text" data-path="${path}" data-type="relation" value="${esc(v)}" placeholder="ID" ${ro}>`;
     }
 
-    let objects = [];
-    try {
-        if (cls === '@class') {
-            objects = allClassesList || [];
-        } else {
-            objects = await api('GET', `/store/${cls}`) || [];
-        }
-    } catch (e) {
-        console.warn(`Could not load ${cls} objects:`, e);
-    }
-
-    const opts = objects.map(o => {
-        const id = o.id;
-        const label = o.name || o.label || o.key || id;
-        const selected = v === id ? 'selected' : '';
-        return `<option value="${esc(id)}" ${selected}>${esc(id)}${label !== id ? ` (${esc(label)})` : ''}</option>`;
-    }).join('');
+    const objects = await _geLoadClassObjects(cls, prop);
+    const opts = _geBuildOptions(objects, v);
 
     return `<select data-path="${path}" data-type="relation" data-class="${cls}" class="ge-class-select" ${ro}>
         <option value="">--</option>
@@ -312,6 +556,210 @@ async function geObject(prop, value, path, lvl, cls) {
     }
 
     return await elementStore.getPropsTable(meta, obj, path, lvl, cls);
+}
+
+// =====================================================================
+// GRID — Inline AG-Grid for typed object/relation arrays
+// =====================================================================
+
+/** Registry of active inline grids: path → { gridApi, data, classId, prop } */
+const _geGrids = {};
+
+/**
+ * Render an inline AG-Grid for a typed array property.
+ * Data stored in hidden textarea with data-path for collectData().
+ */
+function geGrid(prop, arr, path) {
+    const cls = elementStore.getCls(prop);
+    const gridId = `ge-grid-${path.replace(/[\[\].]/g, '_')}`;
+
+    // Store grid state for later init + save-back
+    _geGrids[path] = { data: [...arr], classId: cls, prop, gridId, gridApi: null };
+
+    // Hidden textarea holds the JSON for collectData()
+    const jsonVal = JSON.stringify(arr);
+    return `<div class="ge-grid-wrap">
+        <div id="${gridId}" class="ag-theme-alpine ge-grid-div" style="height:250px;width:100%"></div>
+        <textarea data-path="${path}" data-type="json" class="ge-grid-data" style="display:none">${esc(jsonVal)}</textarea>
+    </div>`;
+}
+
+/**
+ * Initialize all pending inline grids after DOM is rendered.
+ * Called after renderEditor inserts HTML into the page.
+ */
+async function geGridInitAll() {
+    for (const [path, g] of Object.entries(_geGrids)) {
+        if (g.gridApi) continue; // already initialized
+        const div = document.getElementById(g.gridId);
+        if (!div) continue;
+
+        const meta = await getClassMeta(g.classId);
+        if (!meta) continue;
+
+        const columnDefs = buildGridColumns(meta, g.classId, (p) => {
+            const idx = p.rowIndex;
+            return `<button class="btn btn-ghost btn-xs" onclick="geGridEditRow('${esc(path)}',${idx})">Edit</button>` +
+                `<button class="btn btn-danger btn-xs" style="margin-left:4px" onclick="geGridDeleteRow('${esc(path)}',${idx})">Del</button>`;
+        });
+
+        g.gridApi = agGrid.createGrid(div, {
+            columnDefs,
+            rowData: g.data,
+            defaultColDef: { sortable: true, resizable: true, flex: 1, minWidth: 80 },
+            domLayout: g.data.length > 10 ? undefined : 'autoHeight',
+            animateRows: true,
+            onRowDoubleClicked: (e) => geGridEditRow(path, e.rowIndex)
+        });
+
+        // Auto-height capped at 400px
+        if (g.data.length <= 10) {
+            div.style.height = '';
+        }
+    }
+}
+
+/** Sync grid data → hidden textarea for collectData() */
+function _geGridSync(path) {
+    const g = _geGrids[path];
+    if (!g) return;
+    const textarea = document.querySelector(`textarea[data-path="${path}"]`);
+    if (textarea) textarea.value = JSON.stringify(g.data);
+    // Update count in section header
+    const foldId = `fold_${path.replace(/[\[\].]/g, '_')}`;
+    const hdr = document.querySelector(`[data-target="${foldId}"]`)?.closest('.ge-section-hdr');
+    if (hdr) {
+        const countEl = hdr.querySelector('.count');
+        if (countEl) countEl.textContent = String(g.data.length);
+    }
+}
+
+/** Edit a grid row — opens property-editor modal with save-back callback */
+function geGridEditRow(path, rowIndex) {
+    const g = _geGrids[path];
+    if (!g || rowIndex < 0 || rowIndex >= g.data.length) return;
+    const obj = g.data[rowIndex];
+
+    _geGridModal(g.classId, obj, (updated) => {
+        g.data[rowIndex] = updated;
+        g.gridApi.setGridOption('rowData', g.data);
+        _geGridSync(path);
+    });
+}
+
+/** Add new row — opens property-editor modal for empty object */
+function geGridAddRow(path) {
+    const g = _geGrids[path];
+    if (!g) return;
+
+    _geGridModal(g.classId, null, (newObj) => {
+        g.data.push(newObj);
+        g.gridApi.setGridOption('rowData', g.data);
+        _geGridSync(path);
+    });
+}
+
+/** Delete a grid row */
+function geGridDeleteRow(path, rowIndex) {
+    const g = _geGrids[path];
+    if (!g || rowIndex < 0 || rowIndex >= g.data.length) return;
+    const id = g.data[rowIndex].id || `row ${rowIndex}`;
+    if (!confirm(`Delete "${id}"?`)) return;
+    g.data.splice(rowIndex, 1);
+    g.gridApi.setGridOption('rowData', g.data);
+    _geGridSync(path);
+}
+
+/** Counter for stacked grid dialogs */
+let _geGridDialogId = 0;
+
+/**
+ * Open a NEW stacked dialog for inline grid editing.
+ * Does not touch the parent modal — creates its own overlay + dialog.
+ */
+async function _geGridModal(classId, data, onSave) {
+    const meta = await getClassMeta(classId);
+    const displayName = meta?.name || classId;
+    const isNew = !data || !data.id;
+    const obj = data || {};
+    const dlgId = `ge-grid-dlg-${++_geGridDialogId}`;
+    const containerId = `${dlgId}-container`;
+
+    const editorHtml = await elementStore.renderEditor(classId, obj);
+    const title = isNew ? `Create New ${displayName}` : `Edit ${displayName}: ${obj.id || ''}`;
+
+    const overlay = document.createElement('div');
+    overlay.id = dlgId;
+    overlay.className = 'ge-grid-overlay';
+    overlay.innerHTML = `<div class="ge-grid-dialog">
+        <div class="ge-grid-dialog-hdr" onmousedown="_geGridDragStart(event,'${dlgId}')">
+            <span>${esc(title)}</span>
+            <div style="display:flex;gap:6px">
+                <button class="btn btn-primary btn-sm" id="${dlgId}-save">Save</button>
+                <button class="btn btn-ghost btn-sm" id="${dlgId}-cancel">\u00d7</button>
+            </div>
+        </div>
+        <div class="ge-grid-dialog-body">
+            <div style="margin-bottom:8px;padding:6px 10px;background:#f0f4ff;border-radius:4px;font-size:12px">
+                <strong>${esc(classId)}</strong>
+                <span style="color:#10b981;margin-left:8px">inline edit</span>
+            </div>
+            <div id="${containerId}">${editorHtml}</div>
+        </div>
+    </div>`;
+    document.body.appendChild(overlay);
+
+    // Close on backdrop click
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    function close() {
+        overlay.remove();
+    }
+
+    // Cancel
+    document.getElementById(`${dlgId}-cancel`).addEventListener('click', close);
+
+    // Save — collect data from this dialog's container and call onSave
+    document.getElementById(`${dlgId}-save`).addEventListener('click', () => {
+        const container = document.getElementById(containerId);
+        const collected = container ? elementStore.collectData(container) : {};
+        if (!isNew && obj.id) collected.id = obj.id;
+        if (classId) collected._class_id = classId;
+        onSave(collected);
+        close();
+    });
+
+    // Init Select2 + nested grids
+    setTimeout(() => {
+        $(`#${containerId} .ge-class-select`).select2({ width: '100%', placeholder: 'Select...', allowClear: true });
+        geGridInitAll();
+    }, 0);
+}
+
+/** Drag support for stacked grid dialogs */
+function _geGridDragStart(e, dlgId) {
+    const overlay = document.getElementById(dlgId);
+    if (!overlay) return;
+    const dialog = overlay.querySelector('.ge-grid-dialog');
+    const rect = dialog.getBoundingClientRect();
+    const startX = e.clientX, startY = e.clientY;
+    const initX = rect.left, initY = rect.top;
+    dialog.style.position = 'fixed';
+    dialog.style.left = initX + 'px';
+    dialog.style.top = initY + 'px';
+    dialog.style.margin = '0';
+
+    function onMove(ev) {
+        dialog.style.left = (initX + ev.clientX - startX) + 'px';
+        dialog.style.top = (initY + ev.clientY - startY) + 'px';
+    }
+    function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    e.preventDefault();
 }
 
 /**
@@ -348,17 +796,23 @@ async function geArrayItem(prop, value, path, idx, lvl, isNestedObjArr, isRelati
     if (hasNested) {
         const foldId = `af_${_geArrRowId}`;
         const obj = typeof value === 'object' && value !== null ? value : {};
-        const meta = await getClassMeta(cls);
+        // Use the item's own _class_id if present (child class), otherwise fall back to prop's class
+        const itemClass = obj._class_id || obj.class_id || cls;
+        const meta = await getClassMeta(itemClass);
         let nestedHtml;
         if (meta) {
-            nestedHtml = await elementStore.getPropsTable(meta, obj, path, lvl + 1, cls);
+            // Persist _class_id if it's a child class so collectData includes it
+            const classIdInput = itemClass !== cls
+                ? `<input type="hidden" data-path="${path}._class_id" value="${esc(itemClass)}">`
+                : '';
+            nestedHtml = classIdInput + await elementStore.getPropsTable(meta, obj, path, lvl + 1, itemClass);
         } else {
             nestedHtml = `<textarea class="code" data-path="${path}" data-type="json" style="width:100%">${esc(JSON.stringify(obj, null, 2))}</textarea>`;
         }
 
         let html = `<tr class="ge-arr-row ge-section-hdr" data-idx="${idx}" data-row-id="${rowId}">
             <td class="ge-indent"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
-            <td class="ge-idx"><button type="button" class="ge-fold" onclick="elementStore.fold(this)" data-target="${foldId}">\u2212</button> <span class="idx">[${idx}]</span> <span class="cls">${esc(cls)}</span><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
+            <td class="ge-idx"><button type="button" class="ge-fold" onclick="elementStore.fold(this)" data-target="${foldId}">\u2212</button> <span class="idx">[${idx}]</span> <span class="cls">${esc(itemClass)}</span><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
             <td class="ge-val">${geObjPreview(obj)}</td>
             <td class="ge-act"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div><button type="button" class="ge-btn ge-btn-move" onclick="geMoveItem(this,-1)" title="Move up">\u2191</button><button type="button" class="ge-btn ge-btn-move" onclick="geMoveItem(this,1)" title="Move down">\u2193</button><button type="button" class="ge-btn ge-btn-del" onclick="geDelItem(this)">Delete</button></td>
         </tr>`;
@@ -381,6 +835,190 @@ async function geArrayItem(prop, value, path, idx, lvl, isNestedObjArr, isRelati
         <td class="ge-val">${valHtml}</td>
         <td class="ge-act"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div><button type="button" class="ge-btn ge-btn-move" onclick="geMoveItem(this,-1)" title="Move up">\u2191</button><button type="button" class="ge-btn ge-btn-move" onclick="geMoveItem(this,1)" title="Move down">\u2193</button><button type="button" class="ge-btn ge-btn-del" onclick="geDelItem(this)">Delete</button></td>
     </tr>`;
+}
+
+// =====================================================================
+// ASSOC ARRAY - key→value map editor
+// =====================================================================
+
+/**
+ * Render assoc array as key→value rows.
+ * Each entry: | indent | key input | value editor | actions |
+ */
+async function geAssocArray(prop, obj, path, lvl) {
+    const dt = prop.data_type || 'string';
+    const cls = elementStore.getCls(prop);
+    const entries = Object.entries(obj || {});
+    const level = lvl + 1;
+
+    let html = `<table class="ge ge-assoc-tbl" data-assoc-path="${path}" data-type="${dt}" data-class="${cls || ''}" data-level="${level}">${elementStore.getColgroup()}<tbody>`;
+    for (const [key, val] of entries) {
+        html += await geAssocItem(prop, key, val, path, lvl, cls);
+    }
+    html += `</tbody></table>`;
+    return html;
+}
+
+/**
+ * Render a single assoc item row.
+ * For object values with class: fold header + nested props.
+ * For scalars/relations: single row with key + value.
+ */
+async function geAssocItem(prop, key, value, basePath, lvl, cls) {
+    const dt = prop.data_type || 'string';
+    const itemPath = `${basePath}.${key}`;
+    const rowId = `asc_${++_geArrRowId}`;
+
+    if (dt === 'object' && cls) {
+        // Typed object value — foldable nested editor
+        const foldId = `asf_${_geArrRowId}`;
+        const obj = typeof value === 'object' && value !== null ? value : {};
+        const meta = await getClassMeta(cls);
+        let nestedHtml;
+        if (meta) {
+            nestedHtml = await elementStore.getPropsTable(meta, obj, itemPath, lvl + 1, cls);
+        } else {
+            nestedHtml = `<textarea class="code" data-path="${itemPath}" data-type="json" style="width:100%">${esc(JSON.stringify(obj, null, 2))}</textarea>`;
+        }
+
+        let html = `<tr class="ge-arr-row ge-section-hdr ge-assoc-row" data-assoc-key="${esc(key)}" data-row-id="${rowId}">
+            <td class="ge-indent"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
+            <td class="ge-idx"><button type="button" class="ge-fold" onclick="elementStore.fold(this)" data-target="${foldId}">\u2212</button> <input type="text" class="ge-assoc-key" value="${esc(key)}" data-orig-key="${esc(key)}" onchange="geAssocKeyChange(this,'${esc(basePath)}'"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
+            <td class="ge-val">${geObjPreview(obj)}</td>
+            <td class="ge-act"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div><button type="button" class="ge-btn ge-btn-del" onclick="geDelAssocItem(this,'${esc(basePath)}')">Delete</button></td>
+        </tr>`;
+        html += `<tr class="ge-section-body ge-assoc-row" data-row-id="${rowId}">
+            <td colspan="4" class="ge-nest-content" id="${foldId}">${nestedHtml}</td>
+        </tr>`;
+        return html;
+    }
+
+    // Scalar or relation — single row with key input + value input
+    const scalarProp = {...prop, is_array: false};
+    let valHtml;
+    if (dt === 'relation') {
+        valHtml = await geRelation(scalarProp, value, itemPath);
+    } else {
+        valHtml = await geInput(scalarProp, value, itemPath);
+    }
+
+    return `<tr class="ge-arr-row ge-assoc-row" data-assoc-key="${esc(key)}" data-row-id="${rowId}">
+        <td class="ge-indent"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
+        <td class="ge-idx"><input type="text" class="ge-assoc-key" value="${esc(key)}" data-orig-key="${esc(key)}" onchange="geAssocKeyChange(this,'${esc(basePath)}')"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
+        <td class="ge-val">${valHtml}</td>
+        <td class="ge-act"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div><button type="button" class="ge-btn ge-btn-del" onclick="geDelAssocItem(this,'${esc(basePath)}')">Delete</button></td>
+    </tr>`;
+}
+
+/**
+ * Add new assoc item — prompts for key name
+ */
+async function geAddAssocItem(basePath, dt, cls) {
+    const table = document.querySelector(`[data-assoc-path="${basePath}"]`);
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+
+    // Generate unique key
+    let keyNum = 1;
+    const existing = new Set();
+    tbody.querySelectorAll('.ge-assoc-key').forEach(k => existing.add(k.value));
+    let newKey = `key_${keyNum}`;
+    while (existing.has(newKey)) newKey = `key_${++keyNum}`;
+
+    const prop = { data_type: dt, is_array: false, object_class_id: cls ? [cls] : undefined };
+    const defaultVal = dt === 'object' && cls ? {} : (dt === 'boolean' ? false : (dt === 'integer' || dt === 'float' ? 0 : ''));
+    const rowHtml = await geAssocItem(prop, newKey, defaultVal, basePath, 0, cls);
+    tbody.insertAdjacentHTML('beforeend', rowHtml);
+
+    // Update count in section header
+    const countEl = table.closest('.ge-nest-content')?.previousElementSibling?.querySelector('.count');
+    if (countEl) countEl.textContent = `{${tbody.querySelectorAll('.ge-assoc-row:not(.ge-section-body)').length}}`;
+
+    const newRow = tbody.lastElementChild;
+    _geUnfoldAndFocus(table, newRow);
+}
+
+/**
+ * Handle assoc key rename — update data-path on all child inputs
+ */
+function geAssocKeyChange(input, basePath) {
+    const newKey = input.value.trim();
+    const origKey = input.dataset.origKey;
+    if (!newKey || newKey === origKey) { input.value = origKey; return; }
+
+    // Check for duplicates
+    const table = input.closest('.ge-assoc-tbl');
+    const keys = [];
+    table.querySelectorAll('.ge-assoc-key').forEach(k => { if (k !== input) keys.push(k.value); });
+    if (keys.includes(newKey)) { input.value = origKey; return; }
+
+    const row = input.closest('.ge-arr-row');
+    const rowId = row.dataset.rowId;
+    const oldPath = `${basePath}.${origKey}`;
+    const newPath = `${basePath}.${newKey}`;
+
+    // Update data-path on all child inputs in this row (and its body row)
+    const updatePaths = (el) => {
+        el.querySelectorAll('[data-path]').forEach(inp => {
+            const p = inp.dataset.path;
+            if (p.startsWith(oldPath)) {
+                inp.dataset.path = newPath + p.slice(oldPath.length);
+            }
+        });
+    };
+    updatePaths(row);
+    // Find matching body row
+    const bodyRow = table.querySelector(`tr.ge-section-body[data-row-id="${rowId}"]`);
+    if (bodyRow) updatePaths(bodyRow);
+
+    input.dataset.origKey = newKey;
+    row.dataset.assocKey = newKey;
+}
+
+/**
+ * Delete assoc item
+ */
+function geDelAssocItem(btn, basePath) {
+    const row = btn.closest('.ge-arr-row');
+    const table = row.closest('.ge-assoc-tbl');
+    const rowId = row.dataset.rowId;
+
+    // Remove body row if exists
+    const bodyRow = table.querySelector(`tr.ge-section-body[data-row-id="${rowId}"]`);
+    if (bodyRow) bodyRow.remove();
+    row.remove();
+
+    // Update count
+    const countEl = table.closest('.ge-nest-content')?.previousElementSibling?.querySelector('.count');
+    if (countEl) countEl.textContent = `{${table.querySelectorAll('.ge-assoc-row:not(.ge-section-body)').length}}`;
+}
+
+// =====================================================================
+// Fold/Unfold all child elements in a section
+// =====================================================================
+function geFoldAllToggle(triggerBtn, foldId) {
+    const container = document.getElementById(foldId);
+    if (!container) return;
+    // If any child is expanded, collapse all. Otherwise expand all.
+    const foldBtns = container.querySelectorAll('.ge-fold');
+    const anyExpanded = Array.from(foldBtns).some(btn => {
+        const c = document.getElementById(btn.dataset.target);
+        return c && !c.classList.contains('collapsed');
+    });
+    foldBtns.forEach(btn => {
+        const content = document.getElementById(btn.dataset.target);
+        if (!content) return;
+        if (anyExpanded) {
+            content.classList.add('collapsed');
+            btn.classList.add('collapsed');
+            btn.textContent = '+';
+        } else {
+            content.classList.remove('collapsed');
+            btn.classList.remove('collapsed');
+            btn.textContent = '\u2212';
+        }
+    });
+    triggerBtn.textContent = anyExpanded ? '⊞' : '⊟';
 }
 
 // =====================================================================
@@ -467,6 +1105,16 @@ function geStopResize() {
     geResizing = null;
     document.removeEventListener('mousemove', geDoResize);
     document.removeEventListener('mouseup', geStopResize);
+}
+
+/** Get child classes of a base class (classes with extends_id = baseClassId) */
+async function _geGetChildClasses(baseClassId) {
+    try {
+        const allClasses = allClassesList || await api('GET', '/class');
+        return allClasses.filter(c => c.extends_id === baseClassId);
+    } catch (_) {
+        return [];
+    }
 }
 
 // Add array item (classed arrays)
@@ -588,68 +1236,100 @@ function geReindexItems(table) {
 }
 
 // =====================================================================
-// Typed object Create / Null — toggle between null and edit states
+// Typed object — shared helpers
 // =====================================================================
 
-/** Create typed object: switch from null state → edit state */
-async function geCreateTypedObj(path, classIdArg) {
+/**
+ * Load objects of a class, with filter_by support from prop.options.
+ * Used by both typed-object selects and relation fields.
+ */
+async function _geLoadClassObjects(cls, prop) {
+    try {
+        if (cls === '@class') return allClassesList || [];
+        const objects = await api('GET', `/store/${cls}`) || [];
+        const filterBy = prop?.options?.filter_by;
+        if (!filterBy || !filterBy.field || !filterBy.source) return objects;
+        const sourceEl = document.querySelector(`[data-path="${filterBy.source}"]`);
+        const sourceVal = sourceEl ? (sourceEl.value || '') : '';
+        if (!sourceVal) return objects;
+        return objects.filter(o => {
+            const fieldVal = o[filterBy.field];
+            if (Array.isArray(fieldVal)) return fieldVal.includes(sourceVal);
+            return fieldVal === sourceVal;
+        });
+    } catch (_) {
+        return [];
+    }
+}
+
+/** Build <option> tags from an array of objects */
+function _geBuildOptions(objects, selectedId) {
+    return objects.map(o => {
+        const id = o.id;
+        const label = o.name || o.label || o.key || id;
+        const selected = selectedId === id ? 'selected' : '';
+        return `<option value="${esc(id)}" ${selected}>${esc(id)}${label !== id ? ` (${esc(label)})` : ''}</option>`;
+    }).join('');
+}
+
+/**
+ * Re-render a typed object field with a new value.
+ * Shared by geSelectTypedObj, geCreateTypedObj, geNullTypedObj.
+ */
+async function _geReplaceTypedObj(path, newValue) {
     const reg = elementStore._typedObjRegistry[path];
     if (!reg) return;
-
-    // Determine class from arg or dropdown
     const row = document.querySelector(`tr[data-typed-obj="${path}"]`);
     if (!row) return;
-    const sel = row.querySelector('.ge-obj-cls-sel');
-    const cls = classIdArg || (sel ? sel.value : null);
-    if (!cls) return;
 
     const { prop, lvl } = reg;
     const tbody = row.closest('tbody');
-
-    // Find insertion point before removing
     const rows = tbody.querySelectorAll(`:scope > tr[data-typed-obj="${path}"]`);
     const lastRow = rows[rows.length - 1];
     const nextSibling = lastRow.nextElementSibling;
     rows.forEach(r => r.remove());
 
-    // Re-render with empty object (with _class_id marker)
-    const newHtml = await geField(prop, { _class_id: cls }, path, lvl);
+    const newHtml = await geField(prop, newValue, path, lvl);
     if (nextSibling) {
         nextSibling.insertAdjacentHTML('beforebegin', newHtml);
     } else {
         tbody.insertAdjacentHTML('beforeend', newHtml);
     }
-
-    // Initialize Select2 on new class-select elements
     tbody.querySelectorAll(`tr[data-typed-obj="${path}"] .ge-class-select`).forEach(el => {
         $(el).select2({ width: '100%', placeholder: 'Select...', allowClear: true });
     });
 }
 
-/** Null typed object: switch from edit state → null state */
-async function geNullTypedObj(path) {
+// =====================================================================
+// Typed object Create / Select / Null
+// =====================================================================
+
+/** Select a stored object by ID → load and render inline */
+async function geSelectTypedObj(path, objectId) {
+    if (!objectId) return;
     const reg = elementStore._typedObjRegistry[path];
     if (!reg) return;
+    const cls = elementStore.getCls(reg.prop);
+    try {
+        const obj = await api('GET', `/store/${cls}/${objectId}`);
+        if (obj) _geReplaceTypedObj(path, obj);
+    } catch (_) {}
+}
 
+/** Create new empty object of the given class */
+async function geCreateTypedObj(path, classIdArg) {
+    const reg = elementStore._typedObjRegistry[path];
+    if (!reg) return;
     const row = document.querySelector(`tr[data-typed-obj="${path}"]`);
-    if (!row) return;
+    const sel = row?.querySelector('.ge-obj-cls-sel');
+    const cls = classIdArg || (sel ? sel.value : null);
+    if (!cls) return;
+    _geReplaceTypedObj(path, { _class_id: cls });
+}
 
-    const { prop, lvl } = reg;
-    const tbody = row.closest('tbody');
-
-    // Find insertion point before removing
-    const rows = tbody.querySelectorAll(`:scope > tr[data-typed-obj="${path}"]`);
-    const lastRow = rows[rows.length - 1];
-    const nextSibling = lastRow.nextElementSibling;
-    rows.forEach(r => r.remove());
-
-    // Re-render with null value
-    const newHtml = await geField(prop, null, path, lvl);
-    if (nextSibling) {
-        nextSibling.insertAdjacentHTML('beforebegin', newHtml);
-    } else {
-        tbody.insertAdjacentHTML('beforeend', newHtml);
-    }
+/** Set typed object to null */
+async function geNullTypedObj(path) {
+    _geReplaceTypedObj(path, null);
 }
 
 // Browse relation

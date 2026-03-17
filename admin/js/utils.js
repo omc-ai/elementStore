@@ -183,7 +183,7 @@ function validateField(input) {
     const value = input.type === 'checkbox' ? input.checked : input.value;
     const errors = [];
 
-    if (prop.required && (value === '' || value === undefined || value === null)) {
+    if (prop.flags?.required && (value === '' || value === undefined || value === null)) {
         errors.push(`${prop.label || propKey} is required`);
     }
 

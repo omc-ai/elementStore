@@ -209,13 +209,17 @@ async function renderModalForClass(classId, data) {
     document.getElementById('modalBody').innerHTML = html;
     openModal();
 
-    // Initialize Select2 on class-option selects
+    // Initialize Select2, inline grids, and AtomObj binding after DOM is ready
     setTimeout(() => {
         $('#modalBody .ge-class-select').select2({
             width: '100%',
             placeholder: 'Select...',
             allowClear: true
         });
+        if (typeof geGridInitAll === 'function') geGridInitAll();
+        if (typeof geBindEditorToAtomObj === 'function') {
+            geBindEditorToAtomObj(document.getElementById('geContainer'));
+        }
     }, 0);
 
     // Load class-level actions (async, after modal is rendered)

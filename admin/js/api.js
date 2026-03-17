@@ -65,18 +65,6 @@ async function api(method, endpoint, data = null) {
 async function getClassMeta(classId) {
     if (classesCache[classId]) return classesCache[classId];
 
-    // Check if store already has the class with props loaded
-    if (typeof store !== 'undefined' && store.objects[classId]) {
-        const storeProps = store.collectClassProps(classId);
-        if (storeProps.length > 0) {
-            const classData = store.objects[classId].data || store.objects[classId];
-            const meta = Object.assign({}, classData);
-            meta.props = storeProps.map(function(p) { return p.data || p; });
-            classesCache[classId] = meta;
-            return meta;
-        }
-    }
-
     try {
         const [meta, inheritedProps] = await Promise.all([
             api('GET', `/class/${classId}`),

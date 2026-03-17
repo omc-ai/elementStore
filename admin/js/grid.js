@@ -29,7 +29,7 @@ function buildGridColumns(classMeta, classId, actionsCellRenderer) {
 
         if (prop.data_type === 'boolean') {
             colDef.width = 80;
-        } else if (prop.is_array) {
+        } else if (elementStore.isCollection(prop)) {
             colDef.width = 70;
         }
 
