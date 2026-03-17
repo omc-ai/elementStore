@@ -21,13 +21,32 @@ export default defineConfig([
   },
 
   // ─────────────────────────────────────────────────────────────────
-  // IIFE — for admin <script> tag
+  // IIFE — Core (element-store.js)
   // Built to ../../admin/dist/element-store.js
-  // Exposes globals via window.* assignments in src/browser.ts
-  // React hooks NOT included (browser.ts doesn't import them)
+  // Exposes: store, AtomObj, AtomStorage, ActionExecutor, etc.
   // ─────────────────────────────────────────────────────────────────
   {
     entry: { 'element-store': 'src/browser.ts' },
+    format: ['iife'],
+    outDir: '../../admin/dist',
+    target: 'es2019',
+    platform: 'browser',
+    sourcemap: true,
+    minify: false,
+    outExtension: () => ({ js: '.js' }),
+    esbuildOptions(options) {
+      options.resolveExtensions = ['.ts', '.js'];
+    },
+  },
+
+  // ─────────────────────────────────────────────────────────────────
+  // IIFE — Widgets (element-store-widgets.js)
+  // Built to ../../admin/dist/element-store-widgets.js
+  // Load AFTER element-store.js. Exposes: WidgetBinding, autobind
+  // Native DOM bindings — no React dependency.
+  // ─────────────────────────────────────────────────────────────────
+  {
+    entry: { 'element-store-widgets': 'src/browser-widgets.ts' },
     format: ['iife'],
     outDir: '../../admin/dist',
     target: 'es2019',

@@ -25,3 +25,6 @@ export * from './actions/ActionExecutor.ts';
 export * from './modules/classRegistry.ts';
 export * from './modules/genesisConverter.ts';
 export * from './modules/ElementStoreClient.ts';
+
+// Widgets (native DOM binding — no framework dependency)
+export * from './widgets/WidgetBinding.ts';
