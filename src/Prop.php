@@ -36,7 +36,7 @@ class Prop extends EntityObj
     const PF_OBJECT_CLASS_STRICT = 'object_class_strict';
     const PF_ON_ORPHAN = 'on_orphan';
     const PF_OPTIONS = 'options';
-    const PF_FIELD_TYPE = 'field_type';
+    const PF_EDITOR = 'editor';
     const PF_REQUIRED = 'required';
     const PF_READONLY = 'readonly';
     const PF_DEFAULT_VALUE = 'default_value';
@@ -69,8 +69,23 @@ class Prop extends EntityObj
     /** @var string Data type (see Constants::DT_*) */
     public string $data_type = Constants::DT_STRING;
 
-    /** @var bool Is this property an array of values */
-    public bool $is_array = false;
+    /**
+     * Property multiplicity:
+     * - false:     scalar (single value)
+     * - true:      backward compat alias for 'indexed'
+     * - 'indexed': ordered array [val1, val2, ...]
+     * - 'assoc':   associative key→value map {key1: val1, key2: val2, ...}
+     *
+     * @var bool|string
+     */
+    public bool|string $is_array = false;
+
+    // =========================================================================
+    // ARRAY MODE CONSTANTS
+    // =========================================================================
+    const ARRAY_FALSE = 'false';
+    const ARRAY_INDEXED = 'indexed';
+    const ARRAY_ASSOC = 'assoc';
 
     /** @var array|null For relations/objects: target class IDs (multiple allowed, accepts child classes unless strict) */
     public ?array $object_class_id = null;
@@ -93,14 +108,11 @@ class Prop extends EntityObj
      */
     public ?array $options = null;
 
-    /** @var string|null Relation to field type instance (e.g. 'text', 'email', 'select'). Determines editor and validator. */
-    public ?string $field_type = null;
+    /** @var array|string|null Inline @editor widget instance {id, ...config} or legacy string ID */
+    public array|string|null $editor = null;
 
-    /** @var bool Is this field required */
-    public bool $required = false;
-
-    /** @var bool Is this field read-only */
-    public bool $readonly = false;
+    /** @var array Behavior flags: required, readonly, hidden, create_only, server_only, master_only */
+    public array $flags = [];
 
     /** @var mixed Default value for new objects */
     public mixed $default_value = null;
@@ -108,20 +120,13 @@ class Prop extends EntityObj
     /** @var int Display order in forms/tables */
     public int $display_order = 0;
 
-    /** @var string|null Group name for form sections */
-    public ?string $group_name = null;
-
-    /** @var bool Hide from default views */
-    public bool $hidden = false;
-
-    /** @var bool Server-only property — stripped from API responses */
-    public bool $server_only = false;
-
-    /** @var bool Only writable when creating (readonly after first save) */
-    public bool $create_only = false;
-
-    /** @var bool Property only visible on master/admin interface */
-    public bool $master_only = false;
+    // Flag accessors — read from $flags array
+    public function isRequired(): bool { return !empty($this->flags['required']); }
+    public function isReadonly(): bool { return !empty($this->flags['readonly']); }
+    public function isHidden(): bool { return !empty($this->flags['hidden']); }
+    public function isCreateOnly(): bool { return !empty($this->flags['create_only']); }
+    public function isServerOnly(): bool { return !empty($this->flags['server_only']); }
+    public function isMasterOnly(): bool { return !empty($this->flags['master_only']); }
 
     /**
      * Constructor with data normalization
@@ -139,17 +144,48 @@ class Prop extends EntityObj
             $data['object_class_id'] = self::normalizeClassIds($data['object_class_id']);
         }
 
-        // Backward compat: editor → field_type
-        // If legacy 'editor' field is set but 'field_type' is not, migrate
-        if (isset($data['editor']) && !isset($data['field_type'])) {
-            if (is_array($data['editor']) && isset($data['editor']['type'])) {
-                // Legacy format: {type: 'textarea'} → 'textarea'
-                $data['field_type'] = $data['editor']['type'];
-            } elseif (is_string($data['editor'])) {
-                // Already a string reference
-                $data['field_type'] = $data['editor'];
+        // Normalize is_array: boolean true → 'indexed', boolean false → false (keep as bool)
+        // String values 'indexed'/'assoc'/'false' pass through
+        if (isset($data['is_array'])) {
+            if ($data['is_array'] === true) {
+                $data['is_array'] = self::ARRAY_INDEXED;
+            } elseif ($data['is_array'] === 'true') {
+                $data['is_array'] = self::ARRAY_INDEXED;
+            } elseif ($data['is_array'] === false || $data['is_array'] === 'false') {
+                $data['is_array'] = false;
+            }
+            // 'indexed' and 'assoc' string values pass through as-is
+        }
+
+        // Normalize editor: string → inline object {id: "string_value"}
+        if (isset($data['editor'])) {
+            if (is_string($data['editor'])) {
+                $data['editor'] = ['id' => $data['editor']];
+            } elseif (is_array($data['editor']) && isset($data['editor']['type']) && !isset($data['editor']['id'])) {
+                // Legacy {type: "textarea"} → {id: "textarea"}
+                $data['editor']['id'] = $data['editor']['type'];
+                unset($data['editor']['type']);
             }
         }
+        if (isset($data['field_type']) && !isset($data['editor'])) {
+            $data['editor'] = ['id' => $data['field_type']];
+            unset($data['field_type']);
+        }
+
+        // Normalize flags: merge top-level booleans into flags object
+        $flagKeys = ['required', 'readonly', 'hidden', 'create_only', 'server_only', 'master_only'];
+        if (!isset($data['flags']) || !is_array($data['flags'])) {
+            $data['flags'] = [];
+        }
+        foreach ($flagKeys as $fk) {
+            if (isset($data[$fk]) && !isset($data['flags'][$fk])) {
+                if ($data[$fk]) $data['flags'][$fk] = true;
+                unset($data[$fk]);
+            }
+        }
+
+        // Remove group_name (legacy — grouping is now via contexts)
+        unset($data['group_name']);
 
         parent::__construct($class_id ?? Constants::K_PROP, $data, $di);
     }
@@ -215,17 +251,27 @@ class Prop extends EntityObj
     {
         return $this->data_type === Constants::DT_OBJECT
             && $this->hasTargetClasses()
-            && !$this->is_array;
+            && $this->getArrayMode() === self::ARRAY_FALSE;
     }
 
     /**
-     * Check if this is an array of embedded objects
+     * Check if this is an array of embedded objects (indexed array)
      *
      * @return bool
      */
     public function isEmbeddedArray(): bool
     {
-        return $this->is_array && $this->hasTargetClasses() && $this->data_type !== Constants::DT_RELATION;
+        return $this->isIndexedArray() && $this->hasTargetClasses() && $this->data_type !== Constants::DT_RELATION;
+    }
+
+    /**
+     * Check if this is an assoc map of embedded objects
+     *
+     * @return bool
+     */
+    public function isEmbeddedAssoc(): bool
+    {
+        return $this->isAssocArray() && $this->hasTargetClasses() && $this->data_type !== Constants::DT_RELATION;
     }
 
     /**
@@ -239,11 +285,11 @@ class Prop extends EntityObj
     {
         return $this->data_type === Constants::DT_RELATION
             && $this->hasTargetClasses()
-            && !$this->is_array;
+            && $this->getArrayMode() === self::ARRAY_FALSE;
     }
 
     /**
-     * Check if this is a reference relation (array of IDs, many-to-many)
+     * Check if this is a reference relation (indexed array of IDs, many-to-many)
      * - Objects exist independently
      * - Can unlink without deleting
      *
@@ -253,7 +299,50 @@ class Prop extends EntityObj
     {
         return $this->data_type === Constants::DT_RELATION
             && $this->hasTargetClasses()
-            && $this->is_array;
+            && $this->isIndexedArray();
+    }
+
+    // =========================================================================
+    // ARRAY MODE HELPERS
+    // =========================================================================
+
+    /**
+     * Get normalized array mode: 'false' | 'indexed' | 'assoc'
+     */
+    public function getArrayMode(): string
+    {
+        if ($this->is_array === true || $this->is_array === 'indexed' || $this->is_array === self::ARRAY_INDEXED) {
+            return self::ARRAY_INDEXED;
+        }
+        if ($this->is_array === 'assoc' || $this->is_array === self::ARRAY_ASSOC) {
+            return self::ARRAY_ASSOC;
+        }
+        return self::ARRAY_FALSE;
+    }
+
+    /**
+     * True when is_array is true, 'indexed', or 'assoc' (any collection)
+     */
+    public function isCollection(): bool
+    {
+        $mode = $this->getArrayMode();
+        return $mode === self::ARRAY_INDEXED || $mode === self::ARRAY_ASSOC;
+    }
+
+    /**
+     * True when is_array is true or 'indexed' (ordered array)
+     */
+    public function isIndexedArray(): bool
+    {
+        return $this->getArrayMode() === self::ARRAY_INDEXED;
+    }
+
+    /**
+     * True when is_array is 'assoc' (key→value map)
+     */
+    public function isAssocArray(): bool
+    {
+        return $this->getArrayMode() === self::ARRAY_ASSOC;
     }
 
     /**

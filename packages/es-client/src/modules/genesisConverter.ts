@@ -38,13 +38,12 @@ export interface GenesisClass {
 export interface GenesisProp {
   key: string;
   data_type?: string;
-  is_array?: boolean;
+  is_array?: boolean | 'indexed' | 'assoc';
   object_class_id?: string;
   object_class_strict?: boolean;
   on_orphan?: string;
   options?: unknown;
-  editor?: unknown;
-  validators?: unknown;
+  editor?: string;
   enum_values?: string[];
   enum_allow_custom?: boolean;
   required?: boolean;

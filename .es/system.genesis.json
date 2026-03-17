@@ -9,48 +9,486 @@
       "description": "Defines a data class with its properties and behaviors",
       "is_system": true,
       "props": [
-        {"key": "name",        "label": "Name",        "description": "Display name of the class",                                    "data_type": "string",   "required": true,  "display_order": 1},
-        {"key": "description", "label": "Description", "description": "What this class represents",                                   "data_type": "string",   "editor": "textarea", "display_order": 2},
-        {"key": "extends_id",  "label": "Extends",     "description": "Parent class for inheritance",                                 "data_type": "relation", "object_class_id": ["@class"], "create_only": true, "display_order": 3},
-        {"key": "props",       "label": "Properties",  "description": "Property definitions for this class",                         "data_type": "object",   "is_array": true, "object_class_id": ["@prop"], "display_order": 4},
-        {"key": "table_name",  "label": "Table Name",  "description": "Custom table/collection name for storage",                    "data_type": "string",   "display_order": 5, "group_name": "Advanced"},
-        {"key": "storage_id",  "label": "Storage",     "description": "Storage provider (falls back to parent class, then default)", "data_type": "relation", "object_class_id": ["@storage"], "display_order": 6, "group_name": "Advanced"},
-        {"key": "is_system",   "label": "System Class","description": "Protected system class (cannot be deleted)",                  "data_type": "boolean",  "readonly": true, "default_value": false, "display_order": 7, "group_name": "Advanced"},
-        {"key": "is_abstract", "label": "Abstract",    "description": "Cannot create instances directly (only via child classes)",   "data_type": "boolean",  "default_value": false, "display_order": 8, "group_name": "Advanced"},
-        {"key": "providers",   "label": "Providers",   "description": "Data providers for external API integration",                 "data_type": "relation", "is_array": true, "object_class_id": ["@provider"], "display_order": 9, "group_name": "Advanced"},
-        {"key": "_links",      "label": "External Links", "description": "Maps storage_id to external ID for provider-linked objects. Managed by ActionExecutor — never set manually.", "data_type": "object", "server_only": true, "hidden": true, "display_order": 100, "group_name": "Internal"},
-        {"key": "genesis_file","label": "Genesis File",  "description": "Source genesis/seed file in .es/ directory. Set automatically by GenesisLoader for seed write-back.", "data_type": "string", "server_only": true, "hidden": true, "display_order": 101, "group_name": "Internal"}
+        {
+          "key": "name",
+          "label": "Name",
+          "description": "Display name of the class",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "description": "What this class represents",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "extends_id",
+          "label": "Extends",
+          "description": "Parent class for inheritance",
+          "data_type": "relation",
+          "object_class_id": [
+            "@class"
+          ],
+          "display_order": 3,
+          "flags": {
+            "create_only": true
+          },
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "props",
+          "label": "Properties",
+          "description": "Property definitions for this class",
+          "data_type": "object",
+          "is_array": true,
+          "object_class_id": [
+            "@prop"
+          ],
+          "display_order": 4,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "table_name",
+          "label": "Table Name",
+          "description": "Custom table/collection name for storage",
+          "data_type": "string",
+          "display_order": 5,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "storage_id",
+          "label": "Storage",
+          "description": "Storage provider (falls back to parent class, then default)",
+          "data_type": "relation",
+          "object_class_id": [
+            "@storage"
+          ],
+          "display_order": 6,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "is_system",
+          "label": "System Class",
+          "description": "Protected system class (cannot be deleted)",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 7,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "is_abstract",
+          "label": "Abstract",
+          "description": "Cannot create instances directly (only via child classes)",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 8,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "contexts",
+          "label": "Contexts",
+          "description": "Named view contexts (grid, form, compact, etc.) — assoc map of context_name → @class_context with field lists and actions",
+          "data_type": "object",
+          "is_array": "assoc",
+          "object_class_id": [
+            "@class_context"
+          ],
+          "options": {
+            "keys": {
+              "extensible": true
+            }
+          },
+          "display_order": 9,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "providers",
+          "label": "Providers",
+          "description": "Data providers for external API integration",
+          "data_type": "relation",
+          "is_array": true,
+          "object_class_id": [
+            "@provider"
+          ],
+          "display_order": 10,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "unique",
+          "label": "Unique Constraints",
+          "description": "Field uniqueness constraints. Each entry: {id, fields[]}. The 'id' field is always unique by default. Additional constraints enforce uniqueness on field combinations.",
+          "data_type": "object",
+          "is_array": true,
+          "display_order": 11,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "_links",
+          "label": "External Links",
+          "description": "Maps storage_id to external ID for provider-linked objects. Managed by ActionExecutor — never set manually.",
+          "data_type": "object",
+          "display_order": 100,
+          "flags": {
+            "server_only": true,
+            "hidden": true
+          },
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "genesis_file",
+          "label": "Genesis File",
+          "description": "Source genesis/seed file in .es/ directory. Set automatically by GenesisLoader for seed write-back.",
+          "data_type": "string",
+          "display_order": 101,
+          "flags": {
+            "server_only": true,
+            "hidden": true
+          },
+          "class_id": "@prop_string"
+        }
       ]
     },
     {
       "id": "@prop",
       "class_id": "@class",
       "name": "Property",
-      "description": "Defines a property within a class — type, validation, and UI behavior",
+      "description": "Base property definition — common fields inherited by all @prop_* child classes",
       "is_system": true,
       "props": [
-        {"key": "data_type",           "label": "Data Type",     "description": "Type of value this property holds",                       "data_type": "string",   "required": true, "default_value": "string", "options": {"type": "string_options", "values": ["string","boolean","integer","float","datetime","object","relation","function"]}, "display_order": 1, "group_name": "Type"},
-        {"key": "is_array",            "label": "Is Array",      "description": "Property holds multiple values",                          "data_type": "boolean",  "default_value": false, "display_order": 2, "group_name": "Type"},
-        {"key": "key",                 "label": "Key",           "description": "Property key (field name in data)",                       "data_type": "string",   "required": true, "display_order": 10, "group_name": "Core"},
-        {"key": "label",               "label": "Label",         "description": "Display label in UI",                                     "data_type": "string",   "display_order": 11, "group_name": "Core"},
-        {"key": "description",         "label": "Description",   "description": "Help text shown to users",                               "data_type": "string",   "editor": "textarea", "display_order": 12, "group_name": "Core"},
-        {"key": "options",             "label": "Type Options",  "description": "Type-specific options (varies by data_type)",             "data_type": "object",   "display_order": 20, "group_name": "Options"},
-        {"key": "object_class_id",     "label": "Target Classes","description": "Class IDs for relations/embedded objects",               "data_type": "string",   "is_array": true, "display_order": 30, "group_name": "Relation"},
-        {"key": "object_class_strict", "label": "Strict Class",  "description": "Only accept exact class, not child classes",             "data_type": "boolean",  "default_value": false, "display_order": 31, "group_name": "Relation"},
-        {"key": "on_orphan",           "label": "On Orphan",     "description": "Action when referenced object is deleted",               "data_type": "string",   "options": {"type": "string_options", "values": ["keep","delete","nullify"]}, "default_value": "keep", "display_order": 32, "group_name": "Relation"},
-        {"key": "editor",              "label": "Editor",        "description": "UI editor — relation to @editor instance",               "data_type": "relation", "object_class_id": ["@editor"], "display_order": 40, "group_name": "UI"},
-        {"key": "field_type",          "label": "Field Type",    "description": "Shorthand field type string (e.g. email, url, textarea)", "data_type": "string",   "display_order": 41, "group_name": "UI"},
-        {"key": "display_order",       "label": "Display Order", "description": "Sort order in forms (lower = first)",                    "data_type": "integer",  "default_value": 0, "display_order": 42, "group_name": "UI"},
-        {"key": "group_name",          "label": "Group",         "description": "Form section grouping",                                  "data_type": "string",   "display_order": 43, "group_name": "UI"},
-        {"key": "hidden",              "label": "Hidden",        "description": "Hide from default UI views",                             "data_type": "boolean",  "default_value": false, "display_order": 44, "group_name": "UI"},
-        {"key": "required",            "label": "Required",      "description": "Field must have a value",                                "data_type": "boolean",  "default_value": false, "display_order": 50, "group_name": "Validation"},
-        {"key": "readonly",            "label": "Read Only",     "description": "Field cannot be edited after creation",                  "data_type": "boolean",  "default_value": false, "display_order": 51, "group_name": "Validation"},
-        {"key": "create_only",         "label": "Create Only",   "description": "Only writable when creating new objects",                "data_type": "boolean",  "default_value": false, "display_order": 52, "group_name": "Validation"},
-        {"key": "default_value",       "label": "Default Value", "description": "Default value for new objects",                         "data_type": "string",   "display_order": 53, "group_name": "Validation"},
-        {"key": "validators",          "label": "Validators",    "description": "Validation rules — relation to @function instances",     "data_type": "relation", "object_class_id": ["@function"], "is_array": true, "display_order": 54, "group_name": "Validation"},
-        {"key": "server_only",         "label": "Server Only",   "description": "Stripped from API responses (backend-only)",            "data_type": "boolean",  "default_value": false, "display_order": 60, "group_name": "Security"},
-        {"key": "master_only",         "label": "Master Only",   "description": "Only visible on master/admin interface",                 "data_type": "boolean",  "default_value": false, "display_order": 61, "group_name": "Security"}
+        {
+          "key": "data_type",
+          "label": "Data Type",
+          "description": "Type of value — determines which @prop_* child class to use",
+          "data_type": "string",
+          "flags": {
+            "required": true,
+            "create_only": true
+          },
+          "default_value": "string",
+          "options": {
+            "values": {
+              "string": "@prop_string",
+              "boolean": "@prop_boolean",
+              "integer": "@prop_number",
+              "float": "@prop_number",
+              "datetime": "@prop_datetime",
+              "object": "@prop_object",
+              "relation": "@prop_relation",
+              "function": "@prop_function"
+            }
+          },
+          "display_order": 1,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "key",
+          "label": "Key",
+          "description": "Property key (field name in data)",
+          "data_type": "string",
+          "flags": {
+            "required": true
+          },
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "label",
+          "label": "Label",
+          "description": "Display label in UI",
+          "data_type": "string",
+          "display_order": 3,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "description": "Help text shown to users",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 4,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "is_array",
+          "label": "Is Array",
+          "description": "Multiplicity: false=scalar, indexed=ordered array, assoc=key-value map",
+          "data_type": "string",
+          "default_value": "false",
+          "options": {
+            "values": [
+              "false",
+              "indexed",
+              "assoc"
+            ]
+          },
+          "display_order": 5,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "editor",
+          "label": "Editor",
+          "description": "UI editor widget — inline @editor instance with per-prop configuration. 'type' references the @editor definition, additional props are per-instance overrides.",
+          "data_type": "object",
+          "object_class_id": [
+            "@editor"
+          ],
+          "display_order": 10,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "display_order",
+          "label": "Display Order",
+          "description": "Sort order in forms (lower = first)",
+          "data_type": "integer",
+          "default_value": 0,
+          "display_order": 11,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "flags",
+          "label": "Flags",
+          "description": "Behavior flags: required, readonly, hidden, create_only, server_only, master_only",
+          "data_type": "object",
+          "object_class_id": [
+            "@prop_flags"
+          ],
+          "display_order": 20,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "default_value",
+          "label": "Default Value",
+          "description": "Default value for new objects — type determined by this @prop's data_type",
+          "data_type": "object",
+          "object_class_id": [
+            "@obj_ref"
+          ],
+          "options": {
+            "ref": "self"
+          },
+          "display_order": 30,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "contexts",
+          "label": "Contexts",
+          "description": "Per-context overrides (grid, form, compact, etc.)",
+          "data_type": "object",
+          "is_array": "assoc",
+          "object_class_id": [
+            "@prop_context"
+          ],
+          "options": {
+            "keys": {
+              "extensible": true
+            }
+          },
+          "display_order": 40,
+          "class_id": "@prop_object"
+        }
       ]
+    },
+    {
+      "id": "@prop_string",
+      "class_id": "@class",
+      "name": "String Property",
+      "extends_id": "@prop",
+      "is_system": true,
+      "props": [
+        {
+          "key": "options",
+          "label": "String Options",
+          "description": "String-specific constraints",
+          "data_type": "object",
+          "object_class_id": [
+            "@options_string"
+          ],
+          "display_order": 50,
+          "class_id": "@prop_object"
+        }
+      ]
+    },
+    {
+      "id": "@prop_number",
+      "class_id": "@class",
+      "name": "Number Property",
+      "description": "For integer and float data types",
+      "extends_id": "@prop",
+      "is_system": true,
+      "props": [
+        {
+          "key": "options",
+          "label": "Number Options",
+          "description": "Number-specific constraints",
+          "data_type": "object",
+          "object_class_id": [
+            "@options_number"
+          ],
+          "display_order": 50,
+          "class_id": "@prop_object"
+        }
+      ]
+    },
+    {
+      "id": "@prop_boolean",
+      "class_id": "@class",
+      "name": "Boolean Property",
+      "extends_id": "@prop",
+      "is_system": true,
+      "props": []
+    },
+    {
+      "id": "@prop_datetime",
+      "class_id": "@class",
+      "name": "DateTime Property",
+      "extends_id": "@prop",
+      "is_system": true,
+      "props": [
+        {
+          "key": "options",
+          "label": "DateTime Options",
+          "description": "DateTime-specific constraints",
+          "data_type": "object",
+          "object_class_id": [
+            "@options_datetime"
+          ],
+          "display_order": 50,
+          "class_id": "@prop_object"
+        }
+      ]
+    },
+    {
+      "id": "@prop_object",
+      "class_id": "@class",
+      "name": "Object Property",
+      "extends_id": "@prop",
+      "is_system": true,
+      "props": [
+        {
+          "key": "object_class_id",
+          "label": "Target Classes",
+          "description": "Class IDs for embedded objects",
+          "data_type": "string",
+          "is_array": true,
+          "display_order": 50,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "object_class_strict",
+          "label": "Strict Class",
+          "description": "Only accept exact class match",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 51,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "on_orphan",
+          "label": "On Orphan",
+          "description": "Action when referenced object deleted",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "keep",
+              "delete",
+              "nullify"
+            ]
+          },
+          "default_value": "keep",
+          "display_order": 52,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "options",
+          "label": "Object Options",
+          "description": "Object-specific options",
+          "data_type": "object",
+          "object_class_id": [
+            "@options_object"
+          ],
+          "display_order": 53,
+          "class_id": "@prop_object"
+        }
+      ]
+    },
+    {
+      "id": "@prop_relation",
+      "class_id": "@class",
+      "name": "Relation Property",
+      "extends_id": "@prop",
+      "is_system": true,
+      "props": [
+        {
+          "key": "object_class_id",
+          "label": "Target Classes",
+          "description": "Class IDs for referenced objects",
+          "data_type": "string",
+          "is_array": true,
+          "display_order": 50,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "object_class_strict",
+          "label": "Strict Class",
+          "description": "Only accept exact class match",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 51,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "on_orphan",
+          "label": "On Orphan",
+          "description": "Action when referenced object deleted",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "keep",
+              "delete",
+              "nullify"
+            ]
+          },
+          "default_value": "keep",
+          "display_order": 52,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "options",
+          "label": "Relation Options",
+          "description": "Relation-specific options",
+          "data_type": "object",
+          "object_class_id": [
+            "@options_relation"
+          ],
+          "display_order": 53,
+          "class_id": "@prop_object"
+        }
+      ]
+    },
+    {
+      "id": "@prop_function",
+      "class_id": "@class",
+      "name": "Function Property",
+      "extends_id": "@prop",
+      "is_system": true,
+      "props": []
     },
     {
       "id": "@editor",
@@ -59,33 +497,227 @@
       "description": "Defines a UI editor component for editing property values. Instances are seed data (text, textarea, select, etc.)",
       "is_system": true,
       "props": [
-        {"key": "name",       "label": "Name",         "description": "Editor display name",                            "data_type": "string",  "required": true, "display_order": 1},
-        {"key": "description","label": "Description",  "description": "What this editor is for",                       "data_type": "string",  "editor": "textarea", "display_order": 2},
-        {"key": "data_types", "label": "Data Types",   "description": "Supported data types",                          "data_type": "string",  "is_array": true, "required": true, "options": {"type": "string_options", "values": ["string","boolean","integer","float","datetime","object","relation","function"]}, "display_order": 3},
-        {"key": "is_default", "label": "Default",      "description": "Default editor for its data types",             "data_type": "boolean", "default_value": false, "display_order": 4},
-        {"key": "is_system",  "label": "System Editor","description": "Protected system editor (cannot be deleted)",   "data_type": "boolean", "readonly": true, "default_value": false, "display_order": 5},
-        {"key": "validator",  "label": "Validator",    "description": "Built-in validator (e.g. email, url, phone)",   "data_type": "string",  "display_order": 6},
-        {"key": "props",      "label": "Options Schema","description": "Configuration options this editor accepts",    "data_type": "object",  "is_array": true, "object_class_id": ["@prop"], "display_order": 7},
-        {"key": "component",  "label": "Component",    "description": "UI component name or path",                     "data_type": "string",  "display_order": 8},
-        {"key": "render",     "label": "Render",       "description": "Custom render function: (scope) => html",       "data_type": "function","editor": "javascript", "display_order": 9}
+        {
+          "key": "name",
+          "label": "Name",
+          "description": "Editor display name",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "description": "What this editor is for",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "data_types",
+          "label": "Data Types",
+          "description": "Supported data types",
+          "data_type": "string",
+          "is_array": true,
+          "options": {
+            "type": "string_options",
+            "values": [
+              "string",
+              "boolean",
+              "integer",
+              "float",
+              "datetime",
+              "object",
+              "relation",
+              "function"
+            ]
+          },
+          "display_order": 3,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "is_default",
+          "label": "Default",
+          "description": "Default editor for its data types",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 4,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "is_system",
+          "label": "System Editor",
+          "description": "Protected system editor (cannot be deleted)",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 5,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "validator",
+          "label": "Validator",
+          "description": "Built-in validator (e.g. email, url, phone)",
+          "data_type": "string",
+          "display_order": 6,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "props",
+          "label": "Options Schema",
+          "description": "Configuration options this editor accepts",
+          "data_type": "object",
+          "is_array": true,
+          "object_class_id": [
+            "@prop"
+          ],
+          "display_order": 7,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "component",
+          "label": "Component",
+          "description": "UI component name or path",
+          "data_type": "string",
+          "display_order": 8,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "render",
+          "label": "Render",
+          "description": "Custom render function: (scope) => html",
+          "data_type": "function",
+          "editor": {
+            "id": "javascript"
+          },
+          "display_order": 9,
+          "class_id": "@prop_function"
+        }
       ]
     },
     {
       "id": "@storage",
       "class_id": "@class",
       "name": "Storage",
-      "description": "Storage provider configuration — defines where and how class data is persisted. 'api' and 'composite' types proxy through @provider. 'none' = transient fire-and-forget (WebSocket only, no persistence). When a class's storage is null/omitted, the store's default storage adapter is used.",
+      "description": "Storage provider configuration — defines where and how class data is persisted. 'api' and 'composite' types proxy through @provider.",
       "is_system": true,
       "props": [
-        {"key": "name",           "label": "Name",           "description": "Storage provider display name",                                                         "data_type": "string",   "required": true, "display_order": 1},
-        {"key": "url",            "label": "URL",            "description": "API endpoint URL (for rest type)",                                                       "data_type": "string",   "field_type": "url", "display_order": 2},
-        {"key": "type",           "label": "Type",           "description": "Storage backend: local (browser), rest (ES API), api (external via @provider), seed (read-only), composite (multi-source), couchdb/mysql/json (server-only)", "data_type": "string", "options": {"type": "string_options", "values": ["local","rest","api","seed","composite","couchdb","mysql","json","none"]}, "default_value": "rest", "display_order": 3},
-        {"key": "provider_id",    "label": "Provider",       "description": "Data provider for external API integration (type=api)",                                  "data_type": "relation", "object_class_id": ["@provider"], "display_order": 10, "group_name": "Composite"},
-        {"key": "read",           "label": "Read Sources",   "description": "Ordered storage IDs to read from (type=composite). Tried in order or merged.",          "data_type": "string",   "is_array": true, "display_order": 11, "group_name": "Composite"},
-        {"key": "write",          "label": "Write Target",   "description": "Storage ID to write to (type=composite).",                                               "data_type": "string",   "display_order": 12, "group_name": "Composite"},
-        {"key": "read_strategy",  "label": "Read Strategy",  "description": "How to combine reads (type=composite): fallback=first hit wins, merge=combine all",     "data_type": "string",   "options": {"type": "string_options", "values": ["fallback","merge"]}, "default_value": "fallback", "display_order": 13, "group_name": "Composite"},
-        {"key": "write_strategy", "label": "Write Strategy", "description": "How to handle writes (type=composite): sequential=in order stop on fail, parallel=all at once, best_effort=all ignore failures", "data_type": "string", "options": {"type": "string_options", "values": ["sequential","parallel","best_effort"]}, "default_value": "sequential", "display_order": 14, "group_name": "Composite"},
-        {"key": "rules",          "label": "Rules",          "description": "Behavior rules for this storage adapter. Example: { persist: false, cache: false, broadcast: true }. For 'none' type: objects are delivered via WebSocket but never written to any store.", "data_type": "object", "display_order": 15}
+        {
+          "key": "name",
+          "label": "Name",
+          "description": "Storage provider display name",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "url",
+          "label": "URL",
+          "description": "API endpoint URL (for rest type)",
+          "data_type": "string",
+          "editor": {
+            "id": "url"
+          },
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "type",
+          "label": "Type",
+          "description": "Storage backend: local (browser), rest (ES API), api (external via @provider), seed (read-only), composite (multi-source), couchdb/mysql/json (server-only)",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "local",
+              "rest",
+              "api",
+              "seed",
+              "composite",
+              "couchdb",
+              "mysql",
+              "json"
+            ]
+          },
+          "default_value": "rest",
+          "display_order": 3,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "provider_id",
+          "label": "Provider",
+          "description": "Data provider for external API integration (type=api)",
+          "data_type": "relation",
+          "object_class_id": [
+            "@provider"
+          ],
+          "display_order": 10,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "read",
+          "label": "Read Sources",
+          "description": "Ordered storage IDs to read from (type=composite). Tried in order or merged.",
+          "data_type": "string",
+          "is_array": true,
+          "display_order": 11,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "write",
+          "label": "Write Target",
+          "description": "Storage ID to write to (type=composite).",
+          "data_type": "string",
+          "display_order": 12,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "read_strategy",
+          "label": "Read Strategy",
+          "description": "How to combine reads (type=composite): fallback=first hit wins, merge=combine all",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "fallback",
+              "merge"
+            ]
+          },
+          "default_value": "fallback",
+          "display_order": 13,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "write_strategy",
+          "label": "Write Strategy",
+          "description": "How to handle writes (type=composite): sequential=in order stop on fail, parallel=all at once, best_effort=all ignore failures",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "sequential",
+              "parallel",
+              "best_effort"
+            ]
+          },
+          "default_value": "sequential",
+          "display_order": 14,
+          "class_id": "@prop_string"
+        }
       ]
     },
     {
@@ -95,13 +727,96 @@
       "description": "Defines a reusable function — validators, transformers, generators, or computed fields",
       "is_system": true,
       "props": [
-        {"key": "name",          "label": "Name",          "description": "Function display name",                                                "data_type": "string",   "required": true, "display_order": 1},
-        {"key": "description",   "label": "Description",   "description": "What this function does",                                              "data_type": "string",   "editor": "textarea", "display_order": 2},
-        {"key": "function_type", "label": "Function Type", "description": "Category of function",                                                 "data_type": "string",   "required": true, "options": {"type": "string_options", "values": ["validator","transformer","computed","generator","custom"]}, "display_order": 3},
-        {"key": "scope",         "label": "Scope",         "description": "Which data types this function applies to",                            "data_type": "string",   "is_array": true, "display_order": 4},
-        {"key": "parameters",    "label": "Parameters",    "description": "Function input parameters schema",                                     "data_type": "object",   "is_array": true, "object_class_id": ["@prop"], "display_order": 5},
-        {"key": "code",          "label": "Code",          "description": "JavaScript: (obj, prop, value, params) => result",                    "data_type": "function", "editor": "javascript", "required": true, "display_order": 6},
-        {"key": "is_system",     "label": "System",        "description": "Protected system function",                                           "data_type": "boolean",  "readonly": true, "default_value": false, "display_order": 7}
+        {
+          "key": "name",
+          "label": "Name",
+          "description": "Function display name",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "description": "What this function does",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "function_type",
+          "label": "Function Type",
+          "description": "Category of function",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "validator",
+              "transformer",
+              "computed",
+              "generator",
+              "custom"
+            ]
+          },
+          "display_order": 3,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "scope",
+          "label": "Scope",
+          "description": "Which data types this function applies to",
+          "data_type": "string",
+          "is_array": true,
+          "display_order": 4,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "parameters",
+          "label": "Parameters",
+          "description": "Function input parameters schema",
+          "data_type": "object",
+          "is_array": true,
+          "object_class_id": [
+            "@prop"
+          ],
+          "display_order": 5,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "code",
+          "label": "Code",
+          "description": "JavaScript: (obj, prop, value, params) => result",
+          "data_type": "function",
+          "editor": {
+            "id": "javascript"
+          },
+          "display_order": 6,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_function"
+        },
+        {
+          "key": "is_system",
+          "label": "System",
+          "description": "Protected system function",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 7,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_boolean"
+        }
       ]
     },
     {
@@ -111,37 +826,276 @@
       "description": "Universal execution unit — a named function with typed parameters and field mapping. The action key (id) is the function name. The type determines HOW it executes: api (HTTP call), cli (shell command), function (registry lookup), event (bus dispatch), composite (chain), ui (JS handler). Parameters map between the source object and the request/response via request_mapping and response_mapping.",
       "is_system": true,
       "props": [
-        {"key": "name",              "label": "Name",              "description": "Action display name",                                                  "data_type": "string",   "required": true, "display_order": 1},
-        {"key": "description",       "label": "Description",       "description": "What this action does",                                                "data_type": "string",   "editor": "textarea", "display_order": 2},
-        {"key": "type",              "label": "Type",              "description": "Execution type: api (HTTP), cli (shell), function (registry), event (bus), composite (chain), ui (JS handler)", "data_type": "string", "required": true, "options": {"type": "string_options", "values": ["api","cli","function","event","composite","ui"]}, "display_order": 3},
-        {"key": "group_name",        "label": "Group",             "description": "Action category for UI grouping",                                      "data_type": "string",   "display_order": 4},
-        {"key": "target_class_id",   "label": "Target Class",      "description": "Class this action applies to. Determines which objects can invoke this action.", "data_type": "relation", "object_class_id": ["@class"], "display_order": 5},
-        {"key": "params",            "label": "Parameters",        "description": "Input parameters schema — defines what the action accepts",            "data_type": "object",   "is_array": true, "object_class_id": ["@prop"], "display_order": 6},
-        {"key": "returns",           "label": "Returns",           "description": "Return type",                                                          "data_type": "string",   "options": {"type": "string_options", "values": ["object","list","void"]}, "default_value": "void", "display_order": 7},
-        {"key": "request_mapping",   "label": "Request Mapping",   "description": "Source object field → request field mapping. Maps current object properties to action input parameters. e.g. {application_id: \"app\", environment_id: \"env\"}", "data_type": "object", "display_order": 8},
-        {"key": "response_mapping",  "label": "Response Mapping",  "description": "Response field → target object field mapping. Maps action output back to object properties. e.g. {status: \"last_status\", updated: \"last_deploy_at\"}", "data_type": "object", "display_order": 9},
-
-        {"key": "provider_id","label": "Provider",      "description": "Provider that owns this action. Inherits base_url and auth from provider (type=api). Provider.actions[] is the canonical list.",  "data_type": "relation", "object_class_id": ["@provider"], "display_order": 10, "group_name": "API"},
-        {"key": "method",    "label": "HTTP Method",   "description": "HTTP method (type=api)",                                                           "data_type": "string",   "options": {"type": "string_options", "values": ["GET","POST","PUT","PATCH","DELETE"]}, "default_value": "GET", "display_order": 11, "group_name": "API"},
-        {"key": "endpoint",  "label": "Endpoint",      "description": "URL path relative to provider base_url. Supports {field} placeholders from source object (type=api)", "data_type": "string", "display_order": 12, "group_name": "API"},
-        {"key": "headers",   "label": "Headers",       "description": "Additional HTTP headers as key:value object (type=api)",                           "data_type": "object",   "display_order": 13, "group_name": "API"},
-
-        {"key": "command",     "label": "Command",         "description": "Shell command template with {field} placeholders from source object (type=cli)", "data_type": "string", "editor": "code", "display_order": 20, "group_name": "CLI"},
-        {"key": "working_dir", "label": "Working Directory","description": "Directory to run command from. Supports {field} placeholders (type=cli)",      "data_type": "string", "display_order": 21, "group_name": "CLI"},
-
-        {"key": "function",  "label": "Function Key",  "description": "FunctionRegistry key to call (type=function), e.g. 'billing.calculate'",          "data_type": "string",   "display_order": 30, "group_name": "Function"},
-
-        {"key": "event",     "label": "Event Name",    "description": "EventBus event name to emit (type=event)",                                         "data_type": "string",   "display_order": 40, "group_name": "Event"},
-        {"key": "payload",   "label": "Payload Map",   "description": "param→event_field mapping for event payload (type=event)",                        "data_type": "object",   "display_order": 41, "group_name": "Event"},
-
-        {"key": "actions",   "label": "Sub-Actions",   "description": "Ordered action IDs to chain (type=composite)",                                    "data_type": "relation", "object_class_id": ["@action"], "is_array": true, "display_order": 50, "group_name": "Composite"},
-        {"key": "strategy",  "label": "Strategy",      "description": "Execution strategy (type=composite): sequential=stop on fail, parallel=all at once", "data_type": "string", "options": {"type": "string_options", "values": ["sequential","parallel"]}, "default_value": "sequential", "display_order": 51, "group_name": "Composite"},
-
-        {"key": "handler",            "label": "Handler",            "description": "JS handler code: (scope) => result (type=ui)",                       "data_type": "function", "editor": "javascript", "display_order": 60, "group_name": "UI"},
-        {"key": "requires_selection", "label": "Requires Selection", "description": "Action requires selected object(s) (type=ui)",                      "data_type": "boolean",  "default_value": true, "display_order": 61, "group_name": "UI"},
-        {"key": "bulk",               "label": "Bulk Action",        "description": "Can apply to multiple objects (type=ui)",                            "data_type": "boolean",  "default_value": false, "display_order": 62, "group_name": "UI"},
-        {"key": "confirm",            "label": "Confirm",            "description": "Confirmation message before running (empty = no confirm)",           "data_type": "string",   "display_order": 63, "group_name": "UI"},
-        {"key": "icon",               "label": "Icon",               "description": "Icon name for UI display",                                           "data_type": "string",   "display_order": 64, "group_name": "UI"}
+        {
+          "key": "name",
+          "label": "Name",
+          "description": "Action display name",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "description": "What this action does",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "type",
+          "label": "Type",
+          "description": "Execution type: api (HTTP), cli (shell), function (registry), event (bus), composite (chain), ui (JS handler)",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "api",
+              "cli",
+              "function",
+              "event",
+              "composite",
+              "ui"
+            ]
+          },
+          "display_order": 3,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "group_name",
+          "label": "Group",
+          "description": "Action category for UI grouping",
+          "data_type": "string",
+          "display_order": 4,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "target_class_id",
+          "label": "Target Class",
+          "description": "Class this action applies to. Determines which objects can invoke this action.",
+          "data_type": "relation",
+          "object_class_id": [
+            "@class"
+          ],
+          "display_order": 5,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "params",
+          "label": "Parameters",
+          "description": "Input parameters schema — defines what the action accepts",
+          "data_type": "object",
+          "is_array": true,
+          "object_class_id": [
+            "@prop"
+          ],
+          "display_order": 6,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "returns",
+          "label": "Returns",
+          "description": "Return type",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "object",
+              "list",
+              "void"
+            ]
+          },
+          "default_value": "void",
+          "display_order": 7,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "request_mapping",
+          "label": "Request Mapping",
+          "description": "Source object field → request field mapping. Maps current object properties to action input parameters. e.g. {application_id: \"app\", environment_id: \"env\"}",
+          "data_type": "object",
+          "display_order": 8,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "response_mapping",
+          "label": "Response Mapping",
+          "description": "Response field → target object field mapping. Maps action output back to object properties. e.g. {status: \"last_status\", updated: \"last_deploy_at\"}",
+          "data_type": "object",
+          "display_order": 9,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "provider_id",
+          "label": "Provider",
+          "description": "Provider that owns this action. Inherits base_url and auth from provider (type=api). Provider.actions[] is the canonical list.",
+          "data_type": "relation",
+          "object_class_id": [
+            "@provider"
+          ],
+          "display_order": 10,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "method",
+          "label": "HTTP Method",
+          "description": "HTTP method (type=api)",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ]
+          },
+          "default_value": "GET",
+          "display_order": 11,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "endpoint",
+          "label": "Endpoint",
+          "description": "URL path relative to provider base_url. Supports {field} placeholders from source object (type=api)",
+          "data_type": "string",
+          "display_order": 12,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "headers",
+          "label": "Headers",
+          "description": "Additional HTTP headers as key:value object (type=api)",
+          "data_type": "object",
+          "display_order": 13,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "command",
+          "label": "Command",
+          "description": "Shell command template with {field} placeholders from source object (type=cli)",
+          "data_type": "string",
+          "editor": {
+            "id": "code"
+          },
+          "display_order": 20,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "working_dir",
+          "label": "Working Directory",
+          "description": "Directory to run command from. Supports {field} placeholders (type=cli)",
+          "data_type": "string",
+          "display_order": 21,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "function",
+          "label": "Function Key",
+          "description": "FunctionRegistry key to call (type=function), e.g. 'billing.calculate'",
+          "data_type": "string",
+          "display_order": 30,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "event",
+          "label": "Event Name",
+          "description": "EventBus event name to emit (type=event)",
+          "data_type": "string",
+          "display_order": 40,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "payload",
+          "label": "Payload Map",
+          "description": "param→event_field mapping for event payload (type=event)",
+          "data_type": "object",
+          "display_order": 41,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "actions",
+          "label": "Sub-Actions",
+          "description": "Ordered action IDs to chain (type=composite)",
+          "data_type": "relation",
+          "object_class_id": [
+            "@action"
+          ],
+          "is_array": true,
+          "display_order": 50,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "strategy",
+          "label": "Strategy",
+          "description": "Execution strategy (type=composite): sequential=stop on fail, parallel=all at once",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "sequential",
+              "parallel"
+            ]
+          },
+          "default_value": "sequential",
+          "display_order": 51,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "handler",
+          "label": "Handler",
+          "description": "JS handler code: (scope) => result (type=ui)",
+          "data_type": "function",
+          "editor": {
+            "id": "javascript"
+          },
+          "display_order": 60,
+          "class_id": "@prop_function"
+        },
+        {
+          "key": "requires_selection",
+          "label": "Requires Selection",
+          "description": "Action requires selected object(s) (type=ui)",
+          "data_type": "boolean",
+          "default_value": true,
+          "display_order": 61,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "bulk",
+          "label": "Bulk Action",
+          "description": "Can apply to multiple objects (type=ui)",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 62,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "confirm",
+          "label": "Confirm",
+          "description": "Confirmation message before running (empty = no confirm)",
+          "data_type": "string",
+          "display_order": 63,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "icon",
+          "label": "Icon",
+          "description": "Icon name for UI display",
+          "data_type": "string",
+          "display_order": 64,
+          "class_id": "@prop_string"
+        }
       ]
     },
     {
@@ -151,14 +1105,104 @@
       "description": "Defines an event that can be subscribed to and triggered",
       "is_system": true,
       "props": [
-        {"key": "name",           "label": "Name",           "description": "Event name",                                                "data_type": "string",   "required": true, "display_order": 1},
-        {"key": "description",    "label": "Description",    "description": "What triggers this event",                                 "data_type": "string",   "editor": "textarea", "display_order": 2},
-        {"key": "target_class_id","label": "Target Class",   "description": "Class this event applies to",                             "data_type": "relation", "object_class_id": ["@class"], "display_order": 3},
-        {"key": "trigger",        "label": "Trigger",        "description": "When this event fires",                                    "data_type": "string",   "options": {"type": "string_options", "values": ["before_create","after_create","before_update","after_update","before_delete","after_delete","on_change","custom"]}, "display_order": 4},
-        {"key": "handler",        "label": "Handler",        "description": "Event handler: (scope) => void",                          "data_type": "function", "editor": "javascript", "required": true, "display_order": 5},
-        {"key": "payload_schema", "label": "Payload Schema", "description": "Event payload structure",                                 "data_type": "object",   "is_array": true, "object_class_id": ["@prop"], "display_order": 6},
-        {"key": "async",          "label": "Async",          "description": "Run handler asynchronously",                              "data_type": "boolean",  "default_value": false, "display_order": 7},
-        {"key": "priority",       "label": "Priority",       "description": "Execution order (higher = first)",                        "data_type": "integer",  "default_value": 0, "display_order": 8}
+        {
+          "key": "name",
+          "label": "Name",
+          "description": "Event name",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "description": "What triggers this event",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "target_class_id",
+          "label": "Target Class",
+          "description": "Class this event applies to",
+          "data_type": "relation",
+          "object_class_id": [
+            "@class"
+          ],
+          "display_order": 3,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "trigger",
+          "label": "Trigger",
+          "description": "When this event fires",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "before_create",
+              "after_create",
+              "before_update",
+              "after_update",
+              "before_delete",
+              "after_delete",
+              "on_change",
+              "custom"
+            ]
+          },
+          "display_order": 4,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "handler",
+          "label": "Handler",
+          "description": "Event handler: (scope) => void",
+          "data_type": "function",
+          "editor": {
+            "id": "javascript"
+          },
+          "display_order": 5,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_function"
+        },
+        {
+          "key": "payload_schema",
+          "label": "Payload Schema",
+          "description": "Event payload structure",
+          "data_type": "object",
+          "is_array": true,
+          "object_class_id": [
+            "@prop"
+          ],
+          "display_order": 6,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "async",
+          "label": "Async",
+          "description": "Run handler asynchronously",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 7,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "priority",
+          "label": "Priority",
+          "description": "Execution order (higher = first)",
+          "data_type": "integer",
+          "default_value": 0,
+          "display_order": 8,
+          "class_id": "@prop_number"
+        }
       ]
     },
     {
@@ -169,15 +1213,100 @@
       "is_system": true,
       "is_abstract": true,
       "props": [
-        {"key": "name",          "label": "Name",               "description": "Provider display name",                                                                "data_type": "string",   "required": true, "display_order": 1},
-        {"key": "description",   "label": "Description",        "description": "What external system this provider connects to",                                       "data_type": "string",   "editor": "textarea", "display_order": 2},
-        {"key": "base_url",      "label": "Base URL",           "description": "Base URL for API requests (inherited by child providers via extends_id)",              "data_type": "string",   "field_type": "url", "display_order": 3},
-        {"key": "auth",          "label": "Authentication",     "description": "Auth config: {type: bearer|basic|apikey, token?, username?, password?, header?, key?}", "data_type": "object",   "display_order": 4},
-        {"key": "id_field",      "label": "External ID Field",  "description": "Field name in API response that holds the external ID (stored in object._links)",      "data_type": "string",   "default_value": "id", "display_order": 5},
-        {"key": "write_mode",    "label": "Write Mode",         "description": "crud=direct setObject allowed; actions_only=must use @action to modify linked objects", "data_type": "string",   "options": {"type": "string_options", "values": ["crud","actions_only"]}, "default_value": "actions_only", "display_order": 6},
-        {"key": "mapping",       "label": "Field Mapping",      "description": "Default API field → ES field mapping (overridden per action). e.g. {api_id: id, api_name: name}", "data_type": "object", "display_order": 7},
-        {"key": "actions",       "label": "Actions",            "description": "Available actions on this provider (get_one, get_list, create_one, update_one, delete_one, + custom)", "data_type": "relation", "object_class_id": ["@action"], "is_array": true, "display_order": 8},
-        {"key": "params",        "label": "Default Parameters", "description": "Default query parameters added to every API request",                                  "data_type": "object",   "display_order": 9}
+        {
+          "key": "name",
+          "label": "Name",
+          "description": "Provider display name",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "description": "What external system this provider connects to",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "base_url",
+          "label": "Base URL",
+          "description": "Base URL for API requests (inherited by child providers via extends_id)",
+          "data_type": "string",
+          "editor": {
+            "id": "url"
+          },
+          "display_order": 3,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "auth",
+          "label": "Authentication",
+          "description": "Auth config: {type: bearer|basic|apikey, token?, username?, password?, header?, key?}",
+          "data_type": "object",
+          "display_order": 4,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "id_field",
+          "label": "External ID Field",
+          "description": "Field name in API response that holds the external ID (stored in object._links)",
+          "data_type": "string",
+          "default_value": "id",
+          "display_order": 5,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "write_mode",
+          "label": "Write Mode",
+          "description": "crud=direct setObject allowed; actions_only=must use @action to modify linked objects",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "crud",
+              "actions_only"
+            ]
+          },
+          "default_value": "actions_only",
+          "display_order": 6,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "mapping",
+          "label": "Field Mapping",
+          "description": "Default API field → ES field mapping (overridden per action). e.g. {api_id: id, api_name: name}",
+          "data_type": "object",
+          "display_order": 7,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "actions",
+          "label": "Actions",
+          "description": "Available actions on this provider (get_one, get_list, create_one, update_one, delete_one, + custom)",
+          "data_type": "relation",
+          "object_class_id": [
+            "@action"
+          ],
+          "is_array": true,
+          "display_order": 8,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "params",
+          "label": "Default Parameters",
+          "description": "Default query parameters added to every API request",
+          "data_type": "object",
+          "display_order": 9,
+          "class_id": "@prop_object"
+        }
       ]
     },
     {
@@ -188,16 +1317,65 @@
       "description": "Concrete provider template for standard REST CRUD APIs. Inherits base_url and auth from @provider. Adds URL patterns and pagination config. Create instances for each class that uses a CRUD API.",
       "is_system": true,
       "props": [
-        {"key": "get_one",    "label": "Get One Endpoint",    "description": "Endpoint path for GET single object, e.g. /vms/{id}. Overrides actions.get_one.endpoint", "data_type": "string", "display_order": 10},
-        {"key": "get_list",   "label": "Get List Endpoint",   "description": "Endpoint path for GET list, e.g. /vms",                                                   "data_type": "string", "display_order": 11},
-        {"key": "create_one", "label": "Create One Endpoint", "description": "Endpoint path for POST create, e.g. /vms",                                                "data_type": "string", "display_order": 12},
-        {"key": "update_one", "label": "Update One Endpoint", "description": "Endpoint path for PUT/PATCH update, e.g. /vms/{id}",                                     "data_type": "string", "display_order": 13},
-        {"key": "delete_one", "label": "Delete One Endpoint", "description": "Endpoint path for DELETE, e.g. /vms/{id}",                                                "data_type": "string", "display_order": 14},
-        {"key": "paginator",  "label": "Paginator",           "description": "Pagination config: {page_param, size_param, total_field, data_field}",                   "data_type": "object", "display_order": 15},
-        {"key": "filters",    "label": "Filter Params",       "description": "Available filter query parameter names",                                                  "data_type": "string", "is_array": true, "display_order": 16}
+        {
+          "key": "get_one",
+          "label": "Get One Endpoint",
+          "description": "Endpoint path for GET single object, e.g. /vms/{id}. Overrides actions.get_one.endpoint",
+          "data_type": "string",
+          "display_order": 10,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "get_list",
+          "label": "Get List Endpoint",
+          "description": "Endpoint path for GET list, e.g. /vms",
+          "data_type": "string",
+          "display_order": 11,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "create_one",
+          "label": "Create One Endpoint",
+          "description": "Endpoint path for POST create, e.g. /vms",
+          "data_type": "string",
+          "display_order": 12,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "update_one",
+          "label": "Update One Endpoint",
+          "description": "Endpoint path for PUT/PATCH update, e.g. /vms/{id}",
+          "data_type": "string",
+          "display_order": 13,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "delete_one",
+          "label": "Delete One Endpoint",
+          "description": "Endpoint path for DELETE, e.g. /vms/{id}",
+          "data_type": "string",
+          "display_order": 14,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "paginator",
+          "label": "Paginator",
+          "description": "Pagination config: {page_param, size_param, total_field, data_field}",
+          "data_type": "object",
+          "display_order": 15,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "filters",
+          "label": "Filter Params",
+          "description": "Available filter query parameter names",
+          "data_type": "string",
+          "is_array": true,
+          "display_order": 16,
+          "class_id": "@prop_string"
+        }
       ]
-    }
-  ,
+    },
     {
       "id": "auth_config",
       "class_id": "@class",
@@ -205,27 +1383,196 @@
       "description": "Auth-service connection configuration for this elementStore installation. One object per installation. All endpoint paths are configurable here.",
       "is_system": true,
       "props": [
-        {"key": "app_id",               "label": "App ID",                "description": "Identifier for this app in the auth-service (e.g. 'elementStore')",         "data_type": "string",   "required": true,  "create_only": true, "display_order": 1,  "group_name": "Identity"},
-        {"key": "app_name",             "label": "App Name",              "description": "Human-readable display name registered in auth-service",                    "data_type": "string",   "required": true,              "display_order": 2,  "group_name": "Identity"},
-        {"key": "service_url",          "label": "Auth Service URL",      "description": "Base URL of the auth-service (e.g. http://agura-auth:3100)",               "data_type": "string",   "required": true,  "field_type": "url", "display_order": 3,  "group_name": "Connection"},
-        {"key": "is_enabled",           "label": "Enabled",               "description": "Enable auth enforcement on all API requests",                              "data_type": "boolean",  "default_value": true,                          "display_order": 4,  "group_name": "Connection"},
-        {"key": "scopes",               "label": "Scopes",                "description": "Permission scopes this app requests (e.g. read, write, admin)",            "data_type": "string",   "is_array": true,              "display_order": 5,  "group_name": "Identity"},
-        {"key": "allowed_origins",      "label": "Allowed Origins",       "description": "Browser origins allowed to use tokens issued for this app",                "data_type": "string",   "is_array": true,              "display_order": 6,  "group_name": "Identity"},
-
-        {"key": "ep_login",             "label": "Login Endpoint",        "description": "POST — authenticate user, returns JWT",                                    "data_type": "string",   "default_value": "/api/auth/login",                         "display_order": 20, "group_name": "Endpoints"},
-        {"key": "ep_logout",            "label": "Logout Endpoint",       "description": "POST — invalidate token",                                                  "data_type": "string",   "default_value": "/api/auth/logout",                        "display_order": 21, "group_name": "Endpoints"},
-        {"key": "ep_verify",            "label": "Verify Endpoint",       "description": "GET — verify a token (remote check, optional)",                            "data_type": "string",   "default_value": "/api/auth/verify",                        "display_order": 22, "group_name": "Endpoints"},
-        {"key": "ep_refresh",           "label": "Refresh Endpoint",      "description": "POST — refresh an expiring JWT",                                           "data_type": "string",   "default_value": "/api/auth/refresh",                       "display_order": 23, "group_name": "Endpoints"},
-        {"key": "ep_jwks",              "label": "JWKS Endpoint",         "description": "GET — fetch public keys for local JWT verification",                       "data_type": "string",   "default_value": "/.well-known/jwks.json",                  "display_order": 24, "group_name": "Endpoints"},
-        {"key": "ep_register_app",      "label": "Register App Endpoint", "description": "POST — register this app with auth-service on first boot",                "data_type": "string",   "default_value": "/api/auth/apps",                          "display_order": 25, "group_name": "Endpoints"},
-        {"key": "ep_get_app",           "label": "Get App Endpoint",      "description": "GET — check if app is already registered (appended with /{app_id})",      "data_type": "string",   "default_value": "/api/auth/apps",                          "display_order": 26, "group_name": "Endpoints"},
-        {"key": "ep_register_machine",  "label": "Register Machine",      "description": "POST — register this machine/instance (appended with /{app_id}/machines)","data_type": "string",   "default_value": "/api/auth/apps",                          "display_order": 27, "group_name": "Endpoints"},
-        {"key": "ep_list_machines",     "label": "List Machines",         "description": "GET — list registered machines for this app",                             "data_type": "string",   "default_value": "/api/auth/apps",                          "display_order": 28, "group_name": "Endpoints"},
-        {"key": "ep_revoke_machine",    "label": "Revoke Machine",        "description": "DELETE — revoke a specific machine registration",                         "data_type": "string",   "default_value": "/api/auth/apps",                          "display_order": 29, "group_name": "Endpoints"},
-
-        {"key": "public_key",           "label": "Public Key (cached)",   "description": "Cached JWT public key fetched from JWKS endpoint at boot",                "data_type": "string",   "server_only": true, "readonly": true,   "display_order": 40, "group_name": "Keys"},
-        {"key": "public_key_kid",       "label": "Key ID (kid)",          "description": "Key identifier from JWKS — used to select key for verification",          "data_type": "string",   "server_only": true, "readonly": true,   "display_order": 41, "group_name": "Keys"},
-        {"key": "public_key_fetched_at","label": "Key Fetched At",        "description": "When the public key was last fetched from auth-service",                  "data_type": "string",   "server_only": true, "readonly": true,   "display_order": 42, "group_name": "Keys"}
+        {
+          "key": "app_id",
+          "label": "App ID",
+          "description": "Identifier for this app in the auth-service (e.g. 'elementStore')",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": {
+            "required": true,
+            "create_only": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "app_name",
+          "label": "App Name",
+          "description": "Human-readable display name registered in auth-service",
+          "data_type": "string",
+          "display_order": 2,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "service_url",
+          "label": "Auth Service URL",
+          "description": "Base URL of the auth-service (e.g. http://agura-auth:3100)",
+          "data_type": "string",
+          "editor": {
+            "id": "url"
+          },
+          "display_order": 3,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "is_enabled",
+          "label": "Enabled",
+          "description": "Enable auth enforcement on all API requests",
+          "data_type": "boolean",
+          "default_value": true,
+          "display_order": 4,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "scopes",
+          "label": "Scopes",
+          "description": "Permission scopes this app requests (e.g. read, write, admin)",
+          "data_type": "string",
+          "is_array": true,
+          "display_order": 5,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "allowed_origins",
+          "label": "Allowed Origins",
+          "description": "Browser origins allowed to use tokens issued for this app",
+          "data_type": "string",
+          "is_array": true,
+          "display_order": 6,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "ep_login",
+          "label": "Login Endpoint",
+          "description": "POST — authenticate user, returns JWT",
+          "data_type": "string",
+          "default_value": "/api/auth/login",
+          "display_order": 20,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "ep_logout",
+          "label": "Logout Endpoint",
+          "description": "POST — invalidate token",
+          "data_type": "string",
+          "default_value": "/api/auth/logout",
+          "display_order": 21,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "ep_verify",
+          "label": "Verify Endpoint",
+          "description": "GET — verify a token (remote check, optional)",
+          "data_type": "string",
+          "default_value": "/api/auth/verify",
+          "display_order": 22,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "ep_refresh",
+          "label": "Refresh Endpoint",
+          "description": "POST — refresh an expiring JWT",
+          "data_type": "string",
+          "default_value": "/api/auth/refresh",
+          "display_order": 23,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "ep_jwks",
+          "label": "JWKS Endpoint",
+          "description": "GET — fetch public keys for local JWT verification",
+          "data_type": "string",
+          "default_value": "/.well-known/jwks.json",
+          "display_order": 24,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "ep_register_app",
+          "label": "Register App Endpoint",
+          "description": "POST — register this app with auth-service on first boot",
+          "data_type": "string",
+          "default_value": "/api/auth/apps",
+          "display_order": 25,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "ep_get_app",
+          "label": "Get App Endpoint",
+          "description": "GET — check if app is already registered (appended with /{app_id})",
+          "data_type": "string",
+          "default_value": "/api/auth/apps",
+          "display_order": 26,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "ep_register_machine",
+          "label": "Register Machine",
+          "description": "POST — register this machine/instance (appended with /{app_id}/machines)",
+          "data_type": "string",
+          "default_value": "/api/auth/apps",
+          "display_order": 27,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "ep_list_machines",
+          "label": "List Machines",
+          "description": "GET — list registered machines for this app",
+          "data_type": "string",
+          "default_value": "/api/auth/apps",
+          "display_order": 28,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "ep_revoke_machine",
+          "label": "Revoke Machine",
+          "description": "DELETE — revoke a specific machine registration",
+          "data_type": "string",
+          "default_value": "/api/auth/apps",
+          "display_order": 29,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "public_key",
+          "label": "Public Key (cached)",
+          "description": "Cached JWT public key fetched from JWKS endpoint at boot",
+          "data_type": "string",
+          "display_order": 40,
+          "flags": {
+            "readonly": true,
+            "server_only": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "public_key_kid",
+          "label": "Key ID (kid)",
+          "description": "Key identifier from JWKS — used to select key for verification",
+          "data_type": "string",
+          "display_order": 41,
+          "flags": {
+            "readonly": true,
+            "server_only": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "public_key_fetched_at",
+          "label": "Key Fetched At",
+          "description": "When the public key was last fetched from auth-service",
+          "data_type": "string",
+          "display_order": 42,
+          "flags": {
+            "readonly": true,
+            "server_only": true
+          },
+          "class_id": "@prop_string"
+        }
       ]
     },
     {
@@ -235,11 +1582,476 @@
       "description": "Credentials returned after registering this app with auth-service. One object per app_id. client_secret is server_only.",
       "is_system": true,
       "props": [
-        {"key": "config_id",      "label": "Auth Config",    "description": "Auth config this registration belongs to",              "data_type": "relation", "object_class_id": ["auth_config"], "required": true,  "create_only": true, "display_order": 1},
-        {"key": "client_id",      "label": "Client ID",      "description": "Client ID assigned by auth-service after registration", "data_type": "string",   "required": true,  "readonly": true,    "display_order": 2},
-        {"key": "client_secret",  "label": "Client Secret",  "description": "Client secret — never exposed via API",                "data_type": "string",   "required": true,  "server_only": true, "display_order": 3},
-        {"key": "registered_at",  "label": "Registered At",  "description": "When this app was first registered",                   "data_type": "string",   "readonly": true,  "display_order": 4},
-        {"key": "is_active",      "label": "Active",         "description": "Whether this registration is currently valid",          "data_type": "boolean",  "default_value": true,               "display_order": 5}
+        {
+          "key": "config_id",
+          "label": "Auth Config",
+          "description": "Auth config this registration belongs to",
+          "data_type": "relation",
+          "object_class_id": [
+            "auth_config"
+          ],
+          "display_order": 1,
+          "flags": {
+            "required": true,
+            "create_only": true
+          },
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "client_id",
+          "label": "Client ID",
+          "description": "Client ID assigned by auth-service after registration",
+          "data_type": "string",
+          "display_order": 2,
+          "flags": {
+            "required": true,
+            "readonly": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "client_secret",
+          "label": "Client Secret",
+          "description": "Client secret — never exposed via API",
+          "data_type": "string",
+          "display_order": 3,
+          "flags": {
+            "required": true,
+            "server_only": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "registered_at",
+          "label": "Registered At",
+          "description": "When this app was first registered",
+          "data_type": "string",
+          "display_order": 4,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "is_active",
+          "label": "Active",
+          "description": "Whether this registration is currently valid",
+          "data_type": "boolean",
+          "default_value": true,
+          "display_order": 5,
+          "class_id": "@prop_boolean"
+        }
+      ]
+    },
+    {
+      "id": "@prop_context",
+      "class_id": "@class",
+      "name": "Property Context",
+      "description": "Per-context override for a property — controls visibility, editability, label, editor, and display order within a named context (grid, form, compact, etc.)",
+      "is_system": true,
+      "props": [
+        {
+          "key": "visible",
+          "label": "Visible",
+          "description": "Show this property in the context",
+          "data_type": "boolean",
+          "default_value": true,
+          "display_order": 1,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "editable",
+          "label": "Editable",
+          "description": "Allow editing in the context",
+          "data_type": "boolean",
+          "default_value": true,
+          "display_order": 2,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "required",
+          "label": "Required",
+          "description": "Override required constraint for context",
+          "data_type": "boolean",
+          "display_order": 3,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "label",
+          "label": "Label",
+          "description": "Override display label for context",
+          "data_type": "string",
+          "display_order": 4,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "editor",
+          "label": "Editor",
+          "description": "Override editor ID for context",
+          "data_type": "string",
+          "display_order": 5,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "width",
+          "label": "Width",
+          "description": "Column width in grid context (px)",
+          "data_type": "integer",
+          "display_order": 6,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "display_order",
+          "label": "Display Order",
+          "description": "Override display order for context",
+          "data_type": "integer",
+          "display_order": 7,
+          "class_id": "@prop_number"
+        }
+      ]
+    },
+    {
+      "id": "@class_context",
+      "class_id": "@class",
+      "name": "Class Context",
+      "description": "Named view context for a class — defines which fields to show, sort order, and available actions. Inherited via extends_id (child overrides parent by context name).",
+      "is_system": true,
+      "props": [
+        {
+          "key": "fields",
+          "label": "Fields",
+          "description": "Property keys to include (null = all visible props)",
+          "data_type": "string",
+          "is_array": true,
+          "display_order": 1,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "sort_by",
+          "label": "Sort By",
+          "description": "Default sort property key",
+          "data_type": "string",
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "actions",
+          "label": "Actions",
+          "description": "Available actions in this context",
+          "data_type": "string",
+          "is_array": true,
+          "display_order": 3,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "page_size",
+          "label": "Page Size",
+          "description": "Default page size for paginated views",
+          "data_type": "integer",
+          "default_value": 25,
+          "display_order": 4,
+          "class_id": "@prop_number"
+        }
+      ]
+    },
+    {
+      "id": "@prop_flags",
+      "class_id": "@class",
+      "name": "Property Flags",
+      "description": "Boolean behavior flags for @prop — required, readonly, hidden, create_only, server_only, master_only",
+      "is_system": true,
+      "props": [
+        {
+          "key": "required",
+          "label": "Required",
+          "description": "Field must have a value",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 1,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "readonly",
+          "label": "Read Only",
+          "description": "Field cannot be edited",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 2,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "hidden",
+          "label": "Hidden",
+          "description": "Hide from default UI views",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 3,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "create_only",
+          "label": "Create Only",
+          "description": "Only writable when creating new objects",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 4,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "server_only",
+          "label": "Server Only",
+          "description": "Stripped from API responses (backend-only)",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 5,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "master_only",
+          "label": "Master Only",
+          "description": "Only visible on master/admin interface",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 6,
+          "class_id": "@prop_boolean"
+        }
+      ]
+    },
+    {
+      "id": "@obj_ref",
+      "class_id": "@class",
+      "name": "Object Reference Value",
+      "description": "Core system class — dynamic typed value whose type, editor, and validation are determined by a referenced @prop definition.\n\nThe ref field points to the @prop that defines the value's behavior:\n- 'self': the @prop this @obj_ref belongs to (e.g., default_value on @prop uses the prop's own data_type/options)\n- '@class.prop_key': a specific @prop by ID\n- Any resolvable @prop reference\n\nThe editor resolves the ref at render time, reads the referenced @prop's data_type, options, and editor, then renders the value field accordingly. The server validates the value against the referenced @prop's type and constraints.\n\nThis is a core ES pattern for dynamic typing — used wherever a value's type is not fixed but determined by context (default values, template fields, computed results).",
+      "is_system": true,
+      "props": [
+        {
+          "key": "ref",
+          "label": "Reference",
+          "description": "The @prop that defines how to edit and validate the value. 'self' = the @prop this obj_ref belongs to. Can also be a @prop ID like '@class.name'.",
+          "data_type": "string",
+          "flags": {
+            "required": true
+          },
+          "display_order": 1,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "value",
+          "label": "Value",
+          "description": "The actual value — type is determined by the referenced @prop's data_type. Stored as raw JSON.",
+          "data_type": "object",
+          "display_order": 2,
+          "class_id": "@prop_object"
+        }
+      ]
+    },
+    {
+      "id": "@options_string",
+      "class_id": "@class",
+      "name": "String Options",
+      "description": "Options for data_type: string — enum values, length constraints, pattern validation",
+      "is_system": true,
+      "props": [
+        {
+          "key": "values",
+          "label": "Values",
+          "description": "Allowed values (enum). Empty = any string",
+          "data_type": "string",
+          "is_array": true,
+          "display_order": 1,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "allow_custom",
+          "label": "Allow Custom",
+          "description": "Allow values outside the enum list",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 2,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "min_length",
+          "label": "Min Length",
+          "description": "Minimum string length",
+          "data_type": "integer",
+          "display_order": 3,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "max_length",
+          "label": "Max Length",
+          "description": "Maximum string length",
+          "data_type": "integer",
+          "display_order": 4,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "pattern",
+          "label": "Pattern",
+          "description": "Regex pattern the value must match",
+          "data_type": "string",
+          "display_order": 5,
+          "class_id": "@prop_string"
+        }
+      ]
+    },
+    {
+      "id": "@options_number",
+      "class_id": "@class",
+      "name": "Number Options",
+      "description": "Options for data_type: integer/float — range, step, enum values",
+      "is_system": true,
+      "props": [
+        {
+          "key": "min",
+          "label": "Min",
+          "description": "Minimum value",
+          "data_type": "float",
+          "display_order": 1,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "max",
+          "label": "Max",
+          "description": "Maximum value",
+          "data_type": "float",
+          "display_order": 2,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "step",
+          "label": "Step",
+          "description": "Increment step",
+          "data_type": "float",
+          "display_order": 3,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "values",
+          "label": "Values",
+          "description": "Allowed values (enum)",
+          "data_type": "float",
+          "is_array": true,
+          "display_order": 4,
+          "class_id": "@prop_number"
+        }
+      ]
+    },
+    {
+      "id": "@options_datetime",
+      "class_id": "@class",
+      "name": "DateTime Options",
+      "description": "Options for data_type: datetime — format, date range, granularity",
+      "is_system": true,
+      "props": [
+        {
+          "key": "format",
+          "label": "Format",
+          "description": "Display format (date, datetime, time)",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "date",
+              "datetime",
+              "time"
+            ]
+          },
+          "display_order": 1,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "granularity",
+          "label": "Granularity",
+          "description": "Smallest unit (day, hour, minute, second)",
+          "data_type": "string",
+          "options": {
+            "type": "string_options",
+            "values": [
+              "day",
+              "hour",
+              "minute",
+              "second"
+            ]
+          },
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "min_date",
+          "label": "Min Date",
+          "description": "Earliest allowed date (ISO string or 'now')",
+          "data_type": "string",
+          "display_order": 3,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "max_date",
+          "label": "Max Date",
+          "description": "Latest allowed date (ISO string or 'now')",
+          "data_type": "string",
+          "display_order": 4,
+          "class_id": "@prop_string"
+        }
+      ]
+    },
+    {
+      "id": "@options_object",
+      "class_id": "@class",
+      "name": "Object Options",
+      "description": "Options for data_type: object — key constraints, class discriminator",
+      "is_system": true,
+      "props": [
+        {
+          "key": "keys",
+          "label": "Keys",
+          "description": "Key constraints: {allowed: [...], extensible: bool}",
+          "data_type": "object",
+          "display_order": 1,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "filter_by",
+          "label": "Filter By",
+          "description": "Filter available objects: {field, source}",
+          "data_type": "object",
+          "display_order": 2,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "class_by",
+          "label": "Class By",
+          "description": "Select object class from sibling field: {source, map}",
+          "data_type": "object",
+          "display_order": 3,
+          "class_id": "@prop_object"
+        }
+      ]
+    },
+    {
+      "id": "@options_relation",
+      "class_id": "@class",
+      "name": "Relation Options",
+      "description": "Options for data_type: relation — filtering, display",
+      "is_system": true,
+      "props": [
+        {
+          "key": "filter_by",
+          "label": "Filter By",
+          "description": "Filter available objects: {field, source}",
+          "data_type": "object",
+          "display_order": 1,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "display_field",
+          "label": "Display Field",
+          "description": "Field to show as label (default: name)",
+          "data_type": "string",
+          "display_order": 2,
+          "class_id": "@prop_string"
+        }
       ]
     },
     {
@@ -249,12 +2061,63 @@
       "description": "Declarative data loading definition — classes to create and storage descriptors to load data from. Objects without class_id at root level are assumed to be @seed.",
       "is_system": true,
       "props": [
-        {"key": "name",        "label": "Name",           "description": "Seed definition name",                                                    "data_type": "string",  "display_order": 1},
-        {"key": "description", "label": "Description",    "description": "What this seed definition provides",                                      "data_type": "string",  "editor": "textarea", "display_order": 2},
-        {"key": "version",     "label": "Version",        "description": "Seed format version",                                                     "data_type": "string",  "display_order": 3},
-        {"key": "classes",     "label": "Classes",        "description": "Class definitions to create or update",                                   "data_type": "object",  "is_array": true, "object_class_id": ["@class"], "display_order": 10},
-        {"key": "seed",        "label": "Seed Sources",   "description": "Storage descriptors — files or URLs to load data from",                   "data_type": "object",  "is_array": true, "display_order": 20},
-        {"key": "objects",     "label": "Inline Objects",  "description": "Objects to create directly (optional — prefer seed sources for large datasets)", "data_type": "object", "is_array": true, "display_order": 30}
+        {
+          "key": "name",
+          "label": "Name",
+          "description": "Seed definition name",
+          "data_type": "string",
+          "display_order": 1,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "description": "What this seed definition provides",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "version",
+          "label": "Version",
+          "description": "Seed format version",
+          "data_type": "string",
+          "display_order": 3,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "classes",
+          "label": "Classes",
+          "description": "Class definitions to create or update",
+          "data_type": "object",
+          "is_array": true,
+          "object_class_id": [
+            "@class"
+          ],
+          "display_order": 10,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "seed",
+          "label": "Seed Sources",
+          "description": "Storage descriptors — files or URLs to load data from",
+          "data_type": "object",
+          "is_array": true,
+          "display_order": 20,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "objects",
+          "label": "Inline Objects",
+          "description": "Objects to create directly (optional — prefer seed sources for large datasets)",
+          "data_type": "object",
+          "is_array": true,
+          "display_order": 30,
+          "class_id": "@prop_object"
+        }
       ]
     },
     {
@@ -264,15 +2127,108 @@
       "description": "Per-instance machine registration with auth-service. One object created/updated on each elementStore boot.",
       "is_system": true,
       "props": [
-        {"key": "config_id",      "label": "Auth Config",     "description": "Auth config this machine belongs to",                                   "data_type": "relation", "object_class_id": ["auth_config"], "required": true,  "create_only": true, "display_order": 1},
-        {"key": "instance_id",    "label": "Instance ID",     "description": "UUID generated once for this machine, persists across reboots",         "data_type": "string",   "required": true,  "create_only": true, "display_order": 2},
-        {"key": "machine_id",     "label": "Machine ID",      "description": "Machine ID returned by auth-service after registration",                "data_type": "string",   "readonly": true,                   "display_order": 3},
-        {"key": "hostname",       "label": "Hostname",        "description": "Hostname of this machine at time of registration",                      "data_type": "string",   "readonly": true,                   "display_order": 4},
-        {"key": "ip",             "label": "IP Address",      "description": "IP address of this machine at time of registration",                    "data_type": "string",   "readonly": true,                   "display_order": 5},
-        {"key": "version",        "label": "ES Version",      "description": "ElementStore version running on this machine",                          "data_type": "string",   "readonly": true,                   "display_order": 6},
-        {"key": "registered_at",  "label": "Registered At",   "description": "When this machine was first registered",                               "data_type": "string",   "readonly": true,                   "display_order": 7},
-        {"key": "last_boot_at",   "label": "Last Boot At",    "description": "Timestamp of the last successful boot registration",                   "data_type": "string",   "readonly": true,                   "display_order": 8},
-        {"key": "is_active",      "label": "Active",          "description": "Whether this machine is currently authorized",                          "data_type": "boolean",  "default_value": true,              "display_order": 9}
+        {
+          "key": "config_id",
+          "label": "Auth Config",
+          "description": "Auth config this machine belongs to",
+          "data_type": "relation",
+          "object_class_id": [
+            "auth_config"
+          ],
+          "display_order": 1,
+          "flags": {
+            "required": true,
+            "create_only": true
+          },
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "instance_id",
+          "label": "Instance ID",
+          "description": "UUID generated once for this machine, persists across reboots",
+          "data_type": "string",
+          "display_order": 2,
+          "flags": {
+            "required": true,
+            "create_only": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "machine_id",
+          "label": "Machine ID",
+          "description": "Machine ID returned by auth-service after registration",
+          "data_type": "string",
+          "display_order": 3,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "hostname",
+          "label": "Hostname",
+          "description": "Hostname of this machine at time of registration",
+          "data_type": "string",
+          "display_order": 4,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "ip",
+          "label": "IP Address",
+          "description": "IP address of this machine at time of registration",
+          "data_type": "string",
+          "display_order": 5,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "version",
+          "label": "ES Version",
+          "description": "ElementStore version running on this machine",
+          "data_type": "string",
+          "display_order": 6,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "registered_at",
+          "label": "Registered At",
+          "description": "When this machine was first registered",
+          "data_type": "string",
+          "display_order": 7,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "last_boot_at",
+          "label": "Last Boot At",
+          "description": "Timestamp of the last successful boot registration",
+          "data_type": "string",
+          "display_order": 8,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "is_active",
+          "label": "Active",
+          "description": "Whether this machine is currently authorized",
+          "data_type": "boolean",
+          "default_value": true,
+          "display_order": 9,
+          "class_id": "@prop_boolean"
+        }
       ]
     }
   ]
