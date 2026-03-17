@@ -410,6 +410,8 @@ class ClassModel
         $oldObj = null;
         $oldData = null;
 
+        // If no ID provided, storage driver will generate one in setobj()
+
         // Step 1: Get old object if ID provided
         if ($id !== null) {
             $t1 = microtime(true);
@@ -453,6 +455,11 @@ class ClassModel
             if ($oldData !== null) {
                 $data = array_merge($oldData, $data);
             }
+        }
+
+        // Step 2b: Check unique constraints
+        if ($meta !== null) {
+            $this->checkUniqueConstraints($class_id, $data, $meta);
         }
 
         // Step 3: Stamp security fields for new objects (non-system classes)
@@ -751,9 +758,7 @@ class ClassModel
     {
         $this->ensureBootstrap();
 
-        $data = $this->storage->query(Constants::K_CLASS, [
-            Constants::F_CLASS_ID => Constants::K_CLASS
-        ]);
+        $data = $this->storage->getobj(Constants::K_CLASS);
 
         return array_map(
             fn($d) => new ClassMeta(Constants::K_CLASS, $d, $this->getDi()),
@@ -779,7 +784,7 @@ class ClassModel
 
         // Handle inheritance - merge parent props
         // Stop at system classes (@ prefix) — their props define class metadata, not object schemas
-        if ($meta->extends_id !== null && !str_starts_with($meta->extends_id, '@')) {
+        if ($meta->extends_id !== null && $class_id !== Constants::K_CLASS) {
             $parentProps = $this->getClassProps($meta->extends_id);
             // Parent props first, then own props (own override parent)
             $propsByKey = [];
@@ -1035,7 +1040,7 @@ class ClassModel
                 // New object - apply default or check required
                 if ($prop->default_value !== null) {
                     $result[$key] = $prop->default_value;
-                } elseif ($prop->required) {
+                } elseif ($prop->isRequired()) {
                     $errors[] = [
                         'path' => $key,
                         'message' => "{$key} is required",
@@ -1078,7 +1083,7 @@ class ClassModel
 
         // Null/empty check
         if ($value === null || $value === '') {
-            if ($prop->required) {
+            if ($prop->isRequired()) {
                 $errors[] = [
                     'path' => $key,
                     'message' => "{$label} is required",
@@ -1147,10 +1152,13 @@ class ClassModel
         $options = $prop->options ?? [];
         $values = $options['values'] ?? [];
 
-        if (!empty($values) && !in_array($value, $values)) {
-            $allowCustom = $options['allow_custom'] ?? false;
-            if (!$allowCustom) {
-                return "{$label} must be one of: " . implode(', ', $values);
+        if (!empty($values)) {
+            $allowed = array_is_list($values) ? $values : array_keys($values);
+            if (!in_array($value, $allowed)) {
+                $allowCustom = $options['allow_custom'] ?? false;
+                if (!$allowCustom) {
+                    return "{$label} must be one of: " . implode(', ', $allowed);
+                }
             }
         }
 
@@ -1646,6 +1654,48 @@ class ClassModel
     /**
      * Guess data type from PHP value
      */
+    /**
+     * Check unique constraints defined on a class.
+     */
+    private function checkUniqueConstraints(string $classId, array $data, ClassMeta $meta): void
+    {
+        $constraints = $meta->unique ?? null;
+        if (empty($constraints) || !is_array($constraints)) {
+            return;
+        }
+
+        $objectId = $data[Constants::F_ID] ?? null;
+
+        foreach ($constraints as $constraint) {
+            $constraintId = $constraint['id'] ?? 'unknown';
+            $fields = $constraint['fields'] ?? [];
+            if (empty($fields) || !is_array($fields)) {
+                continue;
+            }
+
+            $filters = [];
+            $skip = false;
+            foreach ($fields as $field) {
+                $value = $data[$field] ?? null;
+                if ($value === null) { $skip = true; break; }
+                $filters[$field] = $value;
+            }
+            if ($skip) continue;
+
+            $matches = $this->storage->query($classId, $filters, ['limit' => 2]);
+            foreach ($matches as $existing) {
+                $existingId = $existing[Constants::F_ID] ?? null;
+                if ($objectId !== null && $existingId == $objectId) continue;
+                $fieldList = implode(', ', $fields);
+                throw new StorageException(
+                    "Unique constraint '{$constraintId}' violated on [{$fieldList}]",
+                    'validation_failed',
+                    [['path' => $fields[0], 'message' => "Duplicate value for constraint '{$constraintId}'", 'code' => 'unique']]
+                );
+            }
+        }
+    }
+
     private function guessDataType(mixed $value): string
     {
         if (is_bool($value)) return Constants::DT_BOOLEAN;

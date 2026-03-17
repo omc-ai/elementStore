@@ -204,39 +204,12 @@ class CouchDbStorageProvider implements IStorageProvider
      * @param string $class Class identifier
      * @return int Next available integer ID
      */
-    private function nextId(string $class): int
+    private function nextId(string $class): string
     {
-        $this->ensureDatabase('_counters');
-        $dbName = $this->getDbName('_counters');
-        $docId = $this->getDbName($class);
-
-        // Try to get current counter with retries for conflict handling
-        for ($retry = 0; $retry < 5; $retry++) {
-            $response = $this->request('GET', "/$dbName/$docId");
-
-            if ($response['status'] === 200) {
-                // Increment existing counter
-                $doc = $response['body'];
-                $newSeq = ($doc['seq'] ?? 0) + 1;
-                $doc['seq'] = $newSeq;
-
-                $updateResponse = $this->request('PUT', "/$dbName/$docId", $doc);
-                if ($updateResponse['status'] >= 200 && $updateResponse['status'] < 300) {
-                    return $newSeq;
-                }
-                // Conflict - retry
-                usleep(10000 * ($retry + 1)); // Exponential backoff
-                continue;
-            } else {
-                // Counter doesn't exist - create it
-                $createResponse = $this->request('PUT', "/$dbName/$docId", ['seq' => 1]);
-                if ($createResponse['status'] >= 200 && $createResponse['status'] < 300) {
-                    return 1;
-                }
-                // Creation failed (maybe race condition) - retry
-                usleep(10000 * ($retry + 1));
-                continue;
-            }
+        // Use CouchDB's native UUID generation — unique across nodes
+        $response = $this->request('GET', '/_uuids');
+        if ($response['status'] === 200 && !empty($response['body']['uuids'])) {
+            return $response['body']['uuids'][0];
         }
 
         // Fallback: use timestamp-based ID if counter fails

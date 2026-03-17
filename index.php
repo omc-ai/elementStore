@@ -124,6 +124,8 @@ function error($message, $code = 400, $details = null): Response
  */
 function handleException(\Exception $e): Response
 {
+    // TODO: Save @log entry once setObject is stable
+
     if ($e instanceof StorageException) {
         $code = match ($e->getErrorCode()) {
             'not_found' => 404,
@@ -158,7 +160,9 @@ function stripServerOnlyProps(array $classData): array
     $classData[Constants::F_PROPS] = array_values(array_filter(
         $classData[Constants::F_PROPS],
         function ($prop) {
-            $serverOnly = is_array($prop) ? ($prop['server_only'] ?? false) : false;
+            if (!is_array($prop)) return true;
+            // Check both old format (top-level) and new format (flags object)
+            $serverOnly = ($prop['flags']['server_only'] ?? false) || ($prop['server_only'] ?? false);
             return !$serverOnly;
         }
     ));
@@ -169,13 +173,99 @@ function stripServerOnlyProps(array $classData): array
 // HEALTH & INFO
 // =============================================================================
 
-$app->get('/health', fn() => json(['status' => 'ok', 'service' => 'elementStore', 'version' => '2.0.0']));
+$app->get('/health', function () use ($app) {
+    /** @var ClassModel $model */
+    $model = $app->di->get('model');
+    $initCompleted = false;
+    $lastRun = null;
+    try {
+        // Check if system classes exist (indicates init has run)
+        $classClass = $model->getClass(Constants::K_CLASS);
+        $initCompleted = $classClass !== null;
+        if ($initCompleted) {
+            $classData = $classClass->toArray();
+            $lastRun = $classData[Constants::F_UPDATED_AT] ?? $classData[Constants::F_CREATED_AT] ?? null;
+        }
+    } catch (\Exception $e) {
+        // health should not fail
+    }
+    // Read .version.json (written by deploy_runner)
+    $versionFile = __DIR__ . '/.version.json';
+    $git = file_exists($versionFile)
+        ? json_decode(file_get_contents($versionFile), true) ?? []
+        : [];
+
+    return json([
+        'status' => 'ok',
+        'service' => 'elementStore',
+        'version' => '2.0.0',
+        'git' => $git ?: null,
+        'init' => [
+            'completed' => $initCompleted,
+            'last_run' => $lastRun,
+        ],
+    ]);
+});
+
+$app->post('/init', function () use ($app) {
+    try {
+        /** @var ClassModel $model */
+        $model = $app->di->get('model');
+        $input = $app->request->getJsonRawBody(true) ?? [];
+        $strategy = $input['strategy'] ?? 'auto';
+
+        $force = ($strategy === 'fresh');
+
+        if ($strategy === 'existing') {
+            // Verify only — check if init has been done
+            $classClass = $model->getClass(Constants::K_CLASS);
+            if (!$classClass) {
+                return error('Not initialized — @class not found', 412);
+            }
+            $allClasses = $model->getAllClasses();
+            return json([
+                'success' => true,
+                'strategy' => 'existing',
+                'classes' => count($allClasses),
+                'verified' => true,
+            ]);
+        }
+
+        // auto or fresh — trigger genesis load
+        if ($strategy === 'fresh') {
+            $model->reset();
+        }
+
+        // Trigger bootstrap (which loads genesis if needed)
+        $model->init();
+
+        // If GenesisLoader is available (v2.2+), use it for explicit load
+        $results = [];
+        if (method_exists($model, 'getGenesisLoader')) {
+            $loader = $model->getGenesisLoader();
+            if ($loader !== null) {
+                $results = $loader->load($force);
+            }
+        }
+
+        $allClasses = $model->getAllClasses();
+        return json([
+            'success' => true,
+            'strategy' => $strategy,
+            'classes' => count($allClasses),
+            'genesis' => $results,
+        ]);
+    } catch (\Exception $e) {
+        return handleException($e);
+    }
+});
 
 $app->get('/info', fn() => json([
     'name' => 'ElementStore API',
     'version' => '2.2.0',
     'endpoints' => [
-        'GET /health' => 'Health check',
+        'GET /health' => 'Health check (includes init status)',
+        'POST /init' => 'Initialize application (body: {"strategy":"auto|fresh|existing"})',
         'GET /class' => 'List all classes',
         'GET /class/{id}' => 'Get class with properties',
         'GET /class/{id}/props' => 'Get class properties (includes inherited)',
@@ -224,7 +314,7 @@ $app->get('/class/{id}/props', function ($id) use ($app) {
     $model = $app->di->get('model');
     $props = $model->getClassProps($id);
     // Filter out server_only props from the response
-    $filtered = array_filter($props, fn($p) => !$p->server_only);
+    $filtered = array_filter($props, fn($p) => !$p->isServerOnly());
     return json(array_map(fn($p) => $p->toArray(), array_values($filtered)));
 });
 
@@ -295,7 +385,7 @@ $app->get('/store/{class}/{id}/{prop}', function ($c, $id, $prop) use ($app) {
             $result = array_map(fn($o) => $o->toApiArray(), $related);
 
             // For single (non-array) relation in resolve mode, return single object
-            if (!$propDef->is_array && $mode === 'resolve') {
+            if (!$propDef->isCollection() && $mode === 'resolve') {
                 return json(!empty($result) ? $result[0] : null);
             }
             return json($result);

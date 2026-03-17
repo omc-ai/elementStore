@@ -27,7 +27,7 @@ namespace ElementStore;
 
 class BroadcastService
 {
-    private static string $wsUrl = 'http://elementstore-ws:3100/broadcast';
+    private static string $wsUrl = 'http://elementstore_ws:3101/broadcast';
 
     /** @var bool|null Cached reachability: null=not tested, true=OK, false=skip */
     private static ?bool $reachable = null;
@@ -49,18 +49,19 @@ class BroadcastService
             return;
         }
 
-        // First call: check if WS broadcasting is enabled
-        // ES_WS_URL env var enables broadcasting; unset = disabled (no DNS timeout risk)
+        // First call: check WS URL from env or use default
+        // ES_WS_URL=0 disables broadcasting. Unset = try default URL.
         if (self::$reachable === null) {
             $envUrl = getenv('ES_WS_URL');
-            if ($envUrl === false || $envUrl === '' || $envUrl === '0') {
+            if ($envUrl === '0') {
                 self::$reachable = false;
                 return;
             }
-            if ($envUrl !== '1') {
+            if ($envUrl && $envUrl !== '1') {
                 self::$wsUrl = $envUrl;
             }
-            self::$reachable = true; // Enabled — will try to connect
+            // Try connecting — will mark unreachable on first failure
+            self::$reachable = true;
         }
 
         $payload = json_encode([
@@ -121,6 +122,41 @@ class BroadcastService
      * @param array|null  $oldData      Previous object data (optional)
      * @param string|null $senderUserId User ID of the deleting client
      */
+    /**
+     * Broadcast a log entry (error, warning, info) to WS subscribers.
+     * Fire-and-forget — failures never block the caller.
+     */
+    public static function emitLog(string $level, string $message, array $context = []): void
+    {
+        if (self::$reachable === false) return;
+        if (self::$reachable === null) {
+            // Trigger reachability check via send()
+            self::send([], null);
+            if (self::$reachable === false) return;
+        }
+
+        $logUrl = str_replace('/broadcast', '/broadcast/log', self::$wsUrl);
+        $payload = json_encode([
+            'level'   => $level,
+            'message' => $message,
+            'context' => $context,
+            'time'    => date('Y-m-d H:i:s'),
+        ]);
+
+        $ch = curl_init($logUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Content-Length: ' . strlen($payload)],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT_MS => 100,
+            CURLOPT_TIMEOUT_MS     => 200,
+            CURLOPT_NOSIGNAL       => true,
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
+    }
+
     public static function emitDelete(string $classId, string $id, ?array $oldData = null, ?string $senderUserId = null): void
     {
         $item = [
