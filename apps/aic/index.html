@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Company — Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#f0f2f5;color:#1f2328;line-height:1.5}
+header{background:#fff;border-bottom:1px solid #d1d9e0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+header h1{font-size:1.1em;color:#0550ae}
+.hdr-status{display:flex;gap:10px;align-items:center;font-size:0.82em}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:3px}
+.dot.ok{background:#1a7f37}.dot.err{background:#cf222e}.dot.load{background:#9a6700}
+.layout{display:grid;grid-template-columns:260px 1fr 320px;gap:12px;padding:12px 16px;max-width:1400px;margin:0 auto;min-height:calc(100vh - 50px)}
+@media(max-width:1100px){.layout{grid-template-columns:1fr;}}
+.col{display:flex;flex-direction:column;gap:10px}
+.card{background:#fff;border:1px solid #d1d9e0;border-radius:8px;overflow:hidden}
+.card-hdr{padding:8px 12px;font-weight:600;font-size:0.85em;border-bottom:1px solid #d1d9e0;display:flex;justify-content:space-between;align-items:center}
+.card-body{padding:10px 12px}
+.card-hdr .count{background:#ddf4ff;color:#0550ae;border-radius:8px;padding:0 6px;font-size:0.78em}
+
+/* Agent cards */
+.agent{padding:8px 10px;border-bottom:1px solid #f0f2f5;cursor:pointer;display:flex;gap:8px;align-items:center;transition:background .1s}
+.agent:hover{background:#f6f8fa}
+.agent:last-child{border-bottom:none}
+.agent .ord{width:22px;height:22px;border-radius:50%;background:#ddf4ff;color:#0550ae;font-size:0.7em;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.agent .info{flex:1;min-width:0}
+.agent .name{font-weight:600;font-size:0.85em}
+.agent .meta{font-size:0.72em;color:#59636e}
+.agent.active{background:#f0fff4;border-left:2px solid #1a7f37}
+.agent .prompt-len{font-size:0.68em;color:#1a7f37}
+
+/* Tasks */
+.task{padding:6px 10px;border-bottom:1px solid #f0f2f5;font-size:0.85em}
+.task:last-child{border-bottom:none}
+.task .t-name{font-weight:500}
+.task .t-meta{font-size:0.75em;color:#59636e;display:flex;gap:6px}
+.badge{display:inline-block;padding:0 6px;border-radius:8px;font-size:0.72em;font-weight:600}
+.b-p1{background:#ffebe9;color:#cf222e}.b-p2{background:#fff8c5;color:#9a6700}.b-p3{background:#f0f2f5;color:#59636e}
+.b-open{background:#ddf4ff;color:#0550ae}.b-done{background:#dafbe1;color:#1a7f37}.b-progress{background:#fff8c5;color:#9a6700}
+
+/* Worker log */
+.log-box{background:#1f2328;color:#c9d1d9;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:0.72em;padding:8px;max-height:250px;overflow-y:auto;line-height:1.6}
+.log-box .ok{color:#3fb950}.log-box .err{color:#f85149}.log-box .q{color:#58a6ff}
+
+/* Questions */
+.question{padding:8px 10px;border-bottom:1px solid #f0f2f5;font-size:0.85em}
+.question:last-child{border-bottom:none}
+.question .q-from{font-size:0.72em;color:#0550ae;font-weight:600}
+.question .q-text{margin:2px 0}
+.question .q-to{font-size:0.72em;color:#59636e}
+
+/* Actions */
+.actions{display:flex;gap:6px;padding:8px 12px}
+.act-btn{padding:5px 12px;border-radius:5px;border:none;cursor:pointer;font-size:0.8em;font-weight:500;color:#fff}
+
+/* Modal */
+.modal-bg{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.35);z-index:200;justify-content:center;align-items:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:10px;max-width:600px;width:92%;max-height:80vh;overflow-y:auto;padding:20px}
+.modal h2{font-size:1em;margin-bottom:8px}
+.modal .close{float:right;cursor:pointer;font-size:1.1em;color:#59636e;background:none;border:none;padding:4px}
+.modal pre{background:#f6f8fa;border:1px solid #d1d9e0;border-radius:6px;padding:8px;font-size:0.78em;max-height:300px;overflow-y:auto;white-space:pre-wrap}
+.modal .meta-row{display:flex;gap:8px;flex-wrap:wrap;font-size:0.8em;color:#59636e;margin:8px 0}
+.modal .meta-row span{background:#f6f8fa;padding:1px 6px;border-radius:3px}
+.modal textarea{width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.88em;font-family:inherit;resize:vertical}
+.modal select{padding:5px 8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.85em}
+
+/* Worker bar */
+.worker-bar{display:flex;gap:10px;align-items:center;padding:8px 12px;font-size:0.82em}
+.w-st{font-weight:700}.w-st.running{color:#1a7f37}.w-st.idle{color:#0550ae}.w-st.stopped{color:#59636e}
+.w-info{color:#59636e;font-size:0.78em}
+
+/* Decisions mini */
+.dec{padding:6px 10px;border-bottom:1px solid #f0f2f5;font-size:0.82em}
+.dec:last-child{border-bottom:none}
+.dec .d-topic{font-weight:500}
+
+/* Activity feed */
+.feed{max-height:calc(100vh - 160px);overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:6px}
+.feed-item{background:#fff;border:1px solid #d1d9e0;border-radius:6px;padding:8px 10px;font-size:0.82em;animation:fadeIn .3s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.feed-item .fi-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.feed-item .fi-type{font-weight:600;font-size:0.78em;padding:1px 6px;border-radius:4px}
+.feed-item .fi-time{font-size:0.72em;color:#59636e}
+.feed-item .fi-body{color:#1f2328}
+.feed-item .fi-meta{font-size:0.72em;color:#59636e;margin-top:2px}
+/* Type colors */
+.fi-type.t-task{background:#fff8c5;color:#9a6700}
+.fi-type.t-question{background:#ddf4ff;color:#0550ae}
+.fi-type.t-decision{background:#f0f0ff;color:#6639ba}
+.fi-type.t-finding{background:#ffebe9;color:#cf222e}
+.fi-type.t-agent{background:#dafbe1;color:#1a7f37}
+.fi-type.t-worker{background:#f0f2f5;color:#59636e}
+.fi-type.t-round{background:#fff1e5;color:#bc4c00}
+.fi-type.t-session{background:#f0f2f5;color:#59636e}
+.fi-type.t-preference{background:#fff8c5;color:#9a6700}
+.fi-type.t-prompt{background:#f0f0ff;color:#6639ba}
+.fi-type.t-conversation{background:#f0f2f5;color:#59636e}
+.fi-type.t-message{background:#ddf4ff;color:#0550ae}
+.fi-type.t-request{background:#fff8c5;color:#9a6700}
+.fi-type.t-response{background:#dafbe1;color:#1a7f37}
+.feed-item.fi-mine{background:#f0f4ff;border-color:#0550ae}
+
+/* Question cards for owner */
+.q-card{padding:10px;border-bottom:1px solid #f0f2f5}
+.q-card:last-child{border-bottom:none}
+.q-card .q-from{font-size:0.78em;font-weight:600;color:#0550ae}
+.q-card .q-text{margin:3px 0;font-size:0.85em}
+.q-card .q-actions{display:flex;gap:4px;margin-top:6px}
+.q-card .q-actions button{padding:3px 10px;border-radius:4px;border:1px solid #d1d9e0;background:#fff;cursor:pointer;font-size:0.78em}
+.q-card .q-actions button.approve{background:#1a7f37;color:#fff;border-color:#1a7f37}
+.q-card .q-actions button.reject{background:#fff;color:#cf222e;border-color:#cf222e}
+.q-card .q-answer-box{margin-top:6px;display:none}
+.q-card .q-answer-box textarea{width:100%;padding:4px 6px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.82em;font-family:inherit;resize:vertical;min-height:40px}
+.q-card.answered{background:#f0fff4;opacity:0.8}
+.q-card.for-me{border-left:3px solid #cf222e}
+
+/* Workers list */
+.wk{padding:6px 10px;border-bottom:1px solid #f0f2f5;font-size:0.82em;display:flex;align-items:center;gap:6px}
+.wk:last-child{border-bottom:none}
+.wk .wk-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.wk .wk-dot.running{background:#1a7f37}.wk .wk-dot.stopped{background:#59636e}.wk .wk-dot.idle{background:#0550ae}.wk .wk-dot.error{background:#cf222e}
+.wk .wk-info{flex:1;min-width:0}
+.wk .wk-name{font-weight:600;font-size:0.88em}
+.wk .wk-meta{font-size:0.75em;color:#59636e}
+
+/* Agent modal sessions */
+.modal-sessions{margin-top:12px}
+.modal-sessions h3{font-size:0.85em;color:#59636e;margin-bottom:6px}
+.sess-item{padding:4px 8px;background:#f6f8fa;border-radius:4px;margin:3px 0;font-size:0.78em;display:flex;justify-content:space-between}
+.sess-item .s-status{font-weight:600}
+.sess-item .s-status.active{color:#1a7f37}.sess-item .s-status.closed{color:#59636e}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AI Company</h1>
+  <div class="hdr-status">
+    <span id="ws-status"><span class="dot load"></span>connecting</span>
+    <span id="class-count"></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<!-- LEFT: Workers + Agents -->
+<div class="col">
+  <div class="card">
+    <div class="card-hdr">Workers <span class="count" id="worker-count">0</span></div>
+    <div class="card-body" id="workers-list" style="padding:0"></div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">Agents <span class="count" id="agent-count">0</span></div>
+    <div class="card-body" id="agents" style="padding:0"></div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">Decisions <span class="count" id="dec-count">0</span></div>
+    <div class="card-body" id="decisions" style="padding:0;max-height:200px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- CENTER: Activity feed + Worker + Tasks -->
+<div class="col">
+  <div class="card" style="flex:1">
+    <div class="card-hdr">
+      <span>Activity Feed</span>
+      <div class="worker-bar">
+        <span class="w-st stopped" id="w-st">STOPPED</span>
+        <span class="w-info" id="w-info"></span>
+      </div>
+    </div>
+    <div class="feed" id="feed"></div>
+    <div style="padding:6px;border-top:1px solid #d1d9e0;display:flex;gap:6px">
+      <input id="feed-input" type="text" placeholder="Type a message..." style="flex:1;padding:6px 10px;border:1px solid #d1d9e0;border-radius:6px;font-size:0.85em;font-family:inherit" onkeydown="if(event.key==='Enter')sendFeedMessage()">
+      <button onclick="sendFeedMessage()" class="act-btn" style="background:#0550ae;padding:6px 14px">Send</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr">Open Tasks <span class="count" id="task-count">0</span></div>
+    <div class="card-body" id="tasks" style="padding:0;max-height:300px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- RIGHT: Questions + Actions -->
+<div class="col">
+  <div class="card">
+    <div class="card-hdr">Actions</div>
+    <div class="actions">
+      <button class="act-btn" style="background:#0550ae" onclick="openAction('question')">Ask</button>
+      <button class="act-btn" style="background:#9a6700" onclick="openAction('directive')">Task</button>
+      <button class="act-btn" style="background:#cf222e" onclick="openAction('finding')">Finding</button>
+    </div>
+  </div>
+  <div class="card" style="flex:1">
+    <div class="card-hdr" style="cursor:pointer" onclick="toggleQExpand()">
+      <span>Questions <span class="count" id="q-count">0</span> <span class="count" id="q-mine-count" style="background:#ffebe9;color:#cf222e">0 for you</span></span>
+      <span id="q-expand-icon" style="font-size:0.8em;color:#59636e">&#9660;</span>
+    </div>
+    <!-- Compact: cards for questions to owner (me) -->
+    <div id="q-mine" style="padding:0;border-bottom:1px solid #d1d9e0"></div>
+    <!-- Expandable: full table of all questions -->
+    <div id="q-all-wrap" style="display:none;max-height:400px;overflow-y:auto">
+      <table style="font-size:0.8em;margin:0">
+        <thead><tr><th>From</th><th>To</th><th>Question</th><th>Status</th><th></th></tr></thead>
+        <tbody id="q-all-body"></tbody>
+      </table>
+    </div>
+    <!-- Compact list for other open questions -->
+    <div class="card-body" id="q-others" style="padding:0;max-height:300px;overflow-y:auto"></div>
+  </div>
+</div>
+
+</div>
+
+<!-- Agent modal -->
+<div class="modal-bg" id="agent-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <button class="close" onclick="document.getElementById('agent-modal').classList.remove('open')">&times;</button>
+    <h2 id="m-name"></h2>
+    <div class="meta-row" id="m-meta"></div>
+    <div class="modal-sessions" id="m-sessions"></div>
+    <h3 style="font-size:0.85em;color:#59636e;margin:12px 0 4px">Prompt</h3>
+    <pre id="m-prompt">No prompt</pre>
+  </div>
+</div>
+
+<!-- Action modal -->
+<div class="modal-bg" id="action-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:450px">
+    <button class="close" onclick="document.getElementById('action-modal').classList.remove('open')">&times;</button>
+    <h2 id="a-title">Action</h2>
+    <p id="a-desc" style="color:#59636e;font-size:0.82em;margin-bottom:10px"></p>
+    <div id="a-pri-row" style="margin-bottom:8px">
+      <select id="a-pri"><option value="P1">P1</option><option value="P2" selected>P2</option><option value="P3">P3</option></select>
+    </div>
+    <textarea id="a-text" rows="5" placeholder=""></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+      <span id="a-result" style="font-size:0.8em;color:#59636e"></span>
+      <button id="a-submit" class="act-btn" style="background:#0550ae" onclick="sendAction()">Send</button>
+    </div>
+  </div>
+</div>
+
+<script src="/elementStore/admin/dist/element-store.js"></script>
+<script src="/elementStore/admin/ws-client.js"></script>
+<script>
+(function(){
+  var API = location.origin + '/elementStore';
+  var WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/elementStore/ws';
+  store.storage.data.url = API;
+
+  var esws = new ElementStoreWS(store, WS_URL);
+
+  // Override _onChanges to emit raw items without store.applyRemote
+  // (dashboard doesn't need typed AtomObj, just raw data for feed cards)
+  esws._onChanges = function(items) {
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      if (!item) continue;
+      if (item._deleted) {
+        this._emit('delete', item);
+      } else {
+        this._emit('change', item);
+      }
+    }
+  };
+  function bg(t,c){return '<span class="badge b-'+c+'">'+t+'</span>'}
+
+  // ─── Render ──────────────────────────────────────────────
+  async function load(){
+    try {
+      var agents = await fetch(API+'/store/ai:agent').then(r=>r.json());
+      var tasks = await fetch(API+'/store/ai:task').then(r=>r.json());
+      var questions = await fetch(API+'/store/ai:question').then(r=>r.json());
+      var decisions = await fetch(API+'/store/ai:decision').then(r=>r.json());
+      var workers = []; try{workers=await fetch(API+'/store/ai:worker').then(r=>r.ok?r.json():[]);}catch(e){}
+      var sessions = []; try{sessions=await fetch(API+'/store/ai:agent_session').then(r=>r.ok?r.json():[]);}catch(e){}
+      window._sessions = sessions;
+
+      // Workers list
+      document.getElementById('worker-count').textContent = workers.length;
+      var wkh = '';
+      workers.forEach(function(wk) {
+        var st = wk.status || 'stopped';
+        wkh += '<div class="wk"><span class="wk-dot '+st+'"></span><div class="wk-info">';
+        wkh += '<div class="wk-name">'+(wk.name||wk.id)+'</div>';
+        var parts = [];
+        parts.push(st.toUpperCase());
+        if(wk.current_agent) parts.push(agentName(wk.current_agent));
+        if(wk.pid) parts.push('PID:'+wk.pid);
+        if(wk.rounds_completed) parts.push('R:'+wk.rounds_completed);
+        if(wk.last_heartbeat) parts.push(wk.last_heartbeat.substring(11,19));
+        wkh += '<div class="wk-meta">'+parts.join(' &middot; ')+'</div>';
+        wkh += '</div></div>';
+      });
+      document.getElementById('workers-list').innerHTML = wkh || '<div style="padding:8px;color:#59636e;font-size:0.82em">No workers running</div>';
+
+      window._agents = agents;
+      agents.sort(function(a,b){return (a.execution_order||99)-(b.execution_order||99)});
+      var w = workers[0]||null;
+
+      // Worker bar update
+      if(w){
+        var wst=document.getElementById('w-st');
+        var winfo=document.getElementById('w-info');
+        var st=w.status||'stopped';
+        wst.textContent=st.toUpperCase()+(w.current_agent?' — '+agentName(w.current_agent):'');
+        wst.className='w-st '+st;
+        var wp=[];
+        if(w.pid)wp.push('PID:'+w.pid);
+        if(w.rounds_completed)wp.push('R:'+w.rounds_completed);
+        if(w.last_heartbeat)wp.push(w.last_heartbeat.substring(11,19));
+        winfo.textContent=wp.join(' | ');
+      }
+
+      // Agents
+      document.getElementById('agent-count').textContent=agents.length;
+      var ah='';
+      agents.forEach(function(a,i){
+        var isAct=w&&w.current_agent===a.id;
+        ah+='<div class="agent'+(isAct?' active':'')+'" onclick="showAgent('+i+')">';
+        ah+='<div class="ord">'+(a.execution_order||'?')+'</div>';
+        ah+='<div class="info"><div class="name">'+a.name+'</div>';
+        ah+='<div class="meta">'+(a.title||'')+(a.run_count?' &middot; '+a.run_count+' runs':'')+'</div>';
+        if(a.prompt)ah+='<div class="prompt-len">'+a.prompt.length+' chars</div>';
+        ah+='</div></div>';
+      });
+      document.getElementById('agents').innerHTML=ah||'<div style="padding:12px;color:#59636e">No agents</div>';
+
+      // Tasks
+      var openT=tasks.filter(function(t){return t.status!=='done'});
+      openT.sort(function(a,b){return (a.step||99)-(b.step||99)});
+      document.getElementById('task-count').textContent=openT.length;
+      var th='';
+      openT.forEach(function(t){
+        var pc=(t.priority||'').toLowerCase();
+        th+='<div class="task"><div class="t-name">'+bg(t.priority||'?',pc)+' '+t.name+'</div>';
+        th+='<div class="t-meta"><span>'+(t.project||'')+'</span>';
+        if(t.agent_id)th+='<span>'+t.agent_id+'</span>';
+        th+='<span>step:'+(t.step||'-')+'</span></div></div>';
+      });
+      document.getElementById('tasks').innerHTML=th||'<div style="padding:12px;color:#59636e">No open tasks</div>';
+
+      // Questions — split into "for me" (owner/all) and "others"
+      window._questions = questions;
+      var qOpen = questions.filter(function(q){return q.status==='open'});
+      var qForMe = qOpen.filter(function(q){
+        return q.to_title==='owner' || q.to_title==='all' || !q.to_agents || q.to_agents.length===0;
+      });
+      var qForAgents = qOpen.filter(function(q){
+        return q.to_agents && q.to_agents.length > 0 && q.to_title!=='owner' && q.to_title!=='all';
+      });
+
+      qOpen.sort(function(a,b){return (b.created||'').localeCompare(a.created||'')});
+      qForMe.sort(function(a,b){return (a.created||'').localeCompare(b.created||'')});
+
+      document.getElementById('q-count').textContent = qOpen.length;
+      document.getElementById('q-mine-count').textContent = qForMe.length + ' for you';
+      document.getElementById('q-mine-count').style.display = qForMe.length ? '' : 'none';
+
+      // Cards for questions to owner
+      var mh = '';
+      qForMe.forEach(function(q) {
+        mh += '<div class="q-card for-me" id="qc-'+q.id+'">';
+        mh += '<div class="q-from">'+agentName(q.from_agent)+' asks you:</div>';
+        mh += '<div class="q-text">'+esc(q.question)+'</div>';
+        mh += '<div class="q-actions">';
+        mh += '<button class="approve" onclick="answerQ(\''+q.id+'\',\'approved\')">Approve</button>';
+        mh += '<button class="reject" onclick="answerQ(\''+q.id+'\',\'rejected\')">Reject</button>';
+        mh += '<button onclick="toggleAnswerBox(\''+q.id+'\')">Reply...</button>';
+        mh += '</div>';
+        mh += '<div class="q-answer-box" id="qa-'+q.id+'"><textarea placeholder="Type your answer..." id="qat-'+q.id+'"></textarea>';
+        mh += '<button class="act-btn" style="background:#0550ae;margin-top:4px" onclick="answerQ(\''+q.id+'\',document.getElementById(\'qat-'+q.id+'\').value)">Send</button></div>';
+        mh += '</div>';
+      });
+      document.getElementById('q-mine').innerHTML = mh;
+
+      // Compact list for agent-to-agent questions
+      var oh = '';
+      qForAgents.forEach(function(q) {
+        var to = q.to_agents ? q.to_agents.map(agentName).join(', ') : '?';
+        oh += '<div class="question"><div class="q-from">'+agentName(q.from_agent)+' → '+to+'</div>';
+        oh += '<div class="q-text">'+esc(str(q.question,100))+'</div></div>';
+      });
+      document.getElementById('q-others').innerHTML = oh || '<div style="padding:8px;color:#59636e;font-size:0.82em">No agent-to-agent questions</div>';
+
+      // Full table (expandable)
+      var allQ = questions.slice().sort(function(a,b){
+        // owner first, then open, then by date
+        var aMe = (a.to_title==='owner'||a.to_title==='all')?0:1;
+        var bMe = (b.to_title==='owner'||b.to_title==='all')?0:1;
+        if(aMe!==bMe) return aMe-bMe;
+        var aOpen = a.status==='open'?0:1;
+        var bOpen = b.status==='open'?0:1;
+        if(aOpen!==bOpen) return aOpen-bOpen;
+        return (b.created||'').localeCompare(a.created||'');
+      });
+      var th = '';
+      allQ.forEach(function(q) {
+        var to = q.to_agents?q.to_agents.map(agentName).join(','):(q.to_title||'all');
+        var stCls = q.status==='open'?'open':(q.status==='answered'?'done':'p3');
+        th += '<tr'+(q.to_title==='owner'||q.to_title==='all'?' style="font-weight:500"':'')+'>';
+        th += '<td>'+agentName(q.from_agent)+'</td>';
+        th += '<td>'+to+'</td>';
+        th += '<td>'+esc(str(q.question,60))+'</td>';
+        th += '<td>'+bg(q.status||'open',stCls)+'</td>';
+        th += '<td><a href="'+objLink('ai:question',q.id)+'" target="_blank" style="color:#0550ae;text-decoration:none">&#x2197;</a></td>';
+        th += '</tr>';
+      });
+      document.getElementById('q-all-body').innerHTML = th;
+
+      // Decisions
+      document.getElementById('dec-count').textContent=decisions.length;
+      var dh='';
+      decisions.slice(-8).reverse().forEach(function(d){
+        dh+='<div class="dec"><div class="d-topic">'+bg(d.priority||'?',(d.priority||'').toLowerCase())+' '+(d.topic||d.name||'?').substring(0,50)+'</div></div>';
+      });
+      document.getElementById('decisions').innerHTML=dh||'<div style="padding:8px;color:#59636e">None</div>';
+
+      document.getElementById('ws-status').innerHTML='<span class="dot ok"></span>connected';
+      var cls=await fetch(API+'/class').then(r=>r.json());
+      document.getElementById('class-count').textContent=cls.length+' classes';
+
+    }catch(e){
+      document.getElementById('ws-status').innerHTML='<span class="dot err"></span>offline';
+    }
+  }
+
+  // ─── Questions: answer + expand ─────────────────────────
+  var qExpanded = false;
+  window.toggleQExpand = function() {
+    qExpanded = !qExpanded;
+    document.getElementById('q-all-wrap').style.display = qExpanded ? '' : 'none';
+    document.getElementById('q-others').style.display = qExpanded ? 'none' : '';
+    document.getElementById('q-expand-icon').innerHTML = qExpanded ? '&#9650;' : '&#9660;';
+  };
+
+  window.toggleAnswerBox = function(qid) {
+    var box = document.getElementById('qa-'+qid);
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    if(box.style.display === 'block') box.querySelector('textarea').focus();
+  };
+
+  window.answerQ = async function(qid, answer) {
+    await fetch(API+'/store/ai:question/'+qid, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({status:'answered', answer:answer, answered_by:'owner', answered_at:new Date().toISOString()})
+    });
+    // Visual feedback
+    var card = document.getElementById('qc-'+qid);
+    if(card) { card.classList.add('answered'); card.querySelector('.q-actions').innerHTML = '<span style="color:#1a7f37;font-size:0.82em">Answered: '+esc(str(answer,40))+'</span>'; }
+    setTimeout(load, 500);
+  };
+
+  // ─── Agent modal ────────────────────────────────────────
+  window.showAgent=function(i){
+    var a=window._agents[i];if(!a)return;
+    document.getElementById('m-name').textContent=a.name+' — '+(a.title||a.id);
+    var m='';
+    m+='<span>#'+(a.execution_order||'?')+'</span>';
+    m+='<span>'+((a.run_count||0))+' runs</span>';
+    if(a.model)m+='<span>'+a.model+'</span>';
+    var beh=a.behavior||{};
+    if(beh.session_mode)m+='<span>session: '+beh.session_mode+'</span>';
+    if(beh.auto_approve)m+='<span style="color:#1a7f37">auto-approve</span>';
+    if(beh.trigger_on&&beh.trigger_on.length)m+='<span>triggers: '+beh.trigger_on.join(', ')+'</span>';
+    if(beh.cooldown)m+='<span>cooldown: '+beh.cooldown+'s</span>';
+    document.getElementById('m-meta').innerHTML=m;
+
+    // Sessions for this agent
+    var agentSessions=(window._sessions||[]).filter(function(s){return s.agent_id===a.id});
+    var sh='';
+    if(agentSessions.length){
+      sh+='<h3>Sessions ('+agentSessions.length+')</h3>';
+      agentSessions.forEach(function(s){
+        var sCls=s.status==='active'?'active':'closed';
+        sh+='<div class="sess-item"><span><span class="s-status '+sCls+'">'+s.status+'</span> '+(s.type||'?')+' &middot; '+(s.rounds||0)+' rounds &middot; '+(s.tokens_used||0)+' tokens</span>';
+        sh+='<span style="color:#59636e">'+(s.started?s.started.substring(0,10):'')+'</span></div>';
+      });
+    } else {
+      sh='<h3>Sessions</h3><div style="font-size:0.78em;color:#59636e">No sessions</div>';
+    }
+    document.getElementById('m-sessions').innerHTML=sh;
+
+    document.getElementById('m-prompt').textContent=a.prompt||'(no prompt)';
+    document.getElementById('agent-modal').classList.add('open');
+  };
+
+  // ─── Actions ────────────────────────────────────────────
+  window.openAction=function(type){
+    document.getElementById('a-text').value='';
+    document.getElementById('a-result').textContent='';
+    var t=document.getElementById('a-title');
+    var d=document.getElementById('a-desc');
+    var pr=document.getElementById('a-pri-row');
+    var ta=document.getElementById('a-text');
+    var sub=document.getElementById('a-submit');
+    window._actionType=type;
+
+    if(type==='question'){
+      t.textContent='Ask Question';d.textContent='CEO will route to the right agent.';
+      ta.placeholder='What do you want to know?';pr.style.display='none';
+      sub.textContent='Ask';sub.style.background='#0550ae';
+    }else if(type==='directive'){
+      t.textContent='Create Task';d.textContent='CEO will assign to an agent.';
+      ta.placeholder='Describe the work...';pr.style.display='block';
+      sub.textContent='Create';sub.style.background='#9a6700';
+    }else if(type==='finding'){
+      t.textContent='Report Finding';d.textContent='Report an issue or bug.';
+      ta.placeholder='What did you find?';pr.style.display='block';
+      sub.textContent='Report';sub.style.background='#cf222e';
+    }
+    document.getElementById('action-modal').classList.add('open');
+  };
+
+  window.sendAction=async function(){
+    var type=window._actionType;
+    var text=document.getElementById('a-text').value.trim();
+    var res=document.getElementById('a-result');
+    if(!text){res.textContent='Write something';return;}
+    var now=new Date().toISOString();
+
+    if(type==='question'){
+      await fetch(API+'/store/ai:question',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({class_id:'ai:question',name:text.substring(0,60),question:text,from_agent:'owner',to_title:'all',status:'open',created:now})});
+      res.textContent='Question posted';
+    }else if(type==='directive'){
+      var pri=document.getElementById('a-pri').value;
+      await fetch(API+'/store/ai:task',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({class_id:'ai:task',name:text.substring(0,80),description:text,priority:pri,status:'open',source:'human_request',started:now})});
+      res.textContent='Task created';
+    }else if(type==='finding'){
+      var sev=document.getElementById('a-pri').value==='P1'?'critical':document.getElementById('a-pri').value==='P2'?'high':'medium';
+      await fetch(API+'/store/es:finding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({class_id:'es:finding',name:text.substring(0,60),description:text,severity:sev,category:'missing',status:'open',project:'arc3d',discovered_at:now})});
+      res.textContent='Finding reported';
+    }
+    setTimeout(function(){document.getElementById('action-modal').classList.remove('open');load();},800);
+  };
+
+  // ─── Activity Feed ──────────────────────────────────────
+  var feedEl=document.getElementById('feed');
+  var MAX_FEED=100;
+  var feedIds={}; // track items by ID to update in place
+
+  // Resolve agent name from ID (cached from last load)
+  function agentName(id) {
+    if (!id) return '?';
+    if (id === 'owner' || id === 'agent:owner') return 'You';
+    var a = (window._agents||[]).find(function(x){return x.id===id});
+    return a ? a.name : id.replace('agent:','');
+  }
+
+  // Link to admin object viewer
+  function objLink(classId, id) {
+    return '/elementStore/admin/?tab=objects&class='+encodeURIComponent(classId)+'&id='+encodeURIComponent(id);
+  }
+
+  // Send message from feed input
+  window.sendFeedMessage = async function() {
+    var input = document.getElementById('feed-input');
+    var text = input.value.trim();
+    if(!text) return;
+    input.value = '';
+    input.disabled = true;
+
+    try {
+      var resp = await fetch(API+'/store/ai:message', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({class_id:'ai:message', user_id:'owner', agent_id:'agent:owner', role:'user', content:text, status:'pending', created:new Date().toISOString()})
+      });
+      var created = await resp.json();
+      if(created.id) {
+        // Show with real ID — WS echo will find this and update in place
+        addToFeed(feedCard('ai:message', created, false), created.id);
+      }
+    } catch(e) {
+      console.error('[FEED] send error:', e);
+    }
+    input.disabled = false;
+    input.focus();
+  };
+
+  function feedCard(classId, item, isDelete) {
+    var type = classId.replace('ai:','').replace('es:','');
+    var now = new Date().toLocaleTimeString();
+    var link = '<a href="'+objLink(classId,item.id)+'" target="_blank" style="color:#0550ae;font-size:0.72em;text-decoration:none" title="Open in admin">&#x2197;</a>';
+
+    if (isDelete) {
+      return '<div class="feed-item" style="opacity:0.6"><div class="fi-hdr"><span class="fi-type t-'+type+'">'+type+' removed</span><span class="fi-time">'+now+'</span></div><div class="fi-body" style="color:#59636e">'+esc(item.id)+'</div></div>';
+    }
+
+    var extraClass = '';
+    var h = '<div class="feed-item"><div class="fi-hdr"><span class="fi-type t-'+type+'">';
+    var body = '';
+    var meta = '';
+
+    switch(classId) {
+      case 'ai:worker':
+        // Worker: "CEO started running prompt #prompt:ceo"
+        var wst=document.getElementById('w-st');
+        var winfo=document.getElementById('w-info');
+        var st=item.status||'stopped';
+        wst.textContent=st.toUpperCase()+(item.current_agent?' — '+agentName(item.current_agent):'');
+        wst.className='w-st '+st;
+        var wp=[];
+        if(item.pid)wp.push('PID:'+item.pid);
+        if(item.rounds_completed)wp.push('R:'+item.rounds_completed);
+        if(item.last_heartbeat)wp.push(item.last_heartbeat.substring(11,19));
+        winfo.textContent=wp.join(' | ');
+
+        if(item.current_agent && st==='running') {
+          h += 'running</span><span class="fi-time">'+now+'</span></div>';
+          body = '<b>'+agentName(item.current_agent)+'</b> started executing';
+          if(item.current_round) meta = 'round: '+item.current_round;
+        } else if(st==='stopped' || st==='idle') {
+          h += st+'</span><span class="fi-time">'+now+'</span></div>';
+          body = 'Worker '+st+(item.rounds_completed?' after '+item.rounds_completed+' rounds':'');
+        } else {
+          h += st+'</span><span class="fi-time">'+now+'</span></div>';
+          body = 'Worker: '+st;
+        }
+        break;
+
+      case 'ai:task':
+        var isDone = item.status==='done';
+        h += (isDone?'completed':'task')+'</span><span class="fi-time">'+now+'</span></div>';
+        body = bg(item.priority||'?',(item.priority||'').toLowerCase())+' ';
+        body += '<b>'+esc(str(item.name,60))+'</b> ';
+        body += link;
+        if(item.project) body += ' <code style="font-size:0.75em">'+esc(item.project)+'</code>';
+        body += ' '+bg(item.status||'open',item.status==='done'?'done':item.status==='in_progress'?'progress':'open');
+        if(isDone && item.result) body += '<div style="color:#59636e;margin-top:3px;font-size:0.9em">'+esc(str(item.result,150))+'</div>';
+        if(item.agent_id) meta = 'assigned: '+agentName(item.agent_id);
+        break;
+
+      case 'ai:question':
+        var isAnswered = item.status==='answered';
+        h += (isAnswered?'answered':'question')+'</span><span class="fi-time">'+now+'</span></div>';
+        var qTo = item.to_agents&&item.to_agents.length ? item.to_agents.map(agentName).join(', ') : (item.to_title||'all');
+        body = '<b>'+agentName(item.from_agent)+'</b> → <b>'+qTo+'</b> '+link;
+        body += '<div style="margin-top:3px">'+esc(str(item.question,180))+'</div>';
+        if(isAnswered && item.answer) {
+          body += '<div style="color:#1a7f37;margin-top:3px;border-top:1px solid #d1d9e0;padding-top:3px"><b>Answer:</b> '+esc(str(item.answer,150))+'</div>';
+        }
+        break;
+
+      case 'ai:decision':
+        h += 'decision</span><span class="fi-time">'+now+'</span></div>';
+        body = bg(item.priority||'P2',(item.priority||'').toLowerCase())+' ';
+        body += '<b>'+esc(str(item.topic||item.name,80))+'</b> '+link;
+        if(item.decision) body += '<div style="margin-top:3px;color:#59636e">'+esc(str(item.decision,150))+'</div>';
+        if(item.assigned_agents&&item.assigned_agents.length) meta = 'assigned: '+item.assigned_agents.map(agentName).join(', ');
+        break;
+
+      case 'es:finding':
+        h += 'finding</span><span class="fi-time">'+now+'</span></div>';
+        body = bg(item.severity||'medium',item.severity||'medium')+' ';
+        body += '<b>'+esc(item.name||item.id)+'</b> '+link;
+        if(item.project) body += ' <code style="font-size:0.75em">'+esc(item.project)+'</code>';
+        if(item.fix) body += '<div style="color:#59636e;margin-top:3px">Fix: '+esc(str(item.fix,120))+'</div>';
+        break;
+
+      case 'ai:agent':
+        h += 'agent</span><span class="fi-time">'+now+'</span></div>';
+        body = '<b>'+esc(item.name)+'</b>';
+        if(item.title) body += ' — '+esc(item.title);
+        body += ' '+link;
+        meta = (item.run_count||0)+' runs'+(item.last_run?' &middot; last: '+item.last_run.substring(11,19):'');
+        break;
+
+      case 'ai:round':
+        h += 'round</span><span class="fi-time">'+now+'</span></div>';
+        body = '<b>Round '+(item.round_number||'?')+'</b>';
+        if(item.completed) body += ' '+bg('done','done');
+        if(item.summary) body += '<div style="color:#59636e;margin-top:3px">'+esc(str(item.summary,100))+'</div>';
+        if(item.agents_completed&&item.agents_completed.length) meta = item.agents_completed.length+' agents completed';
+        break;
+
+      case 'ai:preference':
+        h += 'preference</span><span class="fi-time">'+now+'</span></div>';
+        body = '<b>'+esc(item.name||item.id)+'</b> '+link;
+        body += '<div style="margin-top:3px">'+esc(str(item.rule,120))+'</div>';
+        meta = 'confidence: '+bg(item.confidence||'low','p2')+' ('+(item.times_confirmed||0)+'x confirmed)';
+        break;
+
+      case 'ai:prompt':
+        h += 'prompt</span><span class="fi-time">'+now+'</span></div>';
+        body = '<b>'+esc(item.name||item.id)+'</b>';
+        if(item.agent_id) body += ' for '+agentName(item.agent_id);
+        body += ' '+link;
+        meta = 'type: '+(item.type||'?')+' &middot; '+(item.template?item.template.length+' chars':'no template');
+        break;
+
+      case 'ai:agent_session':
+        h += 'session</span><span class="fi-time">'+now+'</span></div>';
+        body = '<b>'+agentName(item.agent_id)+'</b> session '+(item.status||'?');
+        body += ' '+link;
+        meta = (item.type||'?')+' &middot; '+(item.rounds||0)+' rounds &middot; '+(item.tokens_used||0)+' tokens';
+        break;
+
+      case 'ai:conversation':
+        h += 'conversation</span><span class="fi-time">'+now+'</span></div>';
+        body = '<b>'+agentName(item.agent_id)+'</b>';
+        if(item.title) body += ' — '+esc(item.title);
+        body += ' '+link;
+        body += ' '+bg(item.status||'?',item.status==='active'?'open':'done');
+        break;
+
+      case 'ai:message':
+        var mRole = item.role||'?';
+        var isUser = mRole==='user';
+        var isMine = item.user_id==='owner' || item.agent_id==='agent:owner';
+        var isSystem = mRole==='system';
+        h += (isSystem?'system':isUser?'message':'response')+'</span><span class="fi-time">'+now+'</span></div>';
+        body = '<b>'+agentName(item.agent_id||item.user_id)+'</b> ';
+        if(isUser) {
+          if(item.content) body += '<div style="margin-top:3px">'+esc(str(item.content,300))+'</div>';
+        } else if(isSystem) {
+          if(item.content) body += '<span style="color:#59636e">'+esc(str(item.content,150))+'</span>';
+        } else {
+          body += '<span style="color:#1a7f37">responded</span>';
+          if(item.content) body += '<div style="margin-top:3px;max-height:80px;overflow:hidden">'+esc(str(item.content,300))+'</div>';
+          var rm = item.metadata||{};
+          meta = (rm.response_chars||rm.prompt_chars?(rm.response_chars||rm.prompt_chars)+' chars':'')+(rm.duration_s?' &middot; '+rm.duration_s+'s':'');
+        }
+        body += ' '+link;
+        if(item.to_agents&&item.to_agents.length) meta += (meta?' &middot; ':'')+'to: '+item.to_agents.map(agentName).join(', ');
+        if(isMine) extraClass = ' fi-mine';
+        break;
+
+      default:
+        h += type+'</span><span class="fi-time">'+now+'</span></div>';
+        body = '<b>'+esc(item.name||item.id||'?')+'</b> '+link;
+        meta = classId+'/'+item.id;
+    }
+
+    if(extraClass) h = h.replace('class="feed-item"', 'class="feed-item'+extraClass+'"');
+    h += '<div class="fi-body">'+body+'</div>';
+    if(meta) h += '<div class="fi-meta">'+meta+'</div>';
+    h += '</div>';
+    return h;
+  }
+
+  function addToFeed(html, itemId) {
+    // If item already in feed, update in place
+    if(itemId && feedIds[itemId]) {
+      feedIds[itemId].outerHTML = html;
+      // Re-find element after replacement
+      var newEl = document.getElementById('fi-'+itemId);
+      if(newEl) feedIds[itemId] = newEl;
+      return;
+    }
+    feedEl.insertAdjacentHTML('afterbegin', html);
+    // Track by ID
+    if(itemId) {
+      var el = feedEl.firstElementChild;
+      if(el) { el.id = 'fi-'+itemId; feedIds[itemId] = el; }
+    }
+    // Trim old items
+    while(feedEl.children.length > MAX_FEED) {
+      var last = feedEl.lastChild;
+      if(last && last.id) delete feedIds[last.id.replace('fi-','')];
+      feedEl.removeChild(last);
+    }
+  }
+
+  function esc(s){return s?String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+  function str(s,n){return s?(s.length>n?s.substring(0,n)+'...':s):''}
+
+  // ─── WebSocket ──────────────────────────────────────────
+  esws.on('connected',function(msg){
+    console.log('[WS] connected:', msg);
+    var classes = ['ai:agent','ai:task','ai:round','ai:decision','ai:preference','ai:question','ai:worker','ai:agent_session','ai:prompt','ai:conversation','ai:message','es:finding'];
+    classes.forEach(function(c){esws.subscribe(c)});
+    console.log('[WS] subscribed to', classes.length, 'classes');
+    addToFeed('<div class="feed-item" style="text-align:center;color:#1a7f37;font-size:0.78em">WebSocket connected — subscribed to '+classes.length+' classes</div>');
+  });
+
+  var rt=null;
+  function sched(){if(rt)clearTimeout(rt);rt=setTimeout(function(){rt=null;load()},500)}
+
+  esws.on('change',function(item){
+    console.log('[FEED] change:', item?.class_id, item?.id);
+    if(!item||!item.class_id) return;
+    try {
+      addToFeed(feedCard(item.class_id, item, false), item.id);
+    } catch(e) {
+      console.error('[FEED] render error:', e, item);
+      addToFeed('<div class="feed-item" style="color:#cf222e;font-size:0.75em">Error: '+item.class_id+'/'+item.id+': '+e.message+'</div>');
+    }
+    sched();
+  });
+  esws.on('delete',function(item){
+    console.log('[FEED] delete:', item?.class_id, item?.id);
+    if(!item||!item.class_id) return;
+    try {
+      addToFeed(feedCard(item.class_id, item, true), item.id);
+    } catch(e) {
+      console.error('[FEED] render error:', e);
+    }
+    sched();
+  });
+  esws.on('close',function(){
+    document.getElementById('ws-status').innerHTML='<span class="dot err"></span>reconnecting';
+    addToFeed('<div class="feed-item" style="text-align:center;color:#cf222e;font-size:0.78em">WebSocket disconnected — reconnecting...</div>');
+  });
+  try {
+    console.log('[AIC] Connecting WS to:', WS_URL);
+    esws.connect({user_id:'aic-dashboard'});
+    console.log('[AIC] WS connect called');
+  } catch(e) {
+    console.error('[AIC] WS connect failed:', e);
+  }
+
+  load();
+  setInterval(function(){if(!esws.ws||esws.ws.readyState!==1)load()},15000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>elementStore — Applications</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#f8f9fa;color:#1f2328;line-height:1.5}
+header{background:#fff;border-bottom:1px solid #d1d9e0;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:1.3em;color:#0550ae}
+header .sub{color:#59636e;font-size:0.85em}
+main{max-width:900px;margin:0 auto;padding:24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:20px}
+.app-card{background:#fff;border:1px solid #d1d9e0;border-radius:10px;padding:20px;transition:box-shadow .15s,border-color .15s;text-decoration:none;color:inherit;display:block}
+.app-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);border-color:#0550ae}
+.app-card .icon{font-size:2em;margin-bottom:8px}
+.app-card h2{font-size:1.05em;color:#1f2328;margin-bottom:4px}
+.app-card p{font-size:0.85em;color:#59636e}
+.app-card .tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:0.72em;font-weight:600;margin-top:8px}
+.tag-active{background:#dafbe1;color:#1a7f37}
+.tag-dev{background:#fff8c5;color:#9a6700}
+.section{margin-top:32px}
+.section h3{color:#59636e;font-size:0.9em;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px}
+#status{font-size:0.82em;color:#59636e}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>elementStore Applications</h1>
+    <div class="sub">Schema-driven apps — all powered by the same store</div>
+  </div>
+  <span id="status">connecting...</span>
+</header>
+
+<main>
+  <div class="grid" id="apps"></div>
+
+  <div class="section">
+    <h3>System</h3>
+    <div class="grid" id="system-apps"></div>
+  </div>
+</main>
+
+<script src="../admin/dist/element-store.js"></script>
+<script>
+(function(){
+  var API = location.origin + '/elementStore';
+  store.storage.data.url = API;
+
+  // Static app definitions (will be replaced by es:app objects from store)
+  var apps = [
+    {id:'aic', name:'AI Company', desc:'AI agent orchestration — CEO, CTO, DEV, and 8 more agents manage your codebase', icon:'🤖', url:'aic/', status:'active'},
+    {id:'architect', name:'Architect', desc:'Cloud infrastructure designer with 25+ node types, 2D/3D visualization', icon:'🏗️', url:'/architect', status:'active'},
+    {id:'plan', name:'Plan Dashboard', desc:'Architecture findings, tasks, production readiness tracking', icon:'📋', url:'/plan.html', status:'active'},
+  ];
+
+  var sysApps = [
+    {id:'admin', name:'Admin', desc:'Class browser, object editor, genesis loader — full store management', icon:'⚙️', url:'../admin/', status:'active'},
+    {id:'api', name:'REST API', desc:'Health, classes, objects, query, genesis endpoints', icon:'🔌', url:'../health', status:'active'},
+  ];
+
+  function renderApps(list, targetId) {
+    var h = '';
+    list.forEach(function(a) {
+      var tagCls = a.status === 'active' ? 'tag-active' : 'tag-dev';
+      h += '<a class="app-card" href="'+a.url+'">';
+      h += '<div class="icon">'+a.icon+'</div>';
+      h += '<h2>'+a.name+'</h2>';
+      h += '<p>'+a.desc+'</p>';
+      h += '<span class="tag '+tagCls+'">'+a.status+'</span>';
+      h += '</a>';
+    });
+    document.getElementById(targetId).innerHTML = h;
+  }
+
+  async function init() {
+    renderApps(apps, 'apps');
+    renderApps(sysApps, 'system-apps');
+
+    try {
+      var health = await fetch(API + '/health').then(r => r.json());
+      var classes = await fetch(API + '/class').then(r => r.json());
+      document.getElementById('status').textContent = health.status + ' — ' + classes.length + ' classes';
+
+      // Try loading es:app objects to enrich the list
+      var esApps = await fetch(API + '/store/es:app').then(r => r.ok ? r.json() : []);
+      if (esApps.length > 0) {
+        // Could merge with static list here
+      }
+    } catch(e) {
+      document.getElementById('status').textContent = 'offline';
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
