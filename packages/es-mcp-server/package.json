@@ -1,0 +1,24 @@
+{
+  "name": "@anthropic/es-mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for elementStore — auto-discovers classes and exposes them as Claude Code tools",
+  "type": "module",
+  "bin": {
+    "es-mcp-server": "./bin/es-mcp-server.js"
+  },
+  "main": "./src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "elementstore",
+    "claude-code",
+    "model-context-protocol"
+  ],
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  }
+}
