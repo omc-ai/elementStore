@@ -1222,38 +1222,31 @@
       "namespace_id": "ai",
       "extends_id": "core:atomObj",
       "is_system": true,
-      "description": "Universal message — content + result. Result type determines what the message produced (question, decision, task, finding, approval).",
+      "description": "Universal message in the pool. Sent by user_id+agent_id, directed to to_agents[]. result_type determines what the message produced. references[] links to messages being responded to.",
       "storage": "storage_ai",
       "props": [
         {
-          "data_type": "relation",
-          "key": "conversation_id",
+          "data_type": "string",
+          "key": "user_id",
+          "description": "Person who sent this (set by server from JWT, or system for AI agents)",
           "is_array": "false",
           "display_order": 0,
-          "id": "ai:message.conversation_id",
+          "id": "ai:message.user_id",
           "class_id": "@prop"
         },
         {
           "data_type": "string",
-          "key": "role",
-          "is_array": "false",
-          "display_order": 0,
-          "id": "ai:message.role",
-          "class_id": "@prop"
-        },
-        {
-          "data_type": "string",
-          "key": "from_agent",
+          "key": "agent_id",
           "description": "Agent that sent this message",
           "is_array": "false",
           "display_order": 0,
-          "id": "ai:message.from_agent",
+          "id": "ai:message.agent_id",
           "class_id": "@prop"
         },
         {
           "data_type": "string",
           "key": "to_agents",
-          "description": "Agents this message is directed to",
+          "description": "Agents that should act on this (filter, not enforce)",
           "is_array": "indexed",
           "display_order": 0,
           "id": "ai:message.to_agents",
@@ -1261,11 +1254,11 @@
         },
         {
           "data_type": "string",
-          "key": "project_ids",
-          "description": "Related projects",
-          "is_array": "indexed",
+          "key": "conversation_id",
+          "description": "Thread grouping (optional — messages can exist without a conversation)",
+          "is_array": "false",
           "display_order": 0,
-          "id": "ai:message.project_ids",
+          "id": "ai:message.conversation_id",
           "class_id": "@prop"
         },
         {
@@ -1279,15 +1272,43 @@
         },
         {
           "data_type": "string",
-          "key": "status",
+          "key": "project_ids",
+          "description": "Related projects",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:message.project_ids",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "round_id",
+          "description": "Which execution round",
           "is_array": "false",
           "display_order": 0,
-          "id": "ai:message.status",
+          "id": "ai:message.round_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "role",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.role",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "content",
+          "description": "Plain text content",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.content",
           "class_id": "@prop"
         },
         {
           "data_type": "object",
           "key": "chunks",
+          "description": "Rich content (text, tool_call, action, etc.)",
           "is_array": "indexed",
           "display_order": 0,
           "id": "ai:message.chunks",
@@ -1295,17 +1316,8 @@
         },
         {
           "data_type": "string",
-          "key": "content",
-          "description": "Plain text content (shorthand when no chunks needed)",
-          "is_array": "false",
-          "display_order": 0,
-          "id": "ai:message.content",
-          "class_id": "@prop"
-        },
-        {
-          "data_type": "string",
           "key": "result_type",
-          "description": "What this message produced — determines result object shape",
+          "description": "What this message produced — shapes the result object",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:message.result_type",
@@ -1314,10 +1326,28 @@
         {
           "data_type": "object",
           "key": "result",
-          "description": "Result data — shape varies by result_type (class selector pattern)",
+          "description": "Result data — shape varies by result_type (class selector)",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:message.result",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "references",
+          "description": "Message IDs this is responding to",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:message.references",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "status",
+          "description": "For questions: pending→answered. For streaming: streaming→complete",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.status",
           "class_id": "@prop"
         },
         {
@@ -1327,15 +1357,6 @@
           "is_array": "false",
           "display_order": 0,
           "id": "ai:message.metadata",
-          "class_id": "@prop"
-        },
-        {
-          "data_type": "string",
-          "key": "round_id",
-          "description": "Which round this was created in",
-          "is_array": "false",
-          "display_order": 0,
-          "id": "ai:message.round_id",
           "class_id": "@prop"
         },
         {
