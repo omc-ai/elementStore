@@ -14,3 +14,12 @@ export { resolveProperties, groupProperties } from './PropertyResolver.ts';
 export type { BoundProperty } from './PropertyResolver.ts';
 
 export { registerFunction, getFunction, listFunctions, executeFunction, bindFunctions } from './FunctionProxy.ts';
+
+export { resolveEditor, resolveEditors } from './EditorResolver.ts';
+export type { ResolvedEditor, EditorType } from './EditorResolver.ts';
+
+export { toPropertyDefinition, toPropertyDefinitions, toAdminProp } from './adapters.ts';
+export type { PropertyDefinition } from './adapters.ts';
+
+export { getEditorLayout, getNestingStyle, columnWidths, ColumnWidthState, INDENT_PER_LEVEL, DEFAULT_COLUMNS, MIN_COLUMNS } from './EditorLayout.ts';
+export type { EditorColumnLayout, NestingStyle } from './EditorLayout.ts';
