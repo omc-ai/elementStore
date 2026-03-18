@@ -1130,88 +1130,96 @@
       "namespace_id": "ai",
       "extends_id": "core:atomObj",
       "is_system": true,
-      "description": "AI chat conversation session",
+      "description": "A thread between participants. Messages ordered by created timestamp. Linked to project, task, agent.",
       "storage": "storage_ai",
       "props": [
         {
+          "data_type": "string",
+          "key": "user_id",
+          "description": "Owner/initiator of the conversation",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.user_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
           "key": "agent_id",
-          "data_type": "relation",
-          "object_class_id": [
-            "ai:agent"
-          ],
-          "description": "Agent handling this conversation"
+          "description": "Primary agent in this conversation",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.agent_id",
+          "class_id": "@prop"
         },
         {
-          "key": "provider",
           "data_type": "string",
-          "description": "LLM provider ID"
+          "key": "project_ids",
+          "description": "Related projects",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:conversation.project_ids",
+          "class_id": "@prop"
         },
         {
-          "key": "model",
           "data_type": "string",
-          "description": "LLM model ID"
+          "key": "task_id",
+          "description": "Related task",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.task_id",
+          "class_id": "@prop"
         },
         {
+          "data_type": "string",
+          "key": "title",
+          "description": "Conversation title/summary",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.title",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
           "key": "status",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.status",
+          "class_id": "@prop"
+        },
+        {
           "data_type": "string",
-          "default_value": "active",
-          "options": {
-            "values": [
-              "active",
-              "closed",
-              "error"
-            ]
-          },
-          "description": "Conversation status"
+          "key": "provider",
+          "description": "LLM provider",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.provider",
+          "class_id": "@prop"
         },
         {
-          "key": "window_id",
           "data_type": "string",
-          "description": "Frontend window/tab that owns this conversation"
+          "key": "model",
+          "description": "LLM model",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.model",
+          "class_id": "@prop"
         },
         {
-          "key": "messages",
-          "data_type": "relation",
-          "is_array": true,
-          "object_class_id": [
-            "ai:message"
-          ],
-          "description": "Ordered message IDs — drives AtomCollection for scoped reactivity"
+          "data_type": "string",
+          "key": "created",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.created",
+          "class_id": "@prop"
         },
         {
-          "key": "prompts",
-          "data_type": "relation",
-          "is_array": true,
-          "object_class_id": [
-            "ai:prompt-request"
-          ],
-          "description": "Active prompt-request IDs — drives inline widget rendering"
-        },
-        {
-          "key": "actions",
-          "data_type": "relation",
-          "is_array": true,
-          "object_class_id": [
-            "@action"
-          ],
-          "description": "Available conversation actions — lifecycle, AI tools, and frontend commands",
-          "default_value": [
-            "ai:conversation.send_message",
-            "ai:conversation.stop_generation",
-            "ai:conversation.end_conversation",
-            "ai:conversation.clear_messages",
-            "ai:conversation.respond_to_prompt",
-            "ai:conversation.confirm_dialog",
-            "ai:conversation.request_input",
-            "ai:conversation.toast",
-            "ai:conversation.progress",
-            "ai:conversation.select_nodes",
-            "ai:conversation.zoom_to",
-            "ai:conversation.highlight_nodes",
-            "ai:conversation.fit_view",
-            "ai:conversation.show_dialog",
-            "ai:conversation.close_dialog"
-          ]
+          "data_type": "string",
+          "key": "last_message",
+          "description": "Timestamp of last message",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.last_message",
+          "class_id": "@prop"
         }
       ]
     },
