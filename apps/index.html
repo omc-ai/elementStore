@@ -50,7 +50,7 @@ main{max-width:900px;margin:0 auto;padding:24px}
   var API = location.origin + '/elementStore';
   store.storage.data.url = API;
 
-  // Static app definitions (will be replaced by es:app objects from store)
+  // Static app definitions (will be replaced by @app objects from store)
   var apps = [
     {id:'aic', name:'AI Company', desc:'AI agent orchestration — CEO, CTO, DEV, and 8 more agents manage your codebase', icon:'🤖', url:'aic/', status:'active'},
     {id:'architect', name:'Architect', desc:'Cloud infrastructure designer with 25+ node types, 2D/3D visualization', icon:'🏗️', url:'/architect', status:'active'},
@@ -85,8 +85,8 @@ main{max-width:900px;margin:0 auto;padding:24px}
       var classes = await fetch(API + '/class').then(r => r.json());
       document.getElementById('status').textContent = health.status + ' — ' + classes.length + ' classes';
 
-      // Try loading es:app objects to enrich the list
-      var esApps = await fetch(API + '/store/es:app').then(r => r.ok ? r.json() : []);
+      // Try loading @app objects to enrich the list
+      var esApps = await fetch(API + '/store/@app').then(r => r.ok ? r.json() : []);
       if (esApps.length > 0) {
         // Could merge with static list here
       }
