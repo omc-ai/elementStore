@@ -81,6 +81,15 @@ class ClassModel
     /** @var bool Allow custom IDs when creating objects (for seeding/testing) */
     private bool $allowCustomIds = false;
 
+    /** @var bool Cast object structure on read (normalize arrays, fill defaults) */
+    private bool $castOnRead = true;
+
+    /** @var bool Fill missing fields with default values on read */
+    private bool $fillDefaults = true;
+
+    /** @var bool Throw exception on breaking schema changes (e.g., object_class_id change) */
+    private bool $strictSchemaChanges = false;
+
     /** @var \Phalcon\Di\DiInterface|null DI container */
     private ?\Phalcon\Di\DiInterface $di = null;
 
@@ -375,6 +384,11 @@ class ClassModel
             if (!$this->checkSecurityAccess($data)) {
                 return null; // Security mismatch
             }
+        }
+
+        // Cast-on-read: normalize structure to match current class definition
+        if ($this->castOnRead) {
+            $data = $this->normalizeObjectData($class_id, $data);
         }
 
         // Factory creates AtomObj
@@ -1361,8 +1375,34 @@ class ClassModel
             return null;
         }
 
-        if ($prop->is_array && is_array($value)) {
-            return array_map(fn($v) => $this->castSingleValue($v, $prop), $value);
+        $arrayMode = $prop->getArrayMode();
+
+        // Array/scalar normalization
+        if ($arrayMode === Prop::ARRAY_INDEXED) {
+            // Prop expects array
+            if (!is_array($value)) {
+                // Scalar → wrap in array
+                $value = [$value];
+            }
+            return array_values(array_map(fn($v) => $this->castSingleValue($v, $prop), $value));
+        }
+
+        if ($arrayMode === Prop::ARRAY_ASSOC) {
+            // Prop expects assoc map — keep as-is but cast values
+            if (is_array($value)) {
+                $result = [];
+                foreach ($value as $k => $v) {
+                    $result[$k] = $this->castSingleValue($v, $prop);
+                }
+                return $result;
+            }
+            return $value;
+        }
+
+        // Prop expects scalar
+        if (is_array($value) && count($value) === 1 && array_is_list($value)) {
+            // Single-element array → unwrap to scalar
+            $value = $value[0];
         }
 
         return $this->castSingleValue($value, $prop);
@@ -1694,6 +1734,35 @@ class ClassModel
                 );
             }
         }
+    }
+
+    /**
+     * Normalize object data against class definition on read.
+     * - Casts values to correct types (array/scalar normalization)
+     * - Fills missing fields with defaults (if fillDefaults enabled)
+     * - Does NOT validate — only normalizes structure
+     */
+    private function normalizeObjectData(string $classId, array $data): array
+    {
+        $meta = $this->getClass($classId);
+        if (!$meta) return $data;
+
+        $props = $this->getClassProps($classId);
+        if (empty($props)) return $data;
+
+        foreach ($props as $prop) {
+            $key = $prop->key;
+
+            if (array_key_exists($key, $data)) {
+                // Cast existing value to match prop definition
+                $data[$key] = $this->castValue($data[$key], $prop);
+            } elseif ($this->fillDefaults && $prop->default_value !== null) {
+                // Fill missing field with default
+                $data[$key] = $prop->default_value;
+            }
+        }
+
+        return $data;
     }
 
     private function guessDataType(mixed $value): string

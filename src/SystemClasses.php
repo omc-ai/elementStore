@@ -306,16 +306,6 @@ class SystemClasses
                 Prop::PF_DISPLAY_ORDER => 100,
                 Prop::PF_GROUP_NAME => 'Internal',
             ],
-            [
-                Prop::PF_KEY => Constants::F_GENESIS_FILE,
-                Prop::PF_LABEL => 'Genesis File',
-                Prop::PF_DESCRIPTION => 'Source genesis/seed file in .es/ directory. Set automatically by GenesisLoader for seed write-back.',
-                Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_SERVER_ONLY => true,
-                Prop::PF_HIDDEN => true,
-                Prop::PF_DISPLAY_ORDER => 101,
-                Prop::PF_GROUP_NAME => 'Internal',
-            ],
         ];
 
         return [

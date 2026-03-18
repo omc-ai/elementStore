@@ -65,8 +65,10 @@ class BroadcastService
         }
 
         $payload = json_encode([
-            'type'  => 'changes',
-            'items' => $items,
+            'class_id'  => '@changes',
+            'items'     => $items,
+            'sender_id' => $senderUserId,
+            'time'      => date('Y-m-d\TH:i:s'),
         ]);
 
         $headers = [
@@ -109,7 +111,17 @@ class BroadcastService
     {
         $item = $data;
         if ($oldData !== null) {
-            $item['_old'] = $oldData;
+            // Only include changed values in _old
+            $changed = [];
+            foreach ($oldData as $k => $v) {
+                // Skip storage-internal fields (should already be stripped by storage layer)
+                if (!array_key_exists($k, $data) || $data[$k] !== $v) {
+                    $changed[$k] = $v;
+                }
+            }
+            if (!empty($changed)) {
+                $item['_old'] = $changed;
+            }
         }
         self::send([$item], $senderUserId);
     }
