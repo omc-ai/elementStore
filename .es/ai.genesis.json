@@ -1491,7 +1491,7 @@
       "id": "ai:agent_session",
       "class_id": "@class",
       "name": "Agent Session",
-      "description": "A claude session belonging to an agent",
+      "description": "A session belonging to an agent — type identifies the runtime (claude, openai, etc.)",
       "props": [
         {
           "data_type": "string",
@@ -1499,6 +1499,15 @@
           "is_array": "false",
           "display_order": 0,
           "id": "ai:agent_session.name",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "type",
+          "description": "Session runtime type",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.type",
           "class_id": "@prop"
         },
         {
@@ -1512,11 +1521,11 @@
         },
         {
           "data_type": "string",
-          "key": "claude_session_id",
-          "description": "Claude CLI session ID",
+          "key": "session_id",
+          "description": "External session ID (e.g. claude CLI session ID)",
           "is_array": "false",
           "display_order": 0,
-          "id": "ai:agent_session.claude_session_id",
+          "id": "ai:agent_session.session_id",
           "class_id": "@prop"
         },
         {
@@ -1554,7 +1563,6 @@
         {
           "data_type": "string",
           "key": "expires_at",
-          "description": "For timed mode — when session auto-expires",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:agent_session.expires_at",
@@ -1563,7 +1571,6 @@
         {
           "data_type": "integer",
           "key": "rounds",
-          "description": "Rounds executed in this session",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:agent_session.rounds",
@@ -1580,7 +1587,6 @@
         {
           "data_type": "integer",
           "key": "messages",
-          "description": "Total messages exchanged",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:agent_session.messages",
@@ -1589,7 +1595,6 @@
         {
           "data_type": "string",
           "key": "worker_id",
-          "description": "Which worker created this session",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:agent_session.worker_id",
@@ -1598,7 +1603,6 @@
         {
           "data_type": "string",
           "key": "cwd",
-          "description": "Working directory for this session",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:agent_session.cwd",
@@ -1610,6 +1614,15 @@
           "is_array": "false",
           "display_order": 0,
           "id": "ai:agent_session.git_branch",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "model",
+          "description": "Model used in this session",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.model",
           "class_id": "@prop"
         }
       ]
