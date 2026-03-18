@@ -194,8 +194,8 @@ ElementStoreWS.prototype._onMessage = function (msg) {
         return;
     }
 
-    // Data messages — { type: "changes", items: [...] }
-    if (msg.type === 'changes' && msg.items) {
+    // Data messages — @changes object: { class_id: "@changes", items: [...] }
+    if ((msg.class_id === '@changes' || msg.type === 'changes') && msg.items) {
         this._onChanges(msg.items);
         return;
     }

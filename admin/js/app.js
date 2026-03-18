@@ -106,6 +106,7 @@ var _wsChangeCount = 0;
 
 function initWebSocket() {
     if (typeof ElementStoreWS === 'undefined') return;
+    if (window.es?.ws) return; // already connected
 
     var loc = window.location;
     var wsProtocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -204,13 +205,33 @@ function _wsLogEntry(item, type) {
             '<span class="ws-msg">' + (item.message || '') + '</span>' +
             fileInfo + traceHtml;
     } else {
-        // Data change/delete — clickable to open property editor
+        // Data change/delete — show class name, changed fields, clickable link
         var cid = item.class_id || '?';
         var oid = item.id || '?';
+        var displayName = item.name || item.label || item.key || oid;
+
+        // Format changed fields from _old
+        var changedHtml = '';
+        if (item._old && typeof item._old === 'object') {
+            var changes = Object.keys(item._old).map(function (k) {
+                var oldVal = JSON.stringify(item._old[k]);
+                var newVal = JSON.stringify(item[k]);
+                if (oldVal.length > 30) oldVal = oldVal.slice(0, 30) + '…';
+                if (newVal.length > 30) newVal = newVal.slice(0, 30) + '…';
+                return '<span style="color:#89b4fa">' + k + '</span>: ' +
+                    '<span style="color:#f38ba8;text-decoration:line-through">' + oldVal + '</span>' +
+                    ' → <span style="color:#a6e3a1">' + newVal + '</span>';
+            });
+            if (changes.length > 0) {
+                changedHtml = '<div style="margin-top:2px;padding-left:12px;font-size:11px">' + changes.join('<br>') + '</div>';
+            }
+        }
+
         entry.innerHTML = '<span class="ws-time">' + time + '</span>' +
-            '<a href="#" class="ws-class" onclick="viewObject(\'' + cid + '\',\'' + oid + '\');return false;" title="Open ' + cid + '/' + oid + '">' +
-            cid + ' / <span class="ws-id">' + oid + '</span></a>' +
-            (type === 'delete' ? ' <span style="color:#f38ba8">DELETED</span>' : '');
+            (type === 'delete' ? '<span style="color:#f38ba8;font-weight:600">DEL </span>' : '') +
+            '<a href="#" class="ws-class" onclick="viewObject(\'' + cid + '\',\'' + oid + '\');return false;" title="Open in editor">' +
+            '<span style="color:#6c7086">' + cid + '</span> / <span class="ws-id">' + displayName + '</span></a>' +
+            changedHtml;
     }
     log.insertBefore(entry, log.firstChild);
 
@@ -261,6 +282,60 @@ function _wsBlinkObject(item) {
     });
 }
 
+// ─────────────────────────────────────────────────────────────
+// URL Routing — deep links and browser history
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Handle URL params on load or popstate:
+ *   ?class=es:app                    → open class objects tab
+ *   ?class=es:app&id=app:es-admin    → open class tab + edit object
+ *   ?action=edit&class=X&id=Y        → edit object directly
+ */
+async function handleRoute() {
+    var params = new URLSearchParams(window.location.search);
+    var classId = params.get('class');
+    var objectId = params.get('id');
+    var action = params.get('action');
+    var tabId = params.get('tab');
+
+    if (classId) {
+        // Open class objects tab
+        var tabKey = 'obj-' + classId;
+        tabManager._suppressHistory = true;
+        tabManager.add(tabKey, classId, true, ObjectListPanel, classId);
+        tabManager._suppressHistory = false;
+
+        // If object ID provided, open it in the editor
+        if (objectId && (action === 'edit' || !action)) {
+            try {
+                var obj = await api('GET', '/store/' + classId + '/' + objectId);
+                if (obj) renderModalForClass(classId, obj);
+            } catch (e) {
+                showToast('Object not found: ' + objectId, 'error');
+            }
+        }
+    } else if (tabId) {
+        // Switch to tab by ID
+        tabManager._suppressHistory = true;
+        if (tabManager.tabs.has(tabId)) {
+            tabManager.switchTo(tabId);
+        }
+        tabManager._suppressHistory = false;
+    }
+}
+
+// Browser back/forward
+window.addEventListener('popstate', function (e) {
+    if (e.state?.tab && tabManager) {
+        tabManager._suppressHistory = true;
+        if (tabManager.tabs.has(e.state.tab)) {
+            tabManager.switchTo(e.state.tab);
+        }
+        tabManager._suppressHistory = false;
+    }
+});
+
 async function init() {
     // Connect store to API first
     initStore();
@@ -276,6 +351,9 @@ async function init() {
     }
 
     await initDashboard();
+
+    // Handle URL params (deep link)
+    handleRoute();
 
     // Connect WebSocket after dashboard is ready
     initWebSocket();

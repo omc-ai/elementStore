@@ -83,6 +83,19 @@ class TabManager {
         tab.el.classList.add('active');
         tab.contentEl.classList.add('active');
         this.activeId = id;
+
+        // Push to browser history
+        if (!this._suppressHistory) {
+            const url = new URL(window.location);
+            url.searchParams.set('tab', id);
+            // If tab is an object list, include class_id
+            if (tab.controller?.classId) {
+                url.searchParams.set('class', tab.controller.classId);
+            }
+            url.searchParams.delete('id');
+            url.searchParams.delete('action');
+            history.pushState({ tab: id }, '', url);
+        }
     }
 
     /**
