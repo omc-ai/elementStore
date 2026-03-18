@@ -1222,66 +1222,129 @@
       "namespace_id": "ai",
       "extends_id": "core:atomObj",
       "is_system": true,
-      "description": "Message within an AI conversation — user, assistant, system, or tool",
+      "description": "Universal message — content + result. Result type determines what the message produced (question, decision, task, finding, approval).",
       "storage": "storage_ai",
       "props": [
         {
+          "data_type": "relation",
           "key": "conversation_id",
-          "data_type": "relation",
-          "object_class_id": [
-            "ai:conversation"
-          ],
-          "description": "Parent conversation"
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.conversation_id",
+          "class_id": "@prop"
         },
         {
+          "data_type": "string",
           "key": "role",
-          "data_type": "string",
-          "required": true,
-          "options": {
-            "values": [
-              "user",
-              "assistant",
-              "system",
-              "tool"
-            ]
-          },
-          "description": "Message role"
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.role",
+          "class_id": "@prop"
         },
         {
+          "data_type": "string",
+          "key": "from_agent",
+          "description": "Agent that sent this message",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.from_agent",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "to_agents",
+          "description": "Agents this message is directed to",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:message.to_agents",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "project_ids",
+          "description": "Related projects",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:message.project_ids",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "task_id",
+          "description": "Related task",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.task_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
           "key": "status",
-          "data_type": "string",
-          "default_value": "complete",
-          "options": {
-            "values": [
-              "streaming",
-              "complete",
-              "error"
-            ]
-          },
-          "description": "Message status"
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.status",
+          "class_id": "@prop"
         },
         {
+          "data_type": "object",
           "key": "chunks",
-          "data_type": "object",
-          "is_array": true,
-          "object_class_id": [
-            "ai:chunk"
-          ],
-          "description": "Ordered content chunks"
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:message.chunks",
+          "class_id": "@prop"
         },
         {
+          "data_type": "string",
+          "key": "content",
+          "description": "Plain text content (shorthand when no chunks needed)",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.content",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "result_type",
+          "description": "What this message produced — determines result object shape",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.result_type",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "object",
+          "key": "result",
+          "description": "Result data — shape varies by result_type (class selector pattern)",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.result",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "object",
           "key": "metadata",
-          "data_type": "object",
-          "description": "Provider, model, usage, debug info"
+          "description": "Provider, model, tokens, timing",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.metadata",
+          "class_id": "@prop"
         },
         {
-          "key": "debug_trace",
-          "data_type": "relation",
-          "is_array": true,
-          "object_class_id": [
-            "ai:debug-entry"
-          ],
-          "description": "Linked debug entries (transient — only live during session)"
+          "data_type": "string",
+          "key": "round_id",
+          "description": "Which round this was created in",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.round_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "created",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.created",
+          "class_id": "@prop"
         }
       ]
     },
@@ -1623,6 +1686,217 @@
           "is_array": "false",
           "display_order": 0,
           "id": "ai:agent_session.model",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:result_question",
+      "class_id": "@class",
+      "name": "Question Result",
+      "description": "Result shape when result_type=question",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "to_title",
+          "description": "Role title: owner, all, security, etc.",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_question.to_title",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "context",
+          "description": "Why this question matters",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_question.context",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "answer",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_question.answer",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "answered_by",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_question.answered_by",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "answered_at",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_question.answered_at",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "status",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_question.status",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:result_decision",
+      "class_id": "@class",
+      "name": "Decision Result",
+      "description": "Result shape when result_type=decision",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "topic",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_decision.topic",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "rationale",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_decision.rationale",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "priority",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_decision.priority",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "assigned_agents",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:result_decision.assigned_agents",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "boolean",
+          "key": "implemented",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_decision.implemented",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:result_task",
+      "class_id": "@class",
+      "name": "Task Result",
+      "description": "Result shape when result_type=task",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "task_id",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_task.task_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "action",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_task.action",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "summary",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_task.summary",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:result_finding",
+      "class_id": "@class",
+      "name": "Finding Result",
+      "description": "Result shape when result_type=finding",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "severity",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_finding.severity",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "category",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_finding.category",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "fix",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_finding.fix",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "location",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:result_finding.location",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:result_approval",
+      "class_id": "@class",
+      "name": "Approval Result",
+      "description": "Result shape when result_type=approval",
+      "props": [
+        {
+          "data_type": "boolean",
+          "key": "approved",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_approval.approved",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "conditions",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_approval.conditions",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "reference_id",
+          "description": "ID of the message/question being approved",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_approval.reference_id",
           "class_id": "@prop"
         }
       ]
