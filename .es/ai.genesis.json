@@ -1,114 +1,189 @@
 {
   "version": "1.0.0",
   "namespace": "ai",
-  "description": "Shared AI/agent classes \u2014 used by aic.sh, cwm-architect, and any application that works with agents, tasks, prompts, decisions.",
+  "description": "Shared AI/agent classes — used by aic.sh, cwm-architect, and any application that works with agents, tasks, prompts, decisions.",
   "classes": [
     {
       "id": "ai:agent",
       "class_id": "@class",
-      "name": "Agent",
+      "name": "AI Agent",
       "description": "An AI agent that can execute tasks, use tools, and make decisions. Extend for project-specific fields.",
       "props": [
         {
+          "data_type": "string",
           "key": "name",
-          "data_type": "string",
-          "display_order": 1,
-          "flags": {
-            "required": true
-          },
-          "class_id": "@prop_string"
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.name",
+          "class_id": "@prop"
         },
         {
+          "data_type": "string",
           "key": "description",
-          "data_type": "string",
-          "editor": {
-            "id": "textarea"
-          },
-          "display_order": 2,
-          "class_id": "@prop_string"
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.description",
+          "class_id": "@prop"
         },
         {
+          "data_type": "string",
           "key": "title",
-          "data_type": "string",
-          "display_order": 3,
-          "description": "Job title / role",
-          "class_id": "@prop_string"
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.title",
+          "class_id": "@prop"
         },
         {
+          "data_type": "string",
           "key": "prompt",
-          "data_type": "string",
-          "editor": {
-            "id": "code"
-          },
-          "display_order": 4,
-          "description": "System prompt template",
-          "class_id": "@prop_string"
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.prompt",
+          "class_id": "@prop"
         },
         {
+          "data_type": "string",
           "key": "tools",
-          "data_type": "relation",
           "is_array": "indexed",
-          "object_class_id": [
-            "@action"
-          ],
-          "display_order": 5,
-          "description": "Actions this agent can execute (tools ARE actions)",
-          "class_id": "@prop_relation"
+          "display_order": 0,
+          "id": "ai:agent.tools",
+          "class_id": "@prop"
         },
         {
+          "data_type": "string",
           "key": "domain",
-          "data_type": "string",
           "is_array": "indexed",
-          "display_order": 6,
-          "description": "Areas of responsibility",
-          "class_id": "@prop_string"
+          "display_order": 0,
+          "id": "ai:agent.domain",
+          "class_id": "@prop"
         },
         {
-          "key": "is_active",
           "data_type": "boolean",
-          "default_value": true,
-          "display_order": 7,
-          "class_id": "@prop_boolean"
+          "key": "is_active",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.is_active",
+          "class_id": "@prop"
         },
         {
+          "data_type": "integer",
           "key": "execution_order",
-          "data_type": "integer",
-          "display_order": 8,
-          "description": "Run sequence (lower = first)",
-          "class_id": "@prop_number"
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.execution_order",
+          "class_id": "@prop"
         },
         {
+          "data_type": "string",
           "key": "model",
-          "data_type": "string",
-          "display_order": 9,
-          "description": "LLM model ID",
-          "class_id": "@prop_string"
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.model",
+          "class_id": "@prop"
         },
         {
+          "data_type": "string",
           "key": "avatar",
-          "data_type": "string",
-          "display_order": 10,
-          "description": "Avatar image URL",
-          "class_id": "@prop_string"
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.avatar",
+          "class_id": "@prop"
         },
         {
+          "data_type": "string",
           "key": "last_run",
-          "data_type": "string",
-          "display_order": 11,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.last_run",
+          "class_id": "@prop"
         },
         {
-          "key": "run_count",
           "data_type": "integer",
-          "default_value": 0,
-          "display_order": 12,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_number"
+          "key": "run_count",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.run_count",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "session_mode",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.session_mode",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "session_ttl",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.session_ttl",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "session_id",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.session_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "session_started",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.session_started",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "boolean",
+          "key": "auto_approve",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.auto_approve",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "requires_approval",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:agent.requires_approval",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "trigger_on",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:agent.trigger_on",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "schedule",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.schedule",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "max_tokens_per_run",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.max_tokens_per_run",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "cooldown",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.cooldown",
+          "class_id": "@prop"
         }
       ]
     },
@@ -116,7 +191,7 @@
       "id": "ai:task",
       "class_id": "@class",
       "name": "Task",
-      "description": "An actionable work item \u2014 assigned to agents, tracked through lifecycle.",
+      "description": "An actionable work item — assigned to agents, tracked through lifecycle.",
       "props": [
         {
           "key": "name",
@@ -552,7 +627,7 @@
       "id": "ai:round",
       "class_id": "@class",
       "name": "Round",
-      "description": "An execution round \u2014 one cycle of agents running sequentially.",
+      "description": "An execution round — one cycle of agents running sequentially.",
       "props": [
         {
           "key": "name",
@@ -627,7 +702,7 @@
       "extends_id": "core:atomObj",
       "is_system": true,
       "is_seed": true,
-      "description": "Tool that can be assigned to agents \u2014 binds to ElementStore classes and actions",
+      "description": "Tool that can be assigned to agents — binds to ElementStore classes and actions",
       "storage": "storage_ai",
       "props": [
         {
@@ -667,7 +742,7 @@
       "extends_id": "core:atomObj",
       "is_system": true,
       "storage": "storage_ai",
-      "description": "Persistent memory entry \u2014 generic data field for AI to store anything",
+      "description": "Persistent memory entry — generic data field for AI to store anything",
       "props": [
         {
           "key": "key",
@@ -678,7 +753,7 @@
         {
           "key": "data",
           "data_type": "object",
-          "description": "Generic data payload \u2014 AI stores whatever it needs"
+          "description": "Generic data payload — AI stores whatever it needs"
         },
         {
           "key": "agent_id",
@@ -711,7 +786,7 @@
       "extends_id": "core:atomObj",
       "is_system": true,
       "storage": "@storage:none",
-      "description": "Real-time debug trace entry \u2014 fire-and-forget via WebSocket, not persisted",
+      "description": "Real-time debug trace entry — fire-and-forget via WebSocket, not persisted",
       "props": [
         {
           "key": "conversation_id",
@@ -750,7 +825,7 @@
         {
           "key": "data",
           "data_type": "object",
-          "description": "Step payload \u2014 provider, tokens, params, results, errors"
+          "description": "Step payload — provider, tokens, params, results, errors"
         },
         {
           "key": "duration",
@@ -767,7 +842,7 @@
       "extends_id": "core:atomObj",
       "is_system": true,
       "storage": "storage_ai",
-      "description": "Scheduled or triggered job \u2014 schema, events, and execution rules declared in object",
+      "description": "Scheduled or triggered job — schema, events, and execution rules declared in object",
       "props": [
         {
           "key": "type",
@@ -916,7 +991,7 @@
       "extends_id": "core:atomObj",
       "is_system": true,
       "is_seed": true,
-      "description": "Embedded chunk within ai:message \u2014 not independently stored",
+      "description": "Embedded chunk within ai:message — not independently stored",
       "props": [
         {
           "key": "seq",
@@ -968,7 +1043,7 @@
       "namespace_id": "ai",
       "extends_id": "core:atomObj",
       "is_system": true,
-      "description": "Generic user-input request from AI \u2014 rendered as inline widget in conversation. Types: confirm, alert, password, number, text, options",
+      "description": "Generic user-input request from AI — rendered as inline widget in conversation. Types: confirm, alert, password, number, text, options",
       "props": [
         {
           "key": "action_id",
@@ -1061,7 +1136,7 @@
       "namespace_id": "ai",
       "extends_id": "core:atomObj",
       "is_system": true,
-      "description": "User response to an ai:prompt-request \u2014 includes confirm token for backend verification",
+      "description": "User response to an ai:prompt-request — includes confirm token for backend verification",
       "props": [
         {
           "key": "request_id",
@@ -1155,7 +1230,7 @@
           "object_class_id": [
             "ai:message"
           ],
-          "description": "Ordered message IDs \u2014 drives AtomCollection for scoped reactivity"
+          "description": "Ordered message IDs — drives AtomCollection for scoped reactivity"
         },
         {
           "key": "prompts",
@@ -1164,7 +1239,7 @@
           "object_class_id": [
             "ai:prompt-request"
           ],
-          "description": "Active prompt-request IDs \u2014 drives inline widget rendering"
+          "description": "Active prompt-request IDs — drives inline widget rendering"
         },
         {
           "key": "actions",
@@ -1173,7 +1248,7 @@
           "object_class_id": [
             "@action"
           ],
-          "description": "Available conversation actions \u2014 lifecycle, AI tools, and frontend commands",
+          "description": "Available conversation actions — lifecycle, AI tools, and frontend commands",
           "default_value": [
             "ai:conversation.send_message",
             "ai:conversation.stop_generation",
@@ -1201,7 +1276,7 @@
       "namespace_id": "ai",
       "extends_id": "core:atomObj",
       "is_system": true,
-      "description": "Message within an AI conversation \u2014 user, assistant, system, or tool",
+      "description": "Message within an AI conversation — user, assistant, system, or tool",
       "storage": "storage_ai",
       "props": [
         {
@@ -1260,7 +1335,7 @@
           "object_class_id": [
             "ai:debug-entry"
           ],
-          "description": "Linked debug entries (transient \u2014 only live during session)"
+          "description": "Linked debug entries (transient — only live during session)"
         }
       ]
     }
