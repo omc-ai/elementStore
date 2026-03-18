@@ -107,26 +107,25 @@
         },
         {
           "data_type": "string",
-          "key": "session_id",
-          "description": "Current active claude session ID (runtime)",
-          "is_array": "false",
+          "key": "sessions",
+          "description": "All session IDs (ai:agent_session)",
+          "is_array": "indexed",
           "display_order": 0,
-          "id": "ai:agent.session_id",
+          "id": "ai:agent.sessions",
           "class_id": "@prop"
         },
         {
           "data_type": "string",
-          "key": "session_started",
-          "description": "When current session was created (runtime)",
+          "key": "last_session",
+          "description": "Most recent active session ID",
           "is_array": "false",
           "display_order": 0,
-          "id": "ai:agent.session_started",
+          "id": "ai:agent.last_session",
           "class_id": "@prop"
         },
         {
           "data_type": "object",
           "key": "behavior",
-          "description": "Runtime behavior config — session, triggers, approval, cooldown",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:agent.behavior",
@@ -1484,6 +1483,133 @@
           "is_array": "false",
           "display_order": 0,
           "id": "ai:question.answered_at",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:agent_session",
+      "class_id": "@class",
+      "name": "Agent Session",
+      "description": "A claude session belonging to an agent",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "name",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.name",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "agent_id",
+          "description": "Owner agent",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.agent_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "claude_session_id",
+          "description": "Claude CLI session ID",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.claude_session_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "status",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.status",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "mode",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.mode",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "started",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.started",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "last_activity",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.last_activity",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "expires_at",
+          "description": "For timed mode — when session auto-expires",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.expires_at",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "rounds",
+          "description": "Rounds executed in this session",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.rounds",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "tokens_used",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.tokens_used",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "messages",
+          "description": "Total messages exchanged",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.messages",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "worker_id",
+          "description": "Which worker created this session",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.worker_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "cwd",
+          "description": "Working directory for this session",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.cwd",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "git_branch",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.git_branch",
           "class_id": "@prop"
         }
       ]
