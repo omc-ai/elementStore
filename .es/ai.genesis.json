@@ -1222,13 +1222,13 @@
       "namespace_id": "ai",
       "extends_id": "core:atomObj",
       "is_system": true,
-      "description": "Universal message in the pool. Sent by user_id+agent_id, directed to to_agents[]. result_type determines what the message produced. references[] links to messages being responded to.",
+      "description": "Universal message in the pool. One message can produce multiple results (questions, decisions, tasks, findings, approvals).",
       "storage": "storage_ai",
       "props": [
         {
           "data_type": "string",
           "key": "user_id",
-          "description": "Person who sent this (set by server from JWT, or system for AI agents)",
+          "description": "Person who sent this (server-set from JWT, or system for AI)",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:message.user_id",
@@ -1246,7 +1246,7 @@
         {
           "data_type": "string",
           "key": "to_agents",
-          "description": "Agents that should act on this (filter, not enforce)",
+          "description": "Agents that should act on this",
           "is_array": "indexed",
           "display_order": 0,
           "id": "ai:message.to_agents",
@@ -1255,7 +1255,7 @@
         {
           "data_type": "string",
           "key": "conversation_id",
-          "description": "Thread grouping (optional — messages can exist without a conversation)",
+          "description": "Thread grouping (optional)",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:message.conversation_id",
@@ -1282,7 +1282,7 @@
         {
           "data_type": "string",
           "key": "round_id",
-          "description": "Which execution round",
+          "description": "Execution round",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:message.round_id",
@@ -1308,34 +1308,25 @@
         {
           "data_type": "object",
           "key": "chunks",
-          "description": "Rich content (text, tool_call, action, etc.)",
+          "description": "Rich content",
           "is_array": "indexed",
           "display_order": 0,
           "id": "ai:message.chunks",
           "class_id": "@prop"
         },
         {
-          "data_type": "string",
-          "key": "result_type",
-          "description": "What this message produced — shapes the result object",
-          "is_array": "false",
-          "display_order": 0,
-          "id": "ai:message.result_type",
-          "class_id": "@prop"
-        },
-        {
           "data_type": "object",
-          "key": "result",
-          "description": "Result data — shape varies by result_type (class selector)",
-          "is_array": "false",
+          "key": "results",
+          "description": "Array of results — each has result_type + type-specific fields. One message can produce multiple questions, decisions, tasks, etc.",
+          "is_array": "indexed",
           "display_order": 0,
-          "id": "ai:message.result",
+          "id": "ai:message.results",
           "class_id": "@prop"
         },
         {
           "data_type": "string",
           "key": "references",
-          "description": "Message IDs this is responding to",
+          "description": "Message IDs this responds to",
           "is_array": "indexed",
           "display_order": 0,
           "id": "ai:message.references",
@@ -1344,7 +1335,6 @@
         {
           "data_type": "string",
           "key": "status",
-          "description": "For questions: pending→answered. For streaming: streaming→complete",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:message.status",
