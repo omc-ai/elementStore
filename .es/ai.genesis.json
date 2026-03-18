@@ -7,7 +7,7 @@
       "id": "ai:agent",
       "class_id": "@class",
       "name": "AI Agent",
-      "description": "An AI agent that can execute tasks, use tools, and make decisions. Extend for project-specific fields.",
+      "description": "WHO the agent is — identity, prompt, domain, tools. Runtime behavior in ai:agent_behavior via behavior prop.",
       "props": [
         {
           "data_type": "string",
@@ -107,23 +107,8 @@
         },
         {
           "data_type": "string",
-          "key": "session_mode",
-          "is_array": "false",
-          "display_order": 0,
-          "id": "ai:agent.session_mode",
-          "class_id": "@prop"
-        },
-        {
-          "data_type": "integer",
-          "key": "session_ttl",
-          "is_array": "false",
-          "display_order": 0,
-          "id": "ai:agent.session_ttl",
-          "class_id": "@prop"
-        },
-        {
-          "data_type": "string",
           "key": "session_id",
+          "description": "Current active claude session ID (runtime)",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:agent.session_id",
@@ -132,57 +117,19 @@
         {
           "data_type": "string",
           "key": "session_started",
+          "description": "When current session was created (runtime)",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:agent.session_started",
           "class_id": "@prop"
         },
         {
-          "data_type": "boolean",
-          "key": "auto_approve",
+          "data_type": "object",
+          "key": "behavior",
+          "description": "Runtime behavior config — session, triggers, approval, cooldown",
           "is_array": "false",
           "display_order": 0,
-          "id": "ai:agent.auto_approve",
-          "class_id": "@prop"
-        },
-        {
-          "data_type": "string",
-          "key": "requires_approval",
-          "is_array": "indexed",
-          "display_order": 0,
-          "id": "ai:agent.requires_approval",
-          "class_id": "@prop"
-        },
-        {
-          "data_type": "string",
-          "key": "trigger_on",
-          "is_array": "indexed",
-          "display_order": 0,
-          "id": "ai:agent.trigger_on",
-          "class_id": "@prop"
-        },
-        {
-          "data_type": "string",
-          "key": "schedule",
-          "is_array": "false",
-          "display_order": 0,
-          "id": "ai:agent.schedule",
-          "class_id": "@prop"
-        },
-        {
-          "data_type": "integer",
-          "key": "max_tokens_per_run",
-          "is_array": "false",
-          "display_order": 0,
-          "id": "ai:agent.max_tokens_per_run",
-          "class_id": "@prop"
-        },
-        {
-          "data_type": "integer",
-          "key": "cooldown",
-          "is_array": "false",
-          "display_order": 0,
-          "id": "ai:agent.cooldown",
+          "id": "ai:agent.behavior",
           "class_id": "@prop"
         }
       ]
@@ -1336,6 +1283,208 @@
             "ai:debug-entry"
           ],
           "description": "Linked debug entries (transient — only live during session)"
+        }
+      ]
+    },
+    {
+      "id": "ai:agent_behavior",
+      "class_id": "@class",
+      "name": "Agent Behavior",
+      "description": "Runtime behavior config — session, triggers, approval, cooldown, budget",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "session_mode",
+          "description": "fresh=new each run, persistent=keep alive, timed=keep for session_ttl",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.session_mode",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "session_ttl",
+          "description": "Seconds to keep session (timed mode). 0=unlimited",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.session_ttl",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "boolean",
+          "key": "auto_approve",
+          "description": "Can execute without CEO approval",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.auto_approve",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "requires_approval",
+          "description": "Actions needing approval: code_changes, decisions, task_creation",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:agent_behavior.requires_approval",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "trigger_on",
+          "description": "When to run: round, task_assigned, question_received, schedule",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:agent_behavior.trigger_on",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "schedule",
+          "description": "Cron or interval (e.g. 60m)",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.schedule",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "cooldown",
+          "description": "Min seconds between runs",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.cooldown",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "max_tokens_per_run",
+          "description": "Token budget per execution",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.max_tokens_per_run",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "max_rounds_per_session",
+          "description": "Rounds before forced session reset",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.max_rounds_per_session",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "on_error",
+          "description": "What to do on agent failure",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.on_error",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:question",
+      "class_id": "@class",
+      "name": "Question",
+      "description": "Agent question directed to agents or owner",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "name",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.name",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "question",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.question",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "from_agent",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.from_agent",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "to_agents",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:question.to_agents",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "to_title",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.to_title",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "context",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.context",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "round_id",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.round_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "status",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.status",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "answer",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.answer",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "answered_by",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.answered_by",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "created",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.created",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "answered_at",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.answered_at",
+          "class_id": "@prop"
         }
       ]
     }
