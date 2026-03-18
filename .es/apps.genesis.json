@@ -80,7 +80,7 @@
           "label": "Repositories",
           "description": "Repository IDs that interact with ES",
           "data_type": "string",
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 6,
           "class_id": "@prop_string"
         },
@@ -89,7 +89,7 @@
           "label": "Genesis Files",
           "description": "Genesis/seed file paths",
           "data_type": "string",
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 7,
           "class_id": "@prop_string"
         },
@@ -106,7 +106,7 @@
           "label": "CRUD Providers",
           "description": "CRUD provider IDs for API mapping",
           "data_type": "string",
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 9,
           "class_id": "@prop_string"
         },
@@ -262,7 +262,7 @@
           "label": "API Endpoints",
           "description": "Related API routes",
           "data_type": "string",
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 6,
           "class_id": "@prop_string"
         },
@@ -274,7 +274,7 @@
           "object_class_id": [
             "es:feature"
           ],
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 7,
           "class_id": "@prop_relation"
         },
@@ -353,7 +353,7 @@
           "label": "Server Endpoints",
           "description": "HTTP endpoints this app exposes as a server for this feature (empty if client-only)",
           "data_type": "string",
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 4,
           "class_id": "@prop_string"
         },
@@ -373,7 +373,7 @@
           "label": "Implemented In",
           "description": "File paths (file:line) where this feature is implemented",
           "data_type": "string",
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 6,
           "class_id": "@prop_string"
         }

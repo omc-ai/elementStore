@@ -405,7 +405,7 @@
           "key": "wallets",
           "label": "Wallets",
           "data_type": "relation",
-          "is_array": true,
+          "is_array": "indexed",
           "object_class_id": [
             "bl_wallet"
           ],
@@ -416,7 +416,7 @@
           "key": "balances",
           "label": "Balances",
           "data_type": "relation",
-          "is_array": true,
+          "is_array": "indexed",
           "object_class_id": [
             "bl_balance"
           ],
@@ -427,7 +427,7 @@
           "key": "cwmServers",
           "label": "CWM Servers",
           "data_type": "relation",
-          "is_array": true,
+          "is_array": "indexed",
           "object_class_id": [
             "bl_cwm_server"
           ],
@@ -946,7 +946,7 @@
           "key": "lines",
           "label": "Lines",
           "data_type": "relation",
-          "is_array": true,
+          "is_array": "indexed",
           "object_class_id": [
             "bl_invoice_line"
           ],
@@ -1464,7 +1464,7 @@
           "key": "chargeLogs",
           "label": "Charge Logs",
           "data_type": "relation",
-          "is_array": true,
+          "is_array": "indexed",
           "object_class_id": [
             "bl_charge_log"
           ],
@@ -1568,7 +1568,7 @@
           "key": "log",
           "label": "Activity Log",
           "data_type": "object",
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 10,
           "class_id": "@prop_object"
         }

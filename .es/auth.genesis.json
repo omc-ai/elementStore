@@ -138,7 +138,7 @@
           "object_class_id": [
             "auth_role"
           ],
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 13,
           "class_id": "@prop_relation"
         },
@@ -243,7 +243,7 @@
           "object_class_id": [
             "auth_permission"
           ],
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 5,
           "class_id": "@prop_relation"
         },
@@ -321,7 +321,7 @@
           "label": "Actions",
           "description": "Available actions for this module (e.g. read, write, delete, admin)",
           "data_type": "string",
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 6,
           "class_id": "@prop_string"
         },
@@ -389,7 +389,7 @@
           "label": "Actions",
           "description": "Granted actions (subset of module.actions, or ['*'] for all)",
           "data_type": "string",
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 3,
           "flags": {
             "required": true
@@ -477,7 +477,7 @@
           "label": "Allowed Origins",
           "description": "CORS origins allowed to use tokens issued for this app",
           "data_type": "string",
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 6,
           "class_id": "@prop_string"
         },
@@ -486,7 +486,7 @@
           "label": "Scopes",
           "description": "Permission scopes this app is allowed to request",
           "data_type": "string",
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 7,
           "class_id": "@prop_string"
         },

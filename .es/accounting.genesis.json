@@ -322,7 +322,7 @@
           "key": "wallets",
           "label": "Wallets",
           "data_type": "relation",
-          "is_array": true,
+          "is_array": "indexed",
           "object_class_id": [
             "acc_wallet"
           ],
@@ -333,7 +333,7 @@
           "key": "balances",
           "label": "Balances",
           "data_type": "relation",
-          "is_array": true,
+          "is_array": "indexed",
           "object_class_id": [
             "acc_balance"
           ],
@@ -766,7 +766,7 @@
           "key": "lines",
           "label": "Lines",
           "data_type": "relation",
-          "is_array": true,
+          "is_array": "indexed",
           "object_class_id": [
             "acc_invoice_line"
           ],
@@ -1176,7 +1176,7 @@
           "key": "chargeLogs",
           "label": "Charge Logs",
           "data_type": "relation",
-          "is_array": true,
+          "is_array": "indexed",
           "object_class_id": [
             "acc_charge_log"
           ],
