@@ -687,7 +687,9 @@ es_create "ai:message" "$(jq -n \
   '{class_id:"ai:message", user_id:"system", agent_id:$wid, role:"system", content:"AIC worker started — health check", status:"complete", metadata:{type:"health"}, created:$now}'
 )" > /dev/null 2>&1 && wlog "Health message created — if feed is empty, WS or dashboard has a problem" || wlog "ERROR: could not create health message"
 
+CHECK_INTERVAL=300  # 5 minutes between checks
 round_count=0
+
 while [ "$round_count" -lt "$MAX_ROUNDS" ]; do
   round_count=$((round_count + 1))
   local_round=$(($(next_round_number) + 1))
@@ -696,7 +698,8 @@ while [ "$round_count" -lt "$MAX_ROUNDS" ]; do
   round_id=$(create_round "$local_round")
   worker_update "{\"current_round\":\"$round_id\",\"rounds_completed\":$round_count}"
 
-  # Run round-shift agents synchronously (execution_order >= 0)
+  # Spawn ALL agents in parallel (execution_order >= 0)
+  spawned=0
   while IFS= read -r agent_json; do
     [ -z "$agent_json" ] && continue
 
@@ -714,54 +717,100 @@ while [ "$round_count" -lt "$MAX_ROUNDS" ]; do
       continue
     fi
 
-    run_agent_sync "$agent_id"
-    mark_agent_done "$round_id" "$agent_id"
+    # Build round context and create message
+    local tasks findings questions
+    tasks=$(get_open_tasks | jq -c '[.[] | {id,name,priority,status,step,project}]' 2>/dev/null || echo '[]')
+    findings=$(get_findings | jq -c '[.[] | {id,name,severity,category,fix}]' 2>/dev/null || echo '[]')
+    questions=$(es_query "ai:question" "status=open" 2>/dev/null | jq -c '[.[] | {id,question,from_agent,to_agents}]' 2>/dev/null || echo '[]')
+
+    local round_prompt="Round execution. Review open tasks and findings in your domain. Take action.
+
+Open tasks: $tasks
+
+Open findings: $findings
+
+Open questions: $questions"
+
+    local msg_id
+    msg_id=$(es_create "ai:message" "$(jq -n \
+      --arg agent "$agent_id" --arg content "$round_prompt" --arg now "$(NOW)" \
+      '{class_id:"ai:message", user_id:"system", agent_id:"system", to_agents:[$agent], role:"user", content:$content, status:"pending", created:$now}'
+    )" | jq -r '.id // ""' 2>/dev/null)
+
+    if [ -n "$msg_id" ] && [ "$msg_id" != "null" ]; then
+      # Spawn in background — parallel execution
+      spawn_agent "$agent_id" "$msg_id"
+      spawned=$((spawned + 1))
+    fi
   done <<< "$(get_agents)"
 
-  worker_update '{"current_agent":null}'
+  wlog "  Spawned $spawned agents in parallel"
 
-  # Check if all tasks done
+  # Wait for all spawned agents to finish (with timeout)
+  wait_timeout=600  # 10 min max per round
+  wait_start=$(date +%s)
+  while [ -n "$RUNNING_PIDS" ] && [ $(($(date +%s) - wait_start)) -lt $wait_timeout ]; do
+    # Check which PIDs are still running
+    new_pids=""
+    for pid in $RUNNING_PIDS; do
+      if kill -0 "$pid" 2>/dev/null; then
+        new_pids="$new_pids $pid"
+      fi
+    done
+    RUNNING_PIDS="$new_pids"
+    if [ -n "$RUNNING_PIDS" ]; then
+      sleep 5
+      worker_update '{"status":"running"}'
+    fi
+  done
+  RUNNING_PIDS=""
+
+  worker_update '{"current_agent":null}'
+  wlog "  All agents completed"
+
+  # Check open tasks + questions status
   open_count=$(get_open_tasks | jq length)
+  open_questions=$(es_query "ai:question" "status=open" 2>/dev/null | jq length 2>/dev/null || echo 0)
+
+  complete_round "$round_id" "$open_count tasks, $open_questions questions open"
+  wlog "→ $open_count tasks, $open_questions questions open"
+
   if [ "$open_count" -eq 0 ]; then
-    complete_round "$round_id" "All tasks complete!"
     wlog "✓ ALL TASKS COMPLETE"
     worker_update '{"status":"idle"}'
     break
   fi
-
-  complete_round "$round_id" "$open_count tasks remaining"
-  wlog "→ $open_count tasks still open"
 
   if [ "$LOOP" = false ]; then
     wlog "(use --loop to continue)"
     break
   fi
 
-  # Event-driven poll: spawn triggered agents between rounds
-  wlog "Polling for triggers..."
-  worker_update '{"status":"running"}'
+  # Check for triggered agents (message_pending, task_assigned)
+  wlog "Checking triggers..."
+  while IFS= read -r agent_json; do
+    [ -z "$agent_json" ] && continue
+    a_id=$(echo "$agent_json" | jq -r '.id')
+    a_name=$(echo "$agent_json" | jq -r '.name')
 
-  poll_count=0
-  while [ "$poll_count" -lt 6 ]; do
-    poll_count=$((poll_count + 1))
+    if check_agent_triggers "$a_id" "$agent_json" && check_cooldown "$agent_json"; then
+      wlog "  ⚡ $a_name triggered"
+      spawn_agent "$a_id"
+    fi
+  done <<< "$(get_agents)"
 
-    while IFS= read -r agent_json; do
-      [ -z "$agent_json" ] && continue
-      a_id=$(echo "$agent_json" | jq -r '.id')
-      a_name=$(echo "$agent_json" | jq -r '.name')
+  # Report questions status to owner
+  if [ "$open_questions" -gt 0 ]; then
+    es_create "ai:message" "$(jq -n \
+      --arg now "$(NOW)" --argjson qc "$open_questions" --argjson tc "$open_count" \
+      '{class_id:"ai:message", user_id:"system", agent_id:"agent:owner", role:"system", content:("Status: " + ($tc|tostring) + " open tasks, " + ($qc|tostring) + " open questions awaiting your response"), status:"complete", created:$now}'
+    )" > /dev/null 2>&1
+  fi
 
-      if check_agent_triggers "$a_id" "$agent_json" && check_cooldown "$agent_json"; then
-        wlog "  ⚡ $a_name triggered"
-        # Spawn in background — doesn't block other triggers
-        spawn_agent "$a_id"
-      fi
-    done <<< "$(get_agents)"
-
-    worker_update '{"status":"running"}'
-    sleep $POLL_INTERVAL
-  done
-
-  wlog "Next round..."
+  # Wait before next round
+  wlog "Next check in ${CHECK_INTERVAL}s..."
+  worker_update '{"status":"idle"}'
+  sleep $CHECK_INTERVAL
 done
 
 wlog "═══ Done: $round_count round(s) ═══"
