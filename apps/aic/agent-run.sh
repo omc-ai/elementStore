@@ -263,15 +263,105 @@ echo "$MESSAGES" | while IFS= read -r msg_json; do
   # ── Build prompt with context ──
   tasks=$(es_query "ai:task" "status=open&_sort=step&_limit=15" | jq -c '[.[] | {id,name,priority,status,project}]' 2>/dev/null || echo '[]')
   findings=$(es_query "es:finding" "status=open&_limit=10" | jq -c '[.[] | {id,name,severity}]' 2>/dev/null || echo '[]')
+  questions=$(es_query "ai:question" "status=open&_limit=10" | jq -c '[.[] | {id,from_agent,to_title,question}]' 2>/dev/null || echo '[]')
 
-  full_prompt="${AGENT_PROMPT}
+  # Conversation history (last N messages in this conversation for context)
+  conv_history=""
+  if [ -n "$conv_id" ] && [ "$conv_id" != "null" ]; then
+    conv_history=$(es_query "ai:message" "conversation_id=$conv_id&_sort=created&_order=asc&_limit=10" | jq -c '[.[] | {role,content,status,agent_id}]' 2>/dev/null || echo '[]')
+  fi
 
-ES_URL=${ES_URL}
+  # ── Shared base prompt (all agents get this) ──
+  read -r -d '' BASE_PROMPT << 'BASEPROMPT' || true
+# AI Company — Agent System
 
-Open tasks: ${tasks}
-Open findings: ${findings}
+You are an agent in the AI Company system. You work through elementStore — all data is objects in the store.
 
-User message: ${msg_content}"
+## How to interact
+
+**Read from the store** (curl GET):
+- GET /store/{class_id}                — list all objects of a class
+- GET /store/{class_id}/{id}           — get one object
+- GET /query/{class_id}?field=value    — query with filters
+
+**Write to the store** (curl POST/PUT):
+- POST /store/{class_id}               — create object (JSON body with class_id)
+- PUT  /store/{class_id}/{id}          — update object (partial JSON body)
+
+## Output format
+
+Structure your response clearly. When you need to take actions:
+
+**To answer a question:**
+Update the question object: PUT /store/ai:question/{id} with {"status":"answered","answer":"your answer"}
+
+**To create a task:**
+POST /store/ai:task with {"class_id":"ai:task","name":"...","priority":"P1","status":"open","project":"..."}
+
+**To report a finding:**
+POST /store/es:finding with {"class_id":"es:finding","name":"...","severity":"high","status":"open","project":"..."}
+
+**To record a decision:**
+POST /store/ai:decision with {"class_id":"ai:decision","topic":"...","decision":"...","rationale":"..."}
+
+**To ask the owner (human) a question:**
+POST /store/ai:question with {"class_id":"ai:question","from_agent":"your_agent_id","to_title":"owner","question":"...","status":"open"}
+
+**To ask another agent:**
+POST /store/ai:question with {"class_id":"ai:question","from_agent":"your_agent_id","to_agents":["agent:ceo"],"question":"...","status":"open"}
+
+## Rules
+- You CAN execute curl commands to read/write the store — the CLI supports tool use
+- Always include class_id in POST bodies
+- Use the ES_URL provided below for all API calls
+- Be concise — focus on actions, not explanations
+- If you need approval, ask via ai:question to CEO or owner
+
+## Response format
+Your response is stored as an ai:message and displayed in a dashboard.
+Content is rendered as **markdown** — use headers, lists, bold, code blocks freely.
+
+**IMPORTANT**: Always end your response with a summary block:
+
+---
+**Summary**: [1-2 sentence description of what you did this round]
+**Actions taken**: [list of store operations: created X, updated Y, answered Z]
+**Status**: [done | blocked:reason | needs-approval:what]
+BASEPROMPT
+
+  full_prompt="${BASE_PROMPT}
+
+---
+
+# Your Role
+
+${AGENT_PROMPT}
+
+---
+
+# Current Context
+
+ES_URL: ${ES_URL}
+Agent ID: ${AGENT_ID}
+Date: $(date -u '+%Y-%m-%d')
+
+## Open Tasks
+${tasks}
+
+## Open Findings
+${findings}
+
+## Open Questions
+${questions}
+
+## Conversation History
+${conv_history}
+
+---
+
+# Message
+
+${msg_content}"
 
   # ── Execute via provider ──
   t_start=$(date +%s)
@@ -303,7 +393,7 @@ User message: ${msg_content}"
   # ── TX: Finalize response → complete ──
   es_update "ai:message" "$resp_id" "$(jq -n \
     --arg content "$result" --argjson dur "$duration" --arg mdl "$model" --arg prov "$provider_id" \
-    '{content:$content, status:"complete", metadata:{duration_s:$dur, model:$mdl, provider_id:$prov}}'
+    '{content:$content, status:"complete", metadata:{duration_s:$dur, model:$mdl, provider_id:$prov, format:"markdown"}}'
   )" > /dev/null 2>&1
 
   # ── TX: Mark input → answered ──

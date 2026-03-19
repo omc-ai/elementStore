@@ -118,6 +118,22 @@ header h1{font-size:1.1em;color:#0550ae}
 .msg.streaming .msg-content{border-left:2px solid #1a7f37;padding-left:8px}
 .msg-expand{font-size:0.7em;color:#0550ae;cursor:pointer;margin-top:2px}
 
+/* Rendered markdown in messages */
+.msg-content h1,.msg-content h2,.msg-content h3{margin:6px 0 3px;font-size:1em;color:#0550ae}
+.msg-content h1{font-size:1.1em}.msg-content h2{font-size:1em}.msg-content h3{font-size:0.95em}
+.msg-content ul,.msg-content ol{margin:3px 0 3px 18px}
+.msg-content li{margin:1px 0}
+.msg-content code{background:#f0f2f5;padding:1px 4px;border-radius:3px;font-size:0.9em;font-family:'SF Mono',Monaco,Consolas,monospace}
+.msg-content pre{background:#1f2328;color:#c9d1d9;padding:8px;border-radius:4px;overflow-x:auto;margin:4px 0;font-size:0.85em}
+.msg-content pre code{background:none;padding:0;color:inherit}
+.msg-content p{margin:3px 0}
+.msg-content blockquote{border-left:3px solid #d1d9e0;padding-left:8px;color:#59636e;margin:3px 0}
+.msg-content table{border-collapse:collapse;font-size:0.9em;margin:4px 0}
+.msg-content th,.msg-content td{border:1px solid #d1d9e0;padding:3px 6px}
+.msg-content th{background:#f6f8fa;font-weight:600}
+.msg-content strong{font-weight:600}
+.msg-content a{color:#0550ae}
+
 /* Expanded logs */
 .msg-logs{margin-top:6px;padding:6px 8px;background:#f6f8fa;border:1px solid #e8e8e8;border-radius:4px;font-size:0.75em;display:none}
 .msg.expanded .msg-logs{display:block}
@@ -278,6 +294,7 @@ header h1{font-size:1.1em;color:#0550ae}
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="/elementStore/admin/dist/element-store.js"></script>
 <script src="/elementStore/admin/ws-client.js"></script>
 <script>
@@ -914,6 +931,22 @@ header h1{font-size:1.1em;color:#0550ae}
     var extraCls = isUser ? ' user-msg' : '';
     if(isStreaming) extraCls += ' streaming';
 
+    // Render content based on format: markdown for assistant, plain for user/system
+    var renderedContent = '';
+    var fmt = (item.metadata && item.metadata.format) || '';
+    if(isUser || isSystem || !content) {
+      renderedContent = esc(content);
+    } else {
+      // Assistant messages — render as markdown (default for AI output)
+      try {
+        if(typeof marked !== 'undefined') {
+          renderedContent = marked.parse(content);
+        } else {
+          renderedContent = esc(content);
+        }
+      } catch(e) { renderedContent = esc(content); }
+    }
+
     return '<div class="msg'+collapsed+extraCls+'" id="fi-'+item.id+'" onclick="toggleMsg(this)">' +
       '<div class="msg-hdr">' +
         '<div class="msg-avatar '+avatarCls+'">'+avatarLetter+'</div>' +
@@ -921,7 +954,7 @@ header h1{font-size:1.1em;color:#0550ae}
         stHtml +
         '<span class="msg-time">'+time+'</span>' +
       '</div>' +
-      '<div class="msg-content">'+esc(content)+'</div>' +
+      '<div class="msg-content">'+renderedContent+'</div>' +
       (collapsed ? '<div class="msg-expand">show more</div>' : '') +
       logs +
     '</div>';
