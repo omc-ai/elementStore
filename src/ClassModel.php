@@ -179,6 +179,20 @@ class ClassModel
             $genesisConfig['mode'] = $envMode;
         }
 
+        // Environment variable overrides for storage credentials
+        $envCouchUser = getenv('COUCHDB_USER');
+        if ($envCouchUser !== false && $envCouchUser !== '') {
+            $storageConfig['username'] = $envCouchUser;
+        }
+        $envCouchPass = getenv('COUCHDB_PASSWORD');
+        if ($envCouchPass !== false && $envCouchPass !== '') {
+            $storageConfig['password'] = $envCouchPass;
+        }
+        $envCouchServer = getenv('COUCHDB_SERVER');
+        if ($envCouchServer !== false && $envCouchServer !== '') {
+            $storageConfig['server'] = $envCouchServer;
+        }
+
         // Resolve relative paths — data_dir is relative to basePath
         if (isset($storageConfig['data_dir']) && !str_starts_with($storageConfig['data_dir'], '/')) {
             $storageConfig['data_dir'] = $basePath . '/' . $storageConfig['data_dir'];

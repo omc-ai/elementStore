@@ -56,6 +56,7 @@ use ElementStore\ClassModel;
 use ElementStore\ClassMeta;
 use ElementStore\StorageException;
 use ElementStore\AuthService;
+use ElementStore\RateLimiter;
 
 if (!extension_loaded('phalcon')) {
     http_response_code(500);
@@ -69,13 +70,17 @@ if (!extension_loaded('phalcon')) {
 
 $model = ClassModel::boot(__DIR__);
 
-// Allow custom IDs for seeding/testing (controlled via header)
-if (isset($_SERVER['HTTP_X_ALLOW_CUSTOM_IDS']) && $_SERVER['HTTP_X_ALLOW_CUSTOM_IDS'] === 'true') {
+// Dev-only headers — only honoured when ES_ENV=development (or PHP_ENV=development fallback)
+$esEnv = getenv('ES_ENV') ?: (getenv('PHP_ENV') ?: 'production');
+$isDev = ($esEnv === 'development');
+
+// Allow custom IDs for seeding/testing (dev only)
+if ($isDev && isset($_SERVER['HTTP_X_ALLOW_CUSTOM_IDS']) && $_SERVER['HTTP_X_ALLOW_CUSTOM_IDS'] === 'true') {
     $model->setAllowCustomIds(true);
 }
 
-// Disable ownership enforcement (dev only — header-controlled)
-if (isset($_SERVER['HTTP_X_DISABLE_OWNERSHIP']) && $_SERVER['HTTP_X_DISABLE_OWNERSHIP'] === 'true') {
+// Disable ownership enforcement (dev only)
+if ($isDev && isset($_SERVER['HTTP_X_DISABLE_OWNERSHIP']) && $_SERVER['HTTP_X_DISABLE_OWNERSHIP'] === 'true') {
     $model->setEnforceOwnership(false);
 }
 
@@ -89,10 +94,34 @@ $di->setShared('model', $model);
 $app = new Micro($di);
 
 // CORS (runs first — handles OPTIONS preflight before auth check)
-$app->before(function () use ($app) {
-    $app->response->setHeader('Access-Control-Allow-Origin', '*');
+$app->before(function () use ($app, $isDev) {
+    // Determine allowed origin: env var list, or wildcard only in dev mode
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $allowedRaw = getenv('CORS_ALLOWED_ORIGINS') ?: '';
+    $allowedOrigins = array_filter(array_map('trim', explode(',', $allowedRaw)));
+
+    if (!empty($allowedOrigins) && in_array($origin, $allowedOrigins, true)) {
+        $corsOrigin = $origin;
+    } elseif ($isDev) {
+        // Dev fallback: allow any origin
+        $corsOrigin = $origin ?: '*';
+    } else {
+        // Production with no matching origin: omit the header (browser will block)
+        $corsOrigin = '';
+    }
+
+    if ($corsOrigin !== '') {
+        $app->response->setHeader('Access-Control-Allow-Origin', $corsOrigin);
+        if ($corsOrigin !== '*') {
+            $app->response->setHeader('Vary', 'Origin');
+        }
+    }
     $app->response->setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    $app->response->setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-User-Id, X-Disable-Ownership, X-Allow-Custom-Ids');
+    $allowHeaders = 'Content-Type, Authorization';
+    if ($isDev) {
+        $allowHeaders .= ', X-User-Id, X-Disable-Ownership, X-Allow-Custom-Ids';
+    }
+    $app->response->setHeader('Access-Control-Allow-Headers', $allowHeaders);
     $app->response->setContentType('application/json', 'UTF-8');
 
     if ($app->request->isOptions()) {
@@ -101,6 +130,30 @@ $app->before(function () use ($app) {
     }
     return true;
 });
+
+// Rate limiting middleware
+$rateLimitMax = (int)(getenv('RATE_LIMIT_MAX') ?: 200);
+$rateLimitWindow = (int)(getenv('RATE_LIMIT_WINDOW') ?: 60);
+if ($rateLimitMax > 0) {
+    $rateLimiter = new RateLimiter($rateLimitMax, $rateLimitWindow);
+    $app->before(function () use ($app, $rateLimiter, $rateLimitMax) {
+        $ip = RateLimiter::getClientIp();
+        $result = $rateLimiter->check($ip);
+
+        $app->response->setHeader('X-RateLimit-Limit', (string)$rateLimitMax);
+        $app->response->setHeader('X-RateLimit-Remaining', (string)$result['remaining']);
+        $app->response->setHeader('X-RateLimit-Reset', (string)$result['reset']);
+
+        if (!$result['allowed']) {
+            $app->response->setStatusCode(429);
+            $app->response->setJsonContent(['error' => 'Rate limit exceeded. Try again later.']);
+            $app->response->setHeader('Retry-After', (string)$result['reset']);
+            $app->response->send();
+            return false;
+        }
+        return true;
+    });
+}
 
 // Auth middleware — verify JWT Bearer token and inject user/app/domain into model.
 // Skipped automatically if no auth_config object exists in the store.

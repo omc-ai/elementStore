@@ -2,6 +2,8 @@
 keys/
 vendor/
 node_modules/
+.env
+.env.local
 
 # es-client build outputs
 packages/es-client/dist/

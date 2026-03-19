@@ -129,11 +129,12 @@ class AuthService
 
             $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
 
-            // Dev fallback: X-User-Id header (deprecated — logs a warning)
+            // Dev fallback: X-User-Id header (deprecated — only works in development)
             if (empty($authHeader)) {
+                $esEnv = getenv('ES_ENV') ?: (getenv('PHP_ENV') ?: 'production');
                 $xUserId = $_SERVER['HTTP_X_USER_ID'] ?? null;
-                if ($xUserId !== null) {
-                    error_log('[AuthService] DEPRECATED: X-User-Id header used — migrate to JWT.');
+                if ($xUserId !== null && $esEnv === 'development') {
+                    error_log('[AuthService] DEPRECATED: X-User-Id header used in dev mode — migrate to JWT.');
                     $model->setSecurityContext($xUserId, null, null);
                     return true;
                 }

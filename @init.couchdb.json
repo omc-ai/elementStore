@@ -5,8 +5,7 @@
       "class_id": "@storage",
       "type": "couchdb",
       "server": "http://elementstore_couchdb:5984",
-      "username": "admin",
-      "password": "elementstore"
+      "_note": "username/password: override via COUCHDB_USER and COUCHDB_PASSWORD env vars (see ClassModel::boot)"
     }
   }
 }

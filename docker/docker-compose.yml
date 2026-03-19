@@ -41,7 +41,13 @@ services:
       - ./init-couchdb.json:/var/www/elementStore/@init.json:ro
     environment:
       - TZ=${TZ:-UTC}
+      - ES_ENV=${ES_ENV:-development}
       - ES_WS_URL=http://elementstore_ws:3100/broadcast
+      - COUCHDB_USER=${COUCHDB_USER:-admin}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD:-elementstore}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-200}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
     depends_on:
       couchdb:
         condition: service_healthy
