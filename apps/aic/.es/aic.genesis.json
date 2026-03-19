@@ -1,0 +1,15 @@
+{
+  "id": "app:aic",
+  "class_id": "@app",
+  "name": "AIC — AI Company",
+  "description": "AI agent orchestration application. Agents run in rounds, each with embedded prompts and behaviors.",
+  "version": "1.0.0",
+  "application_id": "arc3d",
+  "role": "client",
+  "client_language": "bash",
+  "status": "active",
+  "classes": [],
+  "seed": [
+    {"storage": "./ai-agents.seed.json"}
+  ]
+}

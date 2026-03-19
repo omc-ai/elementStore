@@ -2,6 +2,17 @@
 
 Instructions for Claude Code when working in this repository.
 
+## Rule: Declare Before You Code
+
+**Before writing any code, check if the data structure, action, or function can be declared as elementStore classes and objects.**
+
+- Need a data structure? → Define a `@class` with `@prop` definitions
+- Need an operation? → Define an `@action` (type: api, cli, function, event, composite, ui)
+- Need a validator/transformer? → Already within `@prop` options (validation rules, format, constraints)
+- Need a provider/integration? → Define a `@provider` with action bindings
+
+Only write code when the elementStore schema cannot express what you need (e.g., storage provider internals, protocol handling, rendering logic). The goal: **the store describes WHAT exists; code implements HOW it runs.**
+
 ## Rule: Object Operations Through the Store
 
 **For creating, updating, reading, and querying objects and classes — ALWAYS use the live ElementStore server via `es-cli.sh` or the REST API.** This validates the full server pipeline on every operation. A failure is a signal that the pipeline is broken — fix the root cause, don't bypass it.

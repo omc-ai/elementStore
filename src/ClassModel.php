@@ -827,7 +827,7 @@ class ClassModel
             return $cached;
         }
 
-        // Load from storage
+        // Load from storage (CompositeStorageProvider handles fallback chain)
         $data = $this->storage->getobj(Constants::K_CLASS, $class_id);
         if ($data === null) {
             // Auto create class if enabled

@@ -172,8 +172,18 @@ class GenesisLoader
                 continue;
             }
 
-            // Strip leading "./" from relative path
-            $seedFile = ltrim($storage, './');
+            // Strip leading "./" prefix (but preserve "../" for parent-relative paths)
+            $seedFile = str_starts_with($storage, './') ? substr($storage, 2) : $storage;
+
+            // Resolve parent-relative paths (../) against $dir to get absolute, then re-relativize
+            if (str_starts_with($seedFile, '../')) {
+                $resolvedPath = realpath($dir . '/' . $seedFile);
+                if ($resolvedPath !== false) {
+                    // Use resolved path with the actual directory it lives in
+                    $seedFile = basename($resolvedPath);
+                    $dir = dirname($resolvedPath);
+                }
+            }
 
             if (str_ends_with($seedFile, Constants::GENESIS_SUFFIX)) {
                 // Sub-genesis: recurse

@@ -51,6 +51,27 @@ es_list()   { curl -sf "$ES_URL/store/$1" 2>/dev/null; }
 es_create() { curl -sf -X POST "$ES_URL/store/$1" -H 'Content-Type: application/json' -H 'X-Allow-Custom-Ids: true' -d "$2" 2>/dev/null; }
 es_update() { curl -sf -X PUT "$ES_URL/store/$1/$2" -H 'Content-Type: application/json' -d "$3" 2>/dev/null; }
 
+# ─── App init: seed agents from .es/ if not present ──────────
+
+AIC_DIR="$(cd "$(dirname "$0")" && pwd)"
+AIC_ES_DIR="$AIC_DIR/.es"
+
+aic_init() {
+  # Load app seed data via genesis reload API
+  if [ -d "$AIC_ES_DIR" ]; then
+    local agent_count
+    agent_count=$(es_query "ai:agent" "_limit=1" | jq 'length' 2>/dev/null || echo 0)
+    if [ "$agent_count" -eq 0 ]; then
+      echo "[$(date '+%H:%M:%S')] No agents found — loading from $AIC_ES_DIR"
+      curl -sf -X POST "$ES_URL/genesis/reload" \
+        -H 'Content-Type: application/json' \
+        -d "$(jq -n --arg dir "$AIC_ES_DIR" '{dir:$dir}')" > /dev/null 2>&1
+      agent_count=$(es_query "ai:agent" "_limit=1" | jq 'length' 2>/dev/null || echo 0)
+      echo "[$(date '+%H:%M:%S')] Genesis reload complete — $agent_count agents loaded"
+    fi
+  fi
+}
+
 # ─── Worker management ────────────────────────────────────────
 
 LOG_BUFFER=()
@@ -600,6 +621,9 @@ if [ "$TASKS_ONLY" = true ]; then
   get_open_tasks | jq -r '.[] | "[\(.priority // "?")] step:\(.step // "-") \(.status)\t\(.name)"'
   exit 0
 fi
+
+# Init app seed data (agents) if not present
+aic_init
 
 # Register worker
 worker_start
