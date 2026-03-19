@@ -77,15 +77,18 @@ header h1{font-size:1.1em;color:#0550ae}
 .dec:last-child{border-bottom:none}
 .dec .d-topic{font-weight:500}
 
-/* Activity feed */
-.feed{max-height:calc(100vh - 160px);overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:6px}
-.feed-item{background:#fff;border:1px solid #d1d9e0;border-radius:6px;padding:8px 10px;font-size:0.82em;animation:fadeIn .3s}
-@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
-.feed-item .fi-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.feed-item .fi-type{font-weight:600;font-size:0.78em;padding:1px 6px;border-radius:4px}
-.feed-item .fi-time{font-size:0.72em;color:#59636e}
-.feed-item .fi-body{color:#1f2328}
-.feed-item .fi-meta{font-size:0.72em;color:#59636e;margin-top:2px}
+/* Activity feed — compact, sorted by date */
+.feed{max-height:calc(100vh - 160px);overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding:4px}
+.feed-item{background:#fff;border:1px solid #e8e8e8;border-radius:4px;padding:4px 8px;font-size:0.78em;display:flex;gap:6px;align-items:flex-start;transition:background .15s}
+.feed-item:hover{background:#f6f8fa}
+.feed-item .fi-type{font-weight:600;font-size:0.68em;padding:0 4px;border-radius:3px;white-space:nowrap;flex-shrink:0;line-height:1.6}
+.feed-item .fi-body{flex:1;min-width:0;overflow:hidden}
+.feed-item .fi-body b{font-weight:600}
+.feed-item .fi-time{font-size:0.65em;color:#8b949e;white-space:nowrap;flex-shrink:0}
+.feed-item .fi-link{color:#0550ae;text-decoration:none;font-size:0.7em;flex-shrink:0}
+.feed-item .fi-meta{color:#8b949e;font-size:0.9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feed-item .fi-detail{color:#59636e;margin-top:1px;max-height:2.4em;overflow:hidden;font-size:0.92em}
+.feed-item.fi-mine{border-left:2px solid #0550ae;background:#f8faff}
 /* Type colors */
 .fi-type.t-task{background:#fff8c5;color:#9a6700}
 .fi-type.t-question{background:#ddf4ff;color:#0550ae}
@@ -162,26 +165,27 @@ header h1{font-size:1.1em;color:#0550ae}
   </div>
 </div>
 
-<!-- CENTER: Activity feed + Worker + Tasks -->
+<!-- CENTER: Activity feed + Tasks -->
 <div class="col">
-  <div class="card" style="flex:1">
-    <div class="card-hdr">
+  <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+    <div class="card-hdr" style="flex-shrink:0">
       <span>Activity Feed</span>
       <div class="worker-bar">
         <span class="w-st stopped" id="w-st">STOPPED</span>
         <span class="w-info" id="w-info"></span>
       </div>
     </div>
-    <div class="feed" id="feed"></div>
-    <div style="padding:6px;border-top:1px solid #d1d9e0;display:flex;gap:6px">
+    <div class="feed" id="feed" style="flex:1;overflow-y:auto;position:relative"></div>
+    <div id="feed-ff" onclick="document.getElementById('feed').scrollTop=document.getElementById('feed').scrollHeight;this.style.display='none'" style="display:none;position:absolute;bottom:50px;left:50%;transform:translateX(-50%);background:#0550ae;color:#fff;padding:4px 12px;border-radius:12px;font-size:0.75em;cursor:pointer;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.2)">↓ new</div>
+    <div style="flex-shrink:0;padding:6px;border-top:1px solid #d1d9e0;display:flex;gap:6px">
       <input id="feed-input" type="text" placeholder="Type a message..." style="flex:1;padding:6px 10px;border:1px solid #d1d9e0;border-radius:6px;font-size:0.85em;font-family:inherit" onkeydown="if(event.key==='Enter')sendFeedMessage()">
       <button onclick="sendFeedMessage()" class="act-btn" style="background:#0550ae;padding:6px 14px">Send</button>
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" style="max-height:250px;flex-shrink:0">
     <div class="card-hdr">Open Tasks <span class="count" id="task-count">0</span></div>
-    <div class="card-body" id="tasks" style="padding:0;max-height:300px;overflow-y:auto"></div>
+    <div class="card-body" id="tasks" style="padding:0;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -195,8 +199,8 @@ header h1{font-size:1.1em;color:#0550ae}
       <button class="act-btn" style="background:#cf222e" onclick="openAction('finding')">Finding</button>
     </div>
   </div>
-  <div class="card" style="flex:1">
-    <div class="card-hdr" style="cursor:pointer" onclick="toggleQExpand()">
+  <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+    <div class="card-hdr" style="cursor:pointer;flex-shrink:0" onclick="toggleQExpand()">
       <span>Questions <span class="count" id="q-count">0</span> <span class="count" id="q-mine-count" style="background:#ffebe9;color:#cf222e">0 for you</span></span>
       <span id="q-expand-icon" style="font-size:0.8em;color:#59636e">&#9660;</span>
     </div>
@@ -255,8 +259,7 @@ header h1{font-size:1.1em;color:#0550ae}
 
   var esws = new ElementStoreWS(store, WS_URL);
 
-  // Override _onChanges to emit raw items without store.applyRemote
-  // (dashboard doesn't need typed AtomObj, just raw data for feed cards)
+  // Override _onChanges — emit raw items without store.applyRemote
   esws._onChanges = function(items) {
     for (var i = 0; i < items.length; i++) {
       var item = items[i];
@@ -267,6 +270,23 @@ header h1{font-size:1.1em;color:#0550ae}
         this._emit('change', item);
       }
     }
+  };
+
+  // Override _onMessage to handle 'initial' event (fetch-on-subscribe)
+  var origOnMessage = esws._onMessage.bind(esws);
+  esws._onMessage = function(msg) {
+    if (msg.event === 'initial' && msg.items) {
+      console.log('[WS] initial:', msg.class_id, msg.items.length, 'items');
+      // Add all to feed data store — renderFeed sorts by date
+      for (var i = 0; i < msg.items.length; i++) {
+        var item = msg.items[i];
+        if (item && item.id) feedItems[item.id] = item;
+      }
+      feedDirty = true;
+      renderFeed();
+      return;
+    }
+    origOnMessage(msg);
   };
   function bg(t,c){return '<span class="badge b-'+c+'">'+t+'</span>'}
 
@@ -540,10 +560,12 @@ header h1{font-size:1.1em;color:#0550ae}
     setTimeout(function(){document.getElementById('action-modal').classList.remove('open');load();},800);
   };
 
-  // ─── Activity Feed ──────────────────────────────────────
+  // ─── Activity Feed — data-driven, sorted by date ────────
   var feedEl=document.getElementById('feed');
-  var MAX_FEED=100;
-  var feedIds={}; // track items by ID to update in place
+  var MAX_FEED=200;
+  var feedItems={}; // id → item data
+  var feedDirty=false;
+  var feedRenderTimer=null;
 
   // Resolve agent name from ID (cached from last load)
   function agentName(id) {
@@ -553,9 +575,9 @@ header h1{font-size:1.1em;color:#0550ae}
     return a ? a.name : id.replace('agent:','');
   }
 
-  // Link to admin object viewer
+  // Link to admin — opens object in edit mode
   function objLink(classId, id) {
-    return '/elementStore/admin/?tab=objects&class='+encodeURIComponent(classId)+'&id='+encodeURIComponent(id);
+    return '/elementStore/admin/?class='+encodeURIComponent(classId)+'&id='+encodeURIComponent(id)+'&action=edit';
   }
 
   // Send message from feed input
@@ -574,8 +596,7 @@ header h1{font-size:1.1em;color:#0550ae}
       });
       var created = await resp.json();
       if(created.id) {
-        // Show with real ID — WS echo will find this and update in place
-        addToFeed(feedCard('ai:message', created, false), created.id);
+        feedUpsert(created);
       }
     } catch(e) {
       console.error('[FEED] send error:', e);
@@ -584,6 +605,137 @@ header h1{font-size:1.1em;color:#0550ae}
     input.focus();
   };
 
+  // Add/update item in feed data store
+  function feedUpsert(item) {
+    if(!item || !item.id) return;
+    feedItems[item.id] = item;
+    feedDirty = true;
+    if(!feedRenderTimer) {
+      feedRenderTimer = setTimeout(function() {
+        feedRenderTimer = null;
+        if(feedDirty) { feedDirty = false; renderFeed(); }
+      }, 100); // batch renders within 100ms
+    }
+  }
+
+  function feedRemove(id) {
+    delete feedItems[id];
+    feedDirty = true;
+  }
+
+  // Render the full feed sorted by date — newest at BOTTOM (chat style)
+  var wasAtBottom = true;
+  var unreadCount = 0;
+
+  function renderFeed() {
+    // Check if user was scrolled to bottom before render
+    wasAtBottom = (feedEl.scrollTop + feedEl.clientHeight >= feedEl.scrollHeight - 30);
+
+    var items = Object.values(feedItems);
+    items.sort(function(a,b) {
+      var da = a.updated_at || a.created || a.created_at || '';
+      var db = b.updated_at || b.created || b.created_at || '';
+      return da.localeCompare(db); // oldest first → newest at bottom
+    });
+    if(items.length > MAX_FEED) items = items.slice(-MAX_FEED);
+
+    var h = '';
+    for(var i = 0; i < items.length; i++) {
+      h += compactCard(items[i]);
+    }
+    feedEl.innerHTML = h || '<div style="padding:12px;color:#8b949e;text-align:center;font-size:0.82em">No activity yet</div>';
+
+    // Auto-scroll to bottom if was already there
+    if(wasAtBottom) {
+      feedEl.scrollTop = feedEl.scrollHeight;
+      unreadCount = 0;
+      updateFfBtn();
+    } else {
+      unreadCount++;
+      updateFfBtn();
+    }
+  }
+
+  // Fast-forward button
+  function updateFfBtn() {
+    var btn = document.getElementById('feed-ff');
+    if(!btn) return;
+    if(unreadCount > 0 && !wasAtBottom) {
+      btn.style.display = 'block';
+      btn.textContent = '↓ ' + unreadCount + ' new';
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+
+  feedEl.addEventListener('scroll', function() {
+    var atBottom = (feedEl.scrollTop + feedEl.clientHeight >= feedEl.scrollHeight - 30);
+    if(atBottom) { unreadCount = 0; updateFfBtn(); }
+  });
+
+  // Compact card renderer — one line per item, type-specific
+  function compactCard(item) {
+    var cls = item.class_id || '';
+    var type = cls.replace('ai:','').replace('es:','');
+    var time = (item.updated_at || item.created || item.created_at || '').substring(11,19);
+    var link = '<a class="fi-link" href="'+objLink(cls,item.id)+'" target="_blank">&#x2197;</a>';
+    var isMine = item.user_id==='owner' || item.agent_id==='agent:owner';
+    var extra = isMine ? ' fi-mine' : '';
+
+    var body = '';
+    var detail = '';
+
+    switch(cls) {
+      case 'ai:message':
+        var role = item.role || '?';
+        if(role === 'user') {
+          body = '<b>'+agentName(item.agent_id||item.user_id)+'</b>: '+esc(str(item.content,120));
+        } else if(role === 'system') {
+          body = '<span style="color:#8b949e">'+esc(str(item.content,100))+'</span>';
+        } else {
+          body = '<b>'+agentName(item.agent_id)+'</b> → '+esc(str(item.content,100));
+          if(item.metadata && item.metadata.duration_s) detail = item.metadata.duration_s+'s';
+        }
+        break;
+      case 'ai:task':
+        body = bg(item.priority||'?',(item.priority||'').toLowerCase())+' '+esc(str(item.name,80));
+        if(item.status==='done') body += ' '+bg('done','done');
+        else body += ' <span style="color:#8b949e">'+item.status+'</span>';
+        if(item.result) detail = esc(str(item.result,60));
+        break;
+      case 'ai:question':
+        body = '<b>'+agentName(item.from_agent)+'</b> → '+(item.to_agents?item.to_agents.map(agentName).join(','):(item.to_title||'all'));
+        detail = esc(str(item.question||item.name,80));
+        if(item.answer) detail += ' <span style="color:#1a7f37">A: '+esc(str(item.answer,40))+'</span>';
+        break;
+      case 'ai:decision':
+        body = bg(item.priority||'P2',(item.priority||'').toLowerCase())+' '+esc(str(item.topic||item.name,80));
+        break;
+      case 'es:finding':
+        body = bg(item.severity||'?',item.severity||'medium')+' '+esc(str(item.name,80));
+        break;
+      case 'ai:worker':
+        var st = item.status||'stopped';
+        body = st.toUpperCase()+(item.current_agent?' — '+agentName(item.current_agent):'');
+        break;
+      case 'ai:round':
+        body = 'Round '+(item.round_number||'?')+(item.summary?' — '+esc(str(item.summary,60)):'');
+        break;
+      case 'ai:conversation':
+        body = agentName(item.agent_id)+' — '+(item.title||'conversation');
+        break;
+      default:
+        body = esc(str(item.name||item.content||item.id,80));
+    }
+
+    return '<div class="feed-item'+extra+'" id="fi-'+item.id+'">'+
+      '<span class="fi-type t-'+type+'">'+type+'</span>'+
+      '<div class="fi-body">'+body+(detail?'<div class="fi-detail">'+detail+'</div>':'')+'</div>'+
+      '<span class="fi-time">'+time+'</span>'+
+      link+'</div>';
+  }
+
+  // Legacy feedCard wrapper — redirects to feedUpsert
   function feedCard(classId, item, isDelete) {
     var type = classId.replace('ai:','').replace('es:','');
     var now = new Date().toLocaleTimeString();
@@ -774,39 +926,51 @@ header h1{font-size:1.1em;color:#0550ae}
   // ─── WebSocket ──────────────────────────────────────────
   esws.on('connected',function(msg){
     console.log('[WS] connected:', msg);
-    var classes = ['ai:agent','ai:task','ai:round','ai:decision','ai:preference','ai:question','ai:worker','ai:agent_session','ai:prompt','ai:conversation','ai:message','es:finding'];
-    classes.forEach(function(c){esws.subscribe(c)});
-    console.log('[WS] subscribed to', classes.length, 'classes');
-    addToFeed('<div class="feed-item" style="text-align:center;color:#1a7f37;font-size:0.78em">WebSocket connected — subscribed to '+classes.length+' classes</div>');
+
+    // Subscribe with fetch — get last N objects on connect
+    var feedClasses = {
+      'ai:message': 30,
+      'ai:task': 20,
+      'ai:question': 15,
+      'ai:decision': 10,
+      'ai:worker': 5,
+      'ai:conversation': 10,
+      'ai:round': 5,
+      'es:finding': 10,
+    };
+    var notifyOnly = ['ai:agent','ai:preference','ai:agent_session','ai:prompt'];
+
+    // Subscribe with fetch for feed classes
+    Object.keys(feedClasses).forEach(function(c){
+      esws._send({action:'subscribe', class_id:c, fetch:feedClasses[c]});
+    });
+    // Subscribe notify-only for others
+    notifyOnly.forEach(function(c){
+      esws._send({action:'subscribe', class_id:c});
+    });
+
+    console.log('[WS] subscribed to', Object.keys(feedClasses).length + notifyOnly.length, 'classes (' + Object.keys(feedClasses).length + ' with fetch)');
+    feedUpsert({id:'_ws_status', class_id:'ai:message', role:'system', content:'Connected — loading history...', updated_at:new Date().toISOString()});
   });
 
   var rt=null;
   function sched(){if(rt)clearTimeout(rt);rt=setTimeout(function(){rt=null;load()},500)}
 
   esws.on('change',function(item){
-    console.log('[FEED] change:', item?.class_id, item?.id);
-    if(!item||!item.class_id) return;
-    try {
-      addToFeed(feedCard(item.class_id, item, false), item.id);
-    } catch(e) {
-      console.error('[FEED] render error:', e, item);
-      addToFeed('<div class="feed-item" style="color:#cf222e;font-size:0.75em">Error: '+item.class_id+'/'+item.id+': '+e.message+'</div>');
-    }
+    if(!item||!item.id) return;
+    feedUpsert(item);
     sched();
   });
   esws.on('delete',function(item){
-    console.log('[FEED] delete:', item?.class_id, item?.id);
-    if(!item||!item.class_id) return;
-    try {
-      addToFeed(feedCard(item.class_id, item, true), item.id);
-    } catch(e) {
-      console.error('[FEED] render error:', e);
-    }
+    if(!item||!item.id) return;
+    feedRemove(item.id);
+    feedDirty = true;
+    renderFeed();
     sched();
   });
   esws.on('close',function(){
     document.getElementById('ws-status').innerHTML='<span class="dot err"></span>reconnecting';
-    addToFeed('<div class="feed-item" style="text-align:center;color:#cf222e;font-size:0.78em">WebSocket disconnected — reconnecting...</div>');
+    feedUpsert({id:'_ws_status', class_id:'ai:message', role:'system', content:'Disconnected — reconnecting...', updated_at:new Date().toISOString()});
   });
   try {
     console.log('[AIC] Connecting WS to:', WS_URL);
