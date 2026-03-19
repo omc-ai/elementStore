@@ -77,7 +77,7 @@ execute_claude_cli() {
 
   [ -z "$model" ] || [ "$model" = "null" ] && model=$(echo "$provider_data" | jq -r '.model // "sonnet"')
 
-  echo "[$(date '+%H:%M:%S')] Provider: claude_cli model=$model"
+  echo "[$(date '+%H:%M:%S')] Provider: claude_cli model=$model" >&2
   claude --print --model "$model" --output-format stream-json <<< "$prompt" > "$tmpfile" 2>/dev/null &
   echo $!
 }
@@ -94,13 +94,13 @@ execute_anthropic_api() {
   local api_key="${ANTHROPIC_API_KEY:-}"
 
   if [ -z "$api_key" ]; then
-    echo "[$(date '+%H:%M:%S')] ERROR: ANTHROPIC_API_KEY not set"
+    echo "[$(date '+%H:%M:%S')] ERROR: ANTHROPIC_API_KEY not set" >&2
     echo '{"error":"ANTHROPIC_API_KEY not set"}' > "$tmpfile"
     echo "0"
     return
   fi
 
-  echo "[$(date '+%H:%M:%S')] Provider: anthropic_api model=$model"
+  echo "[$(date '+%H:%M:%S')] Provider: anthropic_api model=$model" >&2
 
   # Build messages JSON
   local messages_json=$(jq -n --arg content "$prompt" '[{role:"user",content:$content}]')
@@ -127,6 +127,7 @@ monitor_claude_cli_stream() {
   local pid="$3"
   local last_text=""
 
+  # Wait for process, polling for stream updates
   while kill -0 "$pid" 2>/dev/null; do
     sleep 1
     if [ -f "$tmpfile" ]; then
@@ -134,15 +135,24 @@ monitor_claude_cli_stream() {
       if [ -n "$new_text" ] && [ "$new_text" != "$last_text" ]; then
         es_update "ai:message" "$resp_id" "$(jq -n --arg c "$new_text" '{content:$c, status:"streaming"}')" > /dev/null 2>&1
         last_text="$new_text"
-        echo "[$(date '+%H:%M:%S')] Streaming: ${#new_text} chars"
+        echo "[$(date '+%H:%M:%S')] Streaming: ${#new_text} chars" >&2
       fi
     fi
   done
 
   wait "$pid" 2>/dev/null
-  local exit_code=$?
 
-  # Get final result
+  # Final read — catches fast completions that the loop missed
+  if [ -f "$tmpfile" ]; then
+    local new_text=$(grep '"type":"assistant"' "$tmpfile" 2>/dev/null | tail -1 | jq -r '.message.content[]? | select(.type=="text") | .text // empty' 2>/dev/null || true)
+    if [ -n "$new_text" ] && [ "$new_text" != "$last_text" ]; then
+      es_update "ai:message" "$resp_id" "$(jq -n --arg c "$new_text" '{content:$c, status:"streaming"}')" > /dev/null 2>&1
+      last_text="$new_text"
+      echo "[$(date '+%H:%M:%S')] Final stream read: ${#new_text} chars" >&2
+    fi
+  fi
+
+  # Get final result from stream-json output
   local result=""
   if [ -f "$tmpfile" ]; then
     result=$(grep '"type":"result"' "$tmpfile" 2>/dev/null | tail -1 | jq -r '.result // ""' 2>/dev/null || true)
@@ -162,19 +172,17 @@ monitor_anthropic_api_stream() {
   while kill -0 "$pid" 2>/dev/null; do
     sleep 1
     if [ -f "$tmpfile" ]; then
-      # Parse SSE events — extract content_block_delta text
       local new_text=$(grep 'event: content_block_delta' -A1 "$tmpfile" 2>/dev/null | grep 'data:' | jq -r '.delta.text // empty' 2>/dev/null | tr -d '\n' || true)
       if [ -n "$new_text" ] && [ "$new_text" != "$accumulated" ]; then
         accumulated="$new_text"
         es_update "ai:message" "$resp_id" "$(jq -n --arg c "$accumulated" '{content:$c, status:"streaming"}')" > /dev/null 2>&1
-        echo "[$(date '+%H:%M:%S')] Streaming: ${#accumulated} chars"
+        echo "[$(date '+%H:%M:%S')] Streaming: ${#accumulated} chars" >&2
       fi
     fi
   done
 
   wait "$pid" 2>/dev/null
 
-  # Assemble final from SSE deltas
   local result=""
   if [ -f "$tmpfile" ]; then
     result=$(grep 'data:' "$tmpfile" 2>/dev/null | jq -r 'select(.type=="content_block_delta") | .delta.text // empty' 2>/dev/null | tr -d '\n' || true)
