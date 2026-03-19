@@ -27,7 +27,7 @@ namespace ElementStore;
 
 class BroadcastService
 {
-    private static string $wsUrl = 'http://elementstore_ws:3101/broadcast';
+    private static string $wsUrl = 'http://elementstore_ws:3100/broadcast';
 
     /** @var bool|null Cached reachability: null=not tested, true=OK, false=skip */
     private static ?bool $reachable = null;

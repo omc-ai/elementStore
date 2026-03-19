@@ -78,7 +78,7 @@ execute_claude_cli() {
   [ -z "$model" ] || [ "$model" = "null" ] && model=$(echo "$provider_data" | jq -r '.model // "sonnet"')
 
   echo "[$(date '+%H:%M:%S')] Provider: claude_cli model=$model" >&2
-  claude --print --model "$model" --output-format stream-json <<< "$prompt" > "$tmpfile" 2>/dev/null &
+  claude --print --model "$model" --output-format stream-json --verbose <<< "$prompt" > "$tmpfile" 2>/dev/null &
   echo $!
 }
 

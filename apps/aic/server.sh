@@ -398,7 +398,7 @@ User says: ${msg_content}"
     if command -v claude &>/dev/null; then
       # Stream output to temp file, update message as chunks arrive
       local tmpfile="/tmp/aic-stream-$$"
-      echo "$full_prompt" | claude --print --model sonnet --output-format stream-json > "$tmpfile" 2>/dev/null &
+      echo "$full_prompt" | claude --print --model sonnet --output-format stream-json --verbose > "$tmpfile" 2>/dev/null &
       local claude_pid=$!
 
       # Monitor the stream file for text chunks
