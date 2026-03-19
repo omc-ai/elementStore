@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "namespace": "mcp",
-  "description": "MCP (Model Context Protocol) server and tool definitions — enables elementStore to be used as a Claude Code plugin. The mcp:server agent auto-discovers classes and generates MCP tools.",
+  "description": "MCP (Model Context Protocol) server definitions — enables elementStore to be used as a Claude Code plugin. Uses ai:tool for tool bindings (type: mcp).",
   "classes": [
     {
       "id": "mcp:server",
@@ -33,18 +33,36 @@
           "class_id": "@prop_string"
         },
         {
+          "key": "agent_id",
+          "label": "Agent",
+          "description": "The ai:agent whose prompt and rules drive this server",
+          "data_type": "relation",
+          "object_class_id": ["ai:agent"],
+          "display_order": 4,
+          "class_id": "@prop_relation"
+        },
+        {
           "key": "transport",
           "description": "MCP transport type",
           "data_type": "string",
-          "display_order": 4,
+          "display_order": 5,
           "options": { "values": ["stdio", "sse", "http"] },
           "default_value": "stdio",
           "class_id": "@prop_string"
         },
         {
+          "key": "mode",
+          "description": "Tool generation mode: generic (9 tools), typed (per-class CRUD), filter (selected classes)",
+          "data_type": "string",
+          "display_order": 6,
+          "options": { "values": ["generic", "typed", "filter"] },
+          "default_value": "generic",
+          "class_id": "@prop_string"
+        },
+        {
           "key": "status",
           "data_type": "string",
-          "display_order": 5,
+          "display_order": 7,
           "options": { "values": ["active", "inactive", "error"] },
           "default_value": "inactive",
           "class_id": "@prop_string"
@@ -53,31 +71,24 @@
           "key": "include_system_classes",
           "description": "Whether to expose system classes (@class, @prop, etc.) as tools",
           "data_type": "boolean",
-          "display_order": 6,
+          "display_order": 8,
           "default_value": false,
           "class_id": "@prop"
-        },
-        {
-          "key": "class_filter",
-          "description": "Regex or glob pattern to filter which classes get tools (empty = all)",
-          "data_type": "string",
-          "display_order": 7,
-          "class_id": "@prop_string"
         },
         {
           "key": "discovered_classes",
           "description": "Class IDs discovered on last connection",
           "data_type": "string",
           "is_array": "indexed",
-          "display_order": 8,
+          "display_order": 9,
           "flags": { "readonly": true },
           "class_id": "@prop_string"
         },
         {
           "key": "tool_count",
-          "description": "Total tools generated (generic + per-class)",
+          "description": "Total tools generated",
           "data_type": "integer",
-          "display_order": 9,
+          "display_order": 10,
           "flags": { "readonly": true },
           "class_id": "@prop_number"
         },
@@ -85,95 +96,8 @@
           "key": "last_discovery",
           "description": "Timestamp of last class discovery",
           "data_type": "datetime",
-          "display_order": 10,
+          "display_order": 11,
           "flags": { "readonly": true },
-          "class_id": "@prop"
-        }
-      ]
-    },
-    {
-      "id": "mcp:tool",
-      "class_id": "@class",
-      "name": "MCP Tool",
-      "description": "A single MCP tool generated from an elementStore class or action. Tracks the mapping between ES operations and MCP tool names.",
-      "props": [
-        {
-          "key": "name",
-          "label": "Tool Name",
-          "description": "MCP tool name (e.g. es_list_ai_agent, es_create)",
-          "data_type": "string",
-          "display_order": 1,
-          "flags": { "required": true },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "description",
-          "data_type": "string",
-          "editor": { "id": "textarea" },
-          "display_order": 2,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "server_id",
-          "description": "The MCP server this tool belongs to",
-          "data_type": "relation",
-          "object_class_id": ["mcp:server"],
-          "display_order": 3,
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "source_class_id",
-          "description": "The elementStore class this tool was generated from (null for generic tools)",
-          "data_type": "relation",
-          "object_class_id": ["@class"],
-          "display_order": 4,
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "operation",
-          "description": "The CRUD operation this tool performs",
-          "data_type": "string",
-          "display_order": 5,
-          "options": { "values": ["list", "get", "create", "update", "delete", "query", "find", "action", "health", "classes", "class_props"] },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "input_schema",
-          "description": "JSON Schema for the tool input parameters",
-          "data_type": "object",
-          "display_order": 6,
-          "class_id": "@prop_object"
-        },
-        {
-          "key": "enabled",
-          "data_type": "boolean",
-          "display_order": 7,
-          "default_value": true,
-          "class_id": "@prop"
-        }
-      ]
-    },
-    {
-      "id": "mcp:agent",
-      "class_id": "@class",
-      "name": "MCP Agent",
-      "extends_id": "ai:agent",
-      "description": "An AI agent specialized for MCP server management — discovers classes, generates tools, manages server lifecycle.",
-      "props": [
-        {
-          "key": "server_id",
-          "description": "The MCP server this agent manages",
-          "data_type": "relation",
-          "object_class_id": ["mcp:server"],
-          "display_order": 20,
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "auto_discover",
-          "description": "Whether to auto-discover classes on startup",
-          "data_type": "boolean",
-          "default_value": true,
-          "display_order": 21,
           "class_id": "@prop"
         }
       ]
@@ -184,24 +108,54 @@
       "id": "mcp:es-default",
       "class_id": "mcp:server",
       "name": "elementStore Default",
-      "description": "Default MCP server for the local elementStore instance",
+      "description": "Default MCP server for the local elementStore instance. Uses agent:owner as the driving agent.",
       "es_url": "http://arc3d.master.local/elementStore",
+      "agent_id": "agent:owner",
       "transport": "stdio",
+      "mode": "generic",
       "status": "active",
       "include_system_classes": false
     },
     {
-      "id": "agent:mcp-bridge",
-      "class_id": "mcp:agent",
-      "name": "MCP Bridge",
-      "title": "MCP Server Agent",
-      "description": "Manages the MCP server lifecycle — discovers elementStore classes, generates MCP tool definitions, and keeps the tool registry in sync with the store schema.",
-      "is_active": true,
-      "auto_discover": true,
-      "server_id": "mcp:es-default",
-      "prompt": "You are the MCP Bridge agent. Your job is to keep the MCP server's tool definitions in sync with the elementStore schema.\n\n## Your Domain\n- Discover all elementStore classes and their properties\n- Generate MCP tool definitions for each class (list, get, create, update, delete)\n- Register generic tools (query, find, health, classes, class_props, action)\n- Track which classes have been mapped and their tool status\n\n## On Each Run\n1. Query all classes from elementStore: GET /class\n2. For each class, get props: GET /class/{id}/props\n3. Generate tool definitions using the tool-generator\n4. Update mcp:tool objects to reflect current state\n5. Update mcp:server with discovery timestamp and counts",
-      "tools": ["es_classes", "es_class_props", "es_query", "es_create", "es_update"],
-      "domain": ["mcp", "schema", "tools"]
+      "id": "tool-mcp-store",
+      "class_id": "ai:tool",
+      "description": "MCP bridge — full elementStore access via MCP protocol tools (es_query, es_create, es_update, etc.)",
+      "category": "mcp",
+      "type": "mcp",
+      "enabled": true,
+      "requires_confirmation": false,
+      "allowed_actions": [
+        {
+          "type": "class",
+          "ref_class_id": "ai:agent",
+          "actions": ["get", "list"]
+        },
+        {
+          "type": "class",
+          "ref_class_id": "ai:task",
+          "actions": ["get", "list", "create", "set", "delete"]
+        },
+        {
+          "type": "class",
+          "ref_class_id": "ai:tool",
+          "actions": ["get", "list"]
+        },
+        {
+          "type": "class",
+          "ref_class_id": "@feature",
+          "actions": ["get", "list", "create", "set"]
+        },
+        {
+          "type": "class",
+          "ref_class_id": "@app_feature",
+          "actions": ["get", "list", "create", "set"]
+        },
+        {
+          "type": "class",
+          "ref_class_id": "mcp:server",
+          "actions": ["get", "list", "set"]
+        }
+      ]
     }
   ]
 }

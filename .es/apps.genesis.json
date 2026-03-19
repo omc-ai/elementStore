@@ -6,7 +6,7 @@
   "version": "1.0.0",
   "classes": [
     {
-      "id": "es:app",
+      "id": "@app",
       "class_id": "@class",
       "name": "ES Application",
       "description": "An application that uses elementStore — as server, client, or declaration provider",
@@ -154,7 +154,7 @@
       ]
     },
     {
-      "id": "es:feature",
+      "id": "@feature",
       "class_id": "@class",
       "name": "ES Feature",
       "description": "A canonical elementStore capability that can be implemented by clients and servers",
@@ -272,7 +272,7 @@
           "description": "Other features this depends on",
           "data_type": "relation",
           "object_class_id": [
-            "es:feature"
+            "@feature"
           ],
           "is_array": "indexed",
           "display_order": 7,
@@ -292,7 +292,7 @@
       ]
     },
     {
-      "id": "es:app_feature",
+      "id": "@app_feature",
       "class_id": "@class",
       "name": "App Feature Progress",
       "description": "Tracks which ES features each application implements and their implementation progress",
@@ -300,10 +300,10 @@
         {
           "key": "application_id",
           "label": "Application",
-          "description": "The es:app this feature record belongs to",
+          "description": "The @app this feature record belongs to",
           "data_type": "relation",
           "object_class_id": [
-            "es:app"
+            "@app"
           ],
           "display_order": 1,
           "flags": {
@@ -317,7 +317,7 @@
           "description": "The feature",
           "data_type": "relation",
           "object_class_id": [
-            "es:feature"
+            "@feature"
           ],
           "display_order": 2,
           "flags": {
@@ -382,13 +382,13 @@
   ],
   "seed": [
     {
-      "storage": "./@es-app.json"
+      "storage": "./@app.json"
     },
     {
-      "storage": "./@es-feature.json"
+      "storage": "./@feature.json"
     },
     {
-      "storage": "./@es-app_feature.json"
+      "storage": "./@app_feature.json"
     }
   ]
 }

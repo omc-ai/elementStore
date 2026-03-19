@@ -8,10 +8,10 @@ Instructions for Claude Code when working in this repository.
 
 ```bash
 # Object operations — ALWAYS through the store
-bash util/es-cli.sh list --class es:feature --url $ES_URL
+bash util/es-cli.sh list --class @feature --url $ES_URL
 bash util/es-cli.sh get --id feat:my_feature --url $ES_URL
 bash util/es-cli.sh set --data '{"id":"my:obj","class_id":"my:class","field":"value"}' --url $ES_URL
-curl -sf "$ES_URL/query/es:app_feature?_limit=200"
+curl -sf "$ES_URL/query/@app_feature?_limit=200"
 ```
 
 Reading and updating `.es/*.json` files directly is allowed for file-level operations (inspecting structure, fixing malformed JSON, scripting across files). But **object-level mutations** (changing field values, creating/deleting objects) must go through the store.
@@ -70,7 +70,7 @@ bash util/es-features.sh matrix --url $ES_URL
 
 When a feature is implemented or its status changes:
 
-1. **Update the live server** via `es-cli.sh set` (updates `es:feature` / `es:app_feature` objects)
+1. **Update the live server** via `es-cli.sh set` (updates `@feature` / `@app_feature` objects)
 2. **Sync `docs/CLIENT_FEATURE_REGISTRY.md`** from the live data — query via es-cli, then update the markdown
 
 The JSON files in `.es/` will auto-update when the server persists the changes. Do not edit them manually.
@@ -114,9 +114,9 @@ Property behavior flags are stored as `flags: {required: true, readonly: true}` 
 
 | Class | Purpose |
 |-------|---------|
-| `es:feature` | Feature definitions (canonical list of ES capabilities) |
-| `es:app_feature` | Per-app implementation status (`progress`: implemented / partial / not_started) |
-| `es:app` | Registered applications (PHP backend, Admin UI, arch-fe, arch-be, ...) |
+| `@feature` | Feature definitions (canonical list of ES capabilities) |
+| `@app_feature` | Per-app implementation status (`progress`: implemented / partial / not_started) |
+| `@app` | Registered applications (PHP backend, Admin UI, arch-fe, arch-be, ...) |
 
 ## Feature IDs — Naming Convention
 
@@ -128,37 +128,37 @@ app:<slug>                 e.g. app:es-admin, app:es-php-backend, app:architect-
 
 ## Rule: Feature-Driven Development
 
-**Every feature MUST be tracked through `es:feature` and `es:app_feature` objects.**
+**Every feature MUST be tracked through `@feature` and `@app_feature` objects.**
 
 Before implementing any feature:
-1. Check if an `es:feature` object exists for it. If not, create one.
-2. Check if an `es:app_feature` object exists for the target app. If not, create one with `progress: "in_progress"`.
+1. Check if an `@feature` object exists for it. If not, create one.
+2. Check if an `@app_feature` object exists for the target app. If not, create one with `progress: "in_progress"`.
 3. Implement the feature.
-4. Update the `es:app_feature` object: set `progress` to `"implemented"` (or `"partial"`), update `implemented_in` with file paths, add `notes` if needed.
+4. Update the `@app_feature` object: set `progress` to `"implemented"` (or `"partial"`), update `implemented_in` with file paths, add `notes` if needed.
 
 ```bash
 # Check existing feature
 bash util/es-cli.sh get feat:my_feature --url $ES_URL
 
 # Create feature
-bash util/es-cli.sh set es:feature '{"id":"feat:my_feature","name":"My Feature","category":"core","scope":"client"}' --url $ES_URL
+bash util/es-cli.sh set @feature '{"id":"feat:my_feature","name":"My Feature","category":"core","scope":"client"}' --url $ES_URL
 
 # Start work — set progress to in_progress
-bash util/es-cli.sh set es:app_feature '{"id":"af:es-admin:my_feature","application_id":"app:es-admin","feature_id":"feat:my_feature","progress":"in_progress"}' --url $ES_URL
+bash util/es-cli.sh set @app_feature '{"id":"af:es-admin:my_feature","application_id":"app:es-admin","feature_id":"feat:my_feature","progress":"in_progress"}' --url $ES_URL
 
 # Complete — set progress to implemented
-bash util/es-cli.sh set es:app_feature '{"id":"af:es-admin:my_feature","progress":"implemented","implemented_in":["admin/js/editor/fields.js:120-180"]}' --url $ES_URL
+bash util/es-cli.sh set @app_feature '{"id":"af:es-admin:my_feature","progress":"implemented","implemented_in":["admin/js/editor/fields.js:120-180"]}' --url $ES_URL
 ```
 
-The `es:app_feature.progress` field tracks lifecycle: `not_started` → `planned` → `in_progress` → `partial` → `implemented` → `tested`.
+The `@app_feature.progress` field tracks lifecycle: `not_started` → `planned` → `in_progress` → `partial` → `implemented` → `tested`.
 
 ## Rule: No External Docs When Objects Can Describe It
 
 **Do not create standalone documentation files for things that can be described as elementStore objects.**
 
 ElementStore is self-describing. If information can be modeled as classes and objects, store it there — not in markdown files. Examples:
-- Feature specs → `es:feature` objects (not a features.md)
-- App integration status → `es:app_feature` objects (not a status.md)
+- Feature specs → `@feature` objects (not a features.md)
+- App integration status → `@app_feature` objects (not a status.md)
 - Editor definitions → `@editor` objects (not an editors.md)
 - Action definitions → `@action` objects (not an actions.md)
 
