@@ -6,19 +6,20 @@
 <title>AI Company — Dashboard</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#f0f2f5;color:#1f2328;line-height:1.5}
-header{background:#fff;border-bottom:1px solid #d1d9e0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#f0f2f5;color:#1f2328;line-height:1.5;display:flex;flex-direction:column}
+header{background:#fff;border-bottom:1px solid #d1d9e0;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:100}
 header h1{font-size:1.1em;color:#0550ae}
 .hdr-status{display:flex;gap:10px;align-items:center;font-size:0.82em}
 .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:3px}
 .dot.ok{background:#1a7f37}.dot.err{background:#cf222e}.dot.load{background:#9a6700}
-.layout{display:grid;grid-template-columns:260px 1fr 320px;gap:12px;padding:12px 16px;max-width:1400px;margin:0 auto;min-height:calc(100vh - 50px)}
-@media(max-width:1100px){.layout{grid-template-columns:1fr;}}
-.col{display:flex;flex-direction:column;gap:10px}
-.card{background:#fff;border:1px solid #d1d9e0;border-radius:8px;overflow:hidden}
-.card-hdr{padding:8px 12px;font-weight:600;font-size:0.85em;border-bottom:1px solid #d1d9e0;display:flex;justify-content:space-between;align-items:center}
-.card-body{padding:10px 12px}
-.card-hdr .count{background:#ddf4ff;color:#0550ae;border-radius:8px;padding:0 6px;font-size:0.78em}
+.layout{flex:1;display:grid;grid-template-columns:250px 1fr 300px;gap:8px;padding:8px;overflow:hidden}
+@media(max-width:1100px){.layout{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}}
+.col{display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.card{background:#fff;border:1px solid #d1d9e0;border-radius:6px;overflow:hidden;min-height:0}
+.card-hdr{padding:6px 10px;font-weight:600;font-size:0.82em;border-bottom:1px solid #d1d9e0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.card-body{padding:8px 10px}
+.card-hdr .count{background:#ddf4ff;color:#0550ae;border-radius:8px;padding:0 6px;font-size:0.75em}
 
 /* Agent cards */
 .agent{padding:8px 10px;border-bottom:1px solid #f0f2f5;cursor:pointer;display:flex;gap:8px;align-items:center;transition:background .1s}
@@ -77,8 +78,8 @@ header h1{font-size:1.1em;color:#0550ae}
 .dec:last-child{border-bottom:none}
 .dec .d-topic{font-weight:500}
 
-/* Activity feed — compact, sorted by date */
-.feed{max-height:calc(100vh - 160px);overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding:4px}
+/* Activity feed — WhatsApp style: messages at bottom, input pinned */
+.feed{overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding:4px;justify-content:flex-end;min-height:0}
 .feed-item{background:#fff;border:1px solid #e8e8e8;border-radius:4px;padding:4px 8px;font-size:0.78em;display:flex;gap:6px;align-items:flex-start;transition:background .15s}
 .feed-item:hover{background:#f6f8fa}
 .feed-item .fi-type{font-weight:600;font-size:0.68em;padding:0 4px;border-radius:3px;white-space:nowrap;flex-shrink:0;line-height:1.6}
@@ -149,19 +150,19 @@ header h1{font-size:1.1em;color:#0550ae}
 
 <div class="layout">
 
-<!-- LEFT: Workers + Agents -->
-<div class="col">
-  <div class="card">
+<!-- LEFT: Workers + Agents + Decisions -->
+<div class="col" style="overflow-y:auto">
+  <div class="card" style="flex-shrink:0">
     <div class="card-hdr">Workers <span class="count" id="worker-count">0</span></div>
     <div class="card-body" id="workers-list" style="padding:0"></div>
   </div>
-  <div class="card">
+  <div class="card" style="flex-shrink:0">
     <div class="card-hdr">Agents <span class="count" id="agent-count">0</span></div>
     <div class="card-body" id="agents" style="padding:0"></div>
   </div>
-  <div class="card">
+  <div class="card" style="flex-shrink:0">
     <div class="card-hdr">Decisions <span class="count" id="dec-count">0</span></div>
-    <div class="card-body" id="decisions" style="padding:0;max-height:200px;overflow-y:auto"></div>
+    <div class="card-body" id="decisions" style="padding:0;max-height:150px;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -189,9 +190,9 @@ header h1{font-size:1.1em;color:#0550ae}
   </div>
 </div>
 
-<!-- RIGHT: Questions + Actions -->
+<!-- RIGHT: Actions + Questions -->
 <div class="col">
-  <div class="card">
+  <div class="card" style="flex-shrink:0">
     <div class="card-hdr">Actions</div>
     <div class="actions">
       <button class="act-btn" style="background:#0550ae" onclick="openAction('question')">Ask</button>
@@ -205,16 +206,16 @@ header h1{font-size:1.1em;color:#0550ae}
       <span id="q-expand-icon" style="font-size:0.8em;color:#59636e">&#9660;</span>
     </div>
     <!-- Compact: cards for questions to owner (me) -->
-    <div id="q-mine" style="padding:0;border-bottom:1px solid #d1d9e0"></div>
+    <div id="q-mine" style="padding:0;border-bottom:1px solid #d1d9e0;flex-shrink:0"></div>
     <!-- Expandable: full table of all questions -->
-    <div id="q-all-wrap" style="display:none;max-height:400px;overflow-y:auto">
+    <div id="q-all-wrap" style="display:none;flex:1;overflow-y:auto">
       <table style="font-size:0.8em;margin:0">
         <thead><tr><th>From</th><th>To</th><th>Question</th><th>Status</th><th></th></tr></thead>
         <tbody id="q-all-body"></tbody>
       </table>
     </div>
     <!-- Compact list for other open questions -->
-    <div class="card-body" id="q-others" style="padding:0;max-height:300px;overflow-y:auto"></div>
+    <div class="card-body" id="q-others" style="padding:0;flex:1;overflow-y:auto"></div>
   </div>
 </div>
 
