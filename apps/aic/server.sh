@@ -718,28 +718,25 @@ while [ "$round_count" -lt "$MAX_ROUNDS" ]; do
     fi
 
     # Build round context and create message
-    local tasks findings questions
-    tasks=$(get_open_tasks | jq -c '[.[] | {id,name,priority,status,step,project}]' 2>/dev/null || echo '[]')
-    findings=$(get_findings | jq -c '[.[] | {id,name,severity,category,fix}]' 2>/dev/null || echo '[]')
-    questions=$(es_query "ai:question" "status=open" 2>/dev/null | jq -c '[.[] | {id,question,from_agent,to_agents}]' 2>/dev/null || echo '[]')
+    r_tasks=$(get_open_tasks | jq -c '[.[] | {id,name,priority,status,step,project}]' 2>/dev/null || echo '[]')
+    r_findings=$(get_findings | jq -c '[.[] | {id,name,severity,category,fix}]' 2>/dev/null || echo '[]')
+    r_questions=$(es_query "ai:question" "status=open" 2>/dev/null | jq -c '[.[] | {id,question,from_agent,to_agents}]' 2>/dev/null || echo '[]')
 
-    local round_prompt="Round execution. Review open tasks and findings in your domain. Take action.
+    r_prompt="Round execution. Review open tasks and findings in your domain. Take action.
 
-Open tasks: $tasks
+Open tasks: $r_tasks
 
-Open findings: $findings
+Open findings: $r_findings
 
-Open questions: $questions"
+Open questions: $r_questions"
 
-    local msg_id
-    msg_id=$(es_create "ai:message" "$(jq -n \
-      --arg agent "$agent_id" --arg content "$round_prompt" --arg now "$(NOW)" \
+    r_msg_id=$(es_create "ai:message" "$(jq -n \
+      --arg agent "$agent_id" --arg content "$r_prompt" --arg now "$(NOW)" \
       '{class_id:"ai:message", user_id:"system", agent_id:"system", to_agents:[$agent], role:"user", content:$content, status:"pending", created:$now}'
     )" | jq -r '.id // ""' 2>/dev/null)
 
-    if [ -n "$msg_id" ] && [ "$msg_id" != "null" ]; then
-      # Spawn in background — parallel execution
-      spawn_agent "$agent_id" "$msg_id"
+    if [ -n "$r_msg_id" ] && [ "$r_msg_id" != "null" ]; then
+      spawn_agent "$agent_id" "$r_msg_id"
       spawned=$((spawned + 1))
     fi
   done <<< "$(get_agents)"
