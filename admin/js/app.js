@@ -288,8 +288,8 @@ function _wsBlinkObject(item) {
 
 /**
  * Handle URL params on load or popstate:
- *   ?class=es:app                    → open class objects tab
- *   ?class=es:app&id=app:es-admin    → open class tab + edit object
+ *   ?class=@app                    → open class objects tab
+ *   ?class=@app&id=app:es-admin    → open class tab + edit object
  *   ?action=edit&class=X&id=Y        → edit object directly
  */
 async function handleRoute() {
@@ -298,6 +298,8 @@ async function handleRoute() {
     var objectId = params.get('id');
     var action = params.get('action');
     var tabId = params.get('tab');
+
+    console.log('[Route]', { classId, objectId, action, tabId });
 
     if (classId) {
         // Open class objects tab
@@ -309,9 +311,12 @@ async function handleRoute() {
         // If object ID provided, open it in the editor
         if (objectId && (action === 'edit' || !action)) {
             try {
+                console.log('[Route] Fetching', classId, objectId);
                 var obj = await api('GET', '/store/' + classId + '/' + objectId);
+                console.log('[Route] Got object:', obj ? 'yes' : 'no');
                 if (obj) renderModalForClass(classId, obj);
             } catch (e) {
+                console.error('[Route] Error:', e);
                 showToast('Object not found: ' + objectId, 'error');
             }
         }
