@@ -98,6 +98,16 @@
           "class_id": "@prop"
         },
         {
+          "data_type": "relation",
+          "key": "provider_id",
+          "description": "Default LLM provider for this agent. Falls back to system default (provider:claude-cli).",
+          "object_class_id": ["ai:provider"],
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.provider_id",
+          "class_id": "@prop_relation"
+        },
+        {
           "data_type": "integer",
           "key": "run_count",
           "is_array": "false",
@@ -1187,13 +1197,14 @@
           "class_id": "@prop"
         },
         {
-          "data_type": "string",
-          "key": "provider",
-          "description": "LLM provider",
+          "data_type": "relation",
+          "key": "provider_id",
+          "description": "LLM provider for this conversation. Falls back to agent.provider_id then system default.",
+          "object_class_id": ["ai:provider"],
           "is_array": "false",
           "display_order": 0,
-          "id": "ai:conversation.provider",
-          "class_id": "@prop"
+          "id": "ai:conversation.provider_id",
+          "class_id": "@prop_relation"
         },
         {
           "data_type": "string",
@@ -1919,6 +1930,126 @@
           "class_id": "@prop"
         }
       ]
+    },
+    {
+      "id": "ai:provider",
+      "class_id": "@class",
+      "extends_id": "@provider",
+      "name": "AI Provider",
+      "namespace_id": "ai",
+      "is_system": true,
+      "description": "LLM provider — defines how to execute AI inference. Extends @provider (inherits base_url, auth, actions, mapping). The provider_type determines the executor: claude_cli runs local Claude Code CLI, anthropic_api calls Anthropic Messages API, etc.",
+      "storage": "storage_ai",
+      "props": [
+        {
+          "key": "provider_type",
+          "data_type": "string",
+          "description": "Executor type: claude_cli, anthropic_api, openai_api, local",
+          "options": { "type": "string_options", "values": ["claude_cli", "anthropic_api", "openai_api", "local"] },
+          "display_order": 1,
+          "id": "ai:provider.provider_type",
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "model",
+          "data_type": "string",
+          "description": "Default model (e.g. sonnet, opus, gpt-4o)",
+          "display_order": 2,
+          "id": "ai:provider.model",
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "max_tokens",
+          "data_type": "integer",
+          "description": "Default max tokens per request",
+          "display_order": 3,
+          "id": "ai:provider.max_tokens",
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "supports_streaming",
+          "data_type": "boolean",
+          "default_value": true,
+          "display_order": 4,
+          "id": "ai:provider.supports_streaming",
+          "class_id": "@prop"
+        },
+        {
+          "key": "supports_sessions",
+          "data_type": "boolean",
+          "default_value": false,
+          "description": "Can maintain persistent sessions (e.g. claude CLI --resume)",
+          "display_order": 5,
+          "id": "ai:provider.supports_sessions",
+          "class_id": "@prop"
+        },
+        {
+          "key": "session_commands",
+          "data_type": "object",
+          "description": "CLI commands for session management: {create, resume, list, delete}",
+          "display_order": 6,
+          "id": "ai:provider.session_commands",
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "rate_limit",
+          "data_type": "object",
+          "description": "{requests_per_minute, tokens_per_minute}",
+          "display_order": 7,
+          "id": "ai:provider.rate_limit",
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "cost_per_1k_input",
+          "data_type": "number",
+          "description": "Cost tracking per 1K input tokens",
+          "display_order": 8,
+          "id": "ai:provider.cost_per_1k_input",
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "cost_per_1k_output",
+          "data_type": "number",
+          "description": "Cost tracking per 1K output tokens",
+          "display_order": 9,
+          "id": "ai:provider.cost_per_1k_output",
+          "class_id": "@prop_number"
+        }
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "id": "provider:claude-cli",
+      "class_id": "ai:provider",
+      "name": "Claude CLI",
+      "description": "Local Claude Code CLI — runs claude --print with streaming JSON output",
+      "provider_type": "claude_cli",
+      "model": "sonnet",
+      "supports_streaming": true,
+      "supports_sessions": true,
+      "session_commands": {
+        "list": "claude sessions list --output json",
+        "resume": "claude --resume {session_id} --print --model {model} --output-format stream-json",
+        "delete": "claude sessions delete {session_id}"
+      },
+      "max_tokens": 16000,
+      "rate_limit": { "requests_per_minute": 10 }
+    },
+    {
+      "id": "provider:anthropic-api",
+      "class_id": "ai:provider",
+      "name": "Anthropic API",
+      "description": "Anthropic Messages API — direct HTTP with SSE streaming",
+      "base_url": "https://api.anthropic.com",
+      "auth": { "type": "apikey", "header": "x-api-key" },
+      "provider_type": "anthropic_api",
+      "model": "claude-sonnet-4-20250514",
+      "supports_streaming": true,
+      "supports_sessions": false,
+      "max_tokens": 8192,
+      "cost_per_1k_input": 0.003,
+      "cost_per_1k_output": 0.015
     }
   ]
 }

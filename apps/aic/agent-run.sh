@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════
-# aic-agent-run.sh — Execute one agent run
+# agent-run.sh — Execute one agent run (provider-aware)
 #
-# Spawned by aic-api.sh for each agent trigger.
-# Reads pending messages, sends to claude, streams response.
-# Claude writes directly to elementStore via tools/API.
+# Spawned by server.sh for each agent trigger.
+# Resolves provider from conversation → agent → system default.
+# Creates transactional messages with status lifecycle:
+#   pending → processing → streaming → complete|error
 #
 # Usage:
-#   ./aic-agent-run.sh <agent_id> [message_id]
-#
-# If message_id provided: respond to that specific message
-# If not: process all pending messages for this agent
+#   ./agent-run.sh <agent_id> [message_id]
 # ═══════════════════════════════════════════════════════════════════
 
 set -uo pipefail
@@ -18,6 +16,7 @@ set -uo pipefail
 AGENT_ID="${1:-}"
 MSG_ID="${2:-}"
 ES_URL="${ES_URL:-http://arc3d.master.local/elementStore}"
+DEFAULT_PROVIDER="provider:claude-cli"
 
 if [ -z "$AGENT_ID" ]; then
   echo "Usage: $0 <agent_id> [message_id]"
@@ -30,7 +29,7 @@ es_query()  { curl -sf "$ES_URL/query/$1?$2" 2>/dev/null; }
 es_create() { curl -sf -X POST "$ES_URL/store/$1" -H 'Content-Type: application/json' -d "$2" 2>/dev/null; }
 es_update() { curl -sf -X PUT "$ES_URL/store/$1/$2" -H 'Content-Type: application/json' -d "$3" 2>/dev/null; }
 
-# Load agent config
+# ─── Load agent ──────────────────────────────────────────
 AGENT_DATA=$(es_get "ai:agent" "$AGENT_ID")
 if [ -z "$AGENT_DATA" ] || [ "$AGENT_DATA" = "null" ]; then
   echo "Agent not found: $AGENT_ID"
@@ -39,13 +38,156 @@ fi
 
 AGENT_NAME=$(echo "$AGENT_DATA" | jq -r '.name // "?"')
 AGENT_PROMPT=$(echo "$AGENT_DATA" | jq -r '.prompt // ""')
+AGENT_MODEL=$(echo "$AGENT_DATA" | jq -r '.model // ""')
+AGENT_PROVIDER=$(echo "$AGENT_DATA" | jq -r '.provider_id // ""')
 SESSION_MODE=$(echo "$AGENT_DATA" | jq -r '.behavior.session_mode // "fresh"')
 
 echo "[$(date '+%H:%M:%S')] Agent: $AGENT_NAME ($AGENT_ID) mode=$SESSION_MODE"
 
-# Find messages to process
+# ─── Resolve provider ────────────────────────────────────
+resolve_provider() {
+  local conv_id="$1"
+  local provider_id=""
+
+  # 1. Conversation-level override
+  if [ -n "$conv_id" ] && [ "$conv_id" != "null" ]; then
+    provider_id=$(es_get "ai:conversation" "$conv_id" | jq -r '.provider_id // ""' 2>/dev/null)
+  fi
+
+  # 2. Agent-level default
+  if [ -z "$provider_id" ] || [ "$provider_id" = "null" ]; then
+    provider_id="$AGENT_PROVIDER"
+  fi
+
+  # 3. System default
+  if [ -z "$provider_id" ] || [ "$provider_id" = "null" ]; then
+    provider_id="$DEFAULT_PROVIDER"
+  fi
+
+  echo "$provider_id"
+}
+
+# ─── Provider executors ──────────────────────────────────
+
+execute_claude_cli() {
+  local prompt="$1"
+  local model="$2"
+  local tmpfile="$3"
+  local provider_data="$4"
+
+  [ -z "$model" ] || [ "$model" = "null" ] && model=$(echo "$provider_data" | jq -r '.model // "sonnet"')
+
+  echo "[$(date '+%H:%M:%S')] Provider: claude_cli model=$model"
+  claude --print --model "$model" --output-format stream-json <<< "$prompt" > "$tmpfile" 2>/dev/null &
+  echo $!
+}
+
+execute_anthropic_api() {
+  local prompt="$1"
+  local model="$2"
+  local tmpfile="$3"
+  local provider_data="$4"
+
+  [ -z "$model" ] || [ "$model" = "null" ] && model=$(echo "$provider_data" | jq -r '.model // "claude-sonnet-4-20250514"')
+  local base_url=$(echo "$provider_data" | jq -r '.base_url // "https://api.anthropic.com"')
+  local max_tokens=$(echo "$provider_data" | jq -r '.max_tokens // 8192')
+  local api_key="${ANTHROPIC_API_KEY:-}"
+
+  if [ -z "$api_key" ]; then
+    echo "[$(date '+%H:%M:%S')] ERROR: ANTHROPIC_API_KEY not set"
+    echo '{"error":"ANTHROPIC_API_KEY not set"}' > "$tmpfile"
+    echo "0"
+    return
+  fi
+
+  echo "[$(date '+%H:%M:%S')] Provider: anthropic_api model=$model"
+
+  # Build messages JSON
+  local messages_json=$(jq -n --arg content "$prompt" '[{role:"user",content:$content}]')
+
+  curl -sN "$base_url/v1/messages" \
+    -H "x-api-key: $api_key" \
+    -H "anthropic-version: 2023-06-01" \
+    -H "Content-Type: application/json" \
+    -d "$(jq -n \
+      --arg model "$model" \
+      --argjson max_tokens "$max_tokens" \
+      --argjson messages "$messages_json" \
+      --arg system "$AGENT_PROMPT" \
+      '{model:$model, max_tokens:$max_tokens, messages:$messages, system:$system, stream:true}'
+    )" > "$tmpfile" 2>/dev/null &
+  echo $!
+}
+
+# ─── Stream monitor ──────────────────────────────────────
+
+monitor_claude_cli_stream() {
+  local tmpfile="$1"
+  local resp_id="$2"
+  local pid="$3"
+  local last_text=""
+
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep 1
+    if [ -f "$tmpfile" ]; then
+      local new_text=$(grep '"type":"assistant"' "$tmpfile" 2>/dev/null | tail -1 | jq -r '.message.content[]? | select(.type=="text") | .text // empty' 2>/dev/null || true)
+      if [ -n "$new_text" ] && [ "$new_text" != "$last_text" ]; then
+        es_update "ai:message" "$resp_id" "$(jq -n --arg c "$new_text" '{content:$c, status:"streaming"}')" > /dev/null 2>&1
+        last_text="$new_text"
+        echo "[$(date '+%H:%M:%S')] Streaming: ${#new_text} chars"
+      fi
+    fi
+  done
+
+  wait "$pid" 2>/dev/null
+  local exit_code=$?
+
+  # Get final result
+  local result=""
+  if [ -f "$tmpfile" ]; then
+    result=$(grep '"type":"result"' "$tmpfile" 2>/dev/null | tail -1 | jq -r '.result // ""' 2>/dev/null || true)
+    [ -z "$result" ] && result="$last_text"
+  fi
+  [ -z "$result" ] && result="[no response]"
+
+  echo "$result"
+}
+
+monitor_anthropic_api_stream() {
+  local tmpfile="$1"
+  local resp_id="$2"
+  local pid="$3"
+  local accumulated=""
+
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep 1
+    if [ -f "$tmpfile" ]; then
+      # Parse SSE events — extract content_block_delta text
+      local new_text=$(grep 'event: content_block_delta' -A1 "$tmpfile" 2>/dev/null | grep 'data:' | jq -r '.delta.text // empty' 2>/dev/null | tr -d '\n' || true)
+      if [ -n "$new_text" ] && [ "$new_text" != "$accumulated" ]; then
+        accumulated="$new_text"
+        es_update "ai:message" "$resp_id" "$(jq -n --arg c "$accumulated" '{content:$c, status:"streaming"}')" > /dev/null 2>&1
+        echo "[$(date '+%H:%M:%S')] Streaming: ${#accumulated} chars"
+      fi
+    fi
+  done
+
+  wait "$pid" 2>/dev/null
+
+  # Assemble final from SSE deltas
+  local result=""
+  if [ -f "$tmpfile" ]; then
+    result=$(grep 'data:' "$tmpfile" 2>/dev/null | jq -r 'select(.type=="content_block_delta") | .delta.text // empty' 2>/dev/null | tr -d '\n' || true)
+    [ -z "$result" ] && result="$accumulated"
+  fi
+  [ -z "$result" ] && result="[no response]"
+
+  echo "$result"
+}
+
+# ─── Find messages to process ────────────────────────────
+
 if [ -n "$MSG_ID" ]; then
-  # Fetch specific message by ID
   MSG_RAW=$(curl -sf "$ES_URL/store/ai:message/$MSG_ID" 2>/dev/null)
   if [ -n "$MSG_RAW" ] && echo "$MSG_RAW" | jq -e '.id' > /dev/null 2>&1; then
     MESSAGES=$(echo "$MSG_RAW" | jq -c '.')
@@ -55,7 +197,6 @@ if [ -n "$MSG_ID" ]; then
     MESSAGES=""
   fi
 else
-  # Find pending messages for this agent
   if [ "$AGENT_ID" = "agent:owner" ]; then
     MESSAGES=$(es_query "ai:message" "user_id=owner&role=user&status=pending&_sort=created&_order=asc&_limit=5" | jq -r '.[] | @json' 2>/dev/null)
   else
@@ -68,7 +209,8 @@ if [ -z "$MESSAGES" ]; then
   exit 0
 fi
 
-# Process each message
+# ─── Process each message ────────────────────────────────
+
 echo "$MESSAGES" | while IFS= read -r msg_json; do
   [ -z "$msg_json" ] && continue
 
@@ -78,10 +220,10 @@ echo "$MESSAGES" | while IFS= read -r msg_json; do
 
   echo "[$(date '+%H:%M:%S')] Processing: ${msg_content:0:60}..."
 
-  # Mark processing
+  # ── TX: Mark input message → processing ──
   es_update "ai:message" "$msg_id" '{"status":"processing"}' > /dev/null 2>&1
 
-  # Create or reuse conversation
+  # ── Create or reuse conversation ──
   if [ -z "$conv_id" ] || [ "$conv_id" = "null" ]; then
     conv_id=$(es_create "ai:conversation" "$(jq -n \
       --arg agent "$AGENT_ID" --arg now "$(NOW)" \
@@ -90,15 +232,27 @@ echo "$MESSAGES" | while IFS= read -r msg_json; do
     es_update "ai:message" "$msg_id" "{\"conversation_id\":\"$conv_id\"}" > /dev/null 2>&1
   fi
 
-  # Create response message (streaming)
+  # ── Update conversation status → processing ──
+  es_update "ai:conversation" "$conv_id" '{"status":"processing"}' > /dev/null 2>&1
+
+  # ── Resolve provider ──
+  provider_id=$(resolve_provider "$conv_id")
+  PROVIDER_DATA=$(es_get "ai:provider" "$provider_id" 2>/dev/null || echo '{}')
+  provider_type=$(echo "$PROVIDER_DATA" | jq -r '.provider_type // "claude_cli"')
+  model="$AGENT_MODEL"
+  [ -z "$model" ] || [ "$model" = "null" ] && model=$(echo "$PROVIDER_DATA" | jq -r '.model // "sonnet"')
+
+  echo "[$(date '+%H:%M:%S')] Provider: $provider_id ($provider_type) model=$model"
+
+  # ── TX: Create response message → streaming ──
   resp_id=$(es_create "ai:message" "$(jq -n \
-    --arg conv "$conv_id" --arg agent "$AGENT_ID" --arg ref "$msg_id" --arg now "$(NOW)" \
-    '{class_id:"ai:message", conversation_id:$conv, user_id:"system", agent_id:$agent, role:"assistant", content:"", references:[$ref], status:"streaming", created:$now}'
+    --arg conv "$conv_id" --arg agent "$AGENT_ID" --arg ref "$msg_id" --arg now "$(NOW)" --arg prov "$provider_id" --arg mdl "$model" \
+    '{class_id:"ai:message", conversation_id:$conv, user_id:"system", agent_id:$agent, role:"assistant", content:"", references:[$ref], status:"streaming", metadata:{provider_id:$prov, model:$mdl}, created:$now}'
   )" | jq -r '.id // ""' 2>/dev/null)
 
-  echo "[$(date '+%H:%M:%S')] Response: $resp_id (streaming)"
+  echo "[$(date '+%H:%M:%S')] Response: $resp_id (streaming via $provider_type)"
 
-  # Build prompt with context
+  # ── Build prompt with context ──
   tasks=$(es_query "ai:task" "status=open&_sort=step&_limit=15" | jq -c '[.[] | {id,name,priority,status,project}]' 2>/dev/null || echo '[]')
   findings=$(es_query "es:finding" "status=open&_limit=10" | jq -c '[.[] | {id,name,severity}]' 2>/dev/null || echo '[]')
 
@@ -111,57 +265,46 @@ Open findings: ${findings}
 
 User message: ${msg_content}"
 
-  # Execute claude with streaming
+  # ── Execute via provider ──
   t_start=$(date +%s)
   tmpfile="/tmp/aic-run-${msg_id}-$$"
 
-  claude --print --model sonnet --output-format stream-json <<< "$full_prompt" > "$tmpfile" 2>/dev/null &
-  claude_pid=$!
+  case "$provider_type" in
+    claude_cli)
+      exec_pid=$(execute_claude_cli "$full_prompt" "$model" "$tmpfile" "$PROVIDER_DATA")
+      result=$(monitor_claude_cli_stream "$tmpfile" "$resp_id" "$exec_pid")
+      ;;
+    anthropic_api)
+      exec_pid=$(execute_anthropic_api "$full_prompt" "$model" "$tmpfile" "$PROVIDER_DATA")
+      result=$(monitor_anthropic_api_stream "$tmpfile" "$resp_id" "$exec_pid")
+      ;;
+    *)
+      echo "[$(date '+%H:%M:%S')] Unknown provider type: $provider_type — falling back to claude_cli"
+      exec_pid=$(execute_claude_cli "$full_prompt" "$model" "$tmpfile" "$PROVIDER_DATA")
+      result=$(monitor_claude_cli_stream "$tmpfile" "$resp_id" "$exec_pid")
+      ;;
+  esac
 
-  # Monitor stream, update message progressively
-  last_text=""
-  while kill -0 "$claude_pid" 2>/dev/null; do
-    sleep 1
-    if [ -f "$tmpfile" ]; then
-      # Get latest text from assistant messages
-      new_text=$(grep '"type":"assistant"' "$tmpfile" 2>/dev/null | tail -1 | jq -r '.message.content[]? | select(.type=="text") | .text // empty' 2>/dev/null || true)
-      if [ -n "$new_text" ] && [ "$new_text" != "$last_text" ]; then
-        es_update "ai:message" "$resp_id" "$(jq -n --arg c "$new_text" '{content:$c}')" > /dev/null 2>&1
-        last_text="$new_text"
-        echo "[$(date '+%H:%M:%S')] Streaming: ${#new_text} chars"
-      fi
-    fi
-  done
-
-  wait "$claude_pid" 2>/dev/null
-
-  # Get final result
-  result=""
-  if [ -f "$tmpfile" ]; then
-    result=$(grep '"type":"result"' "$tmpfile" 2>/dev/null | tail -1 | jq -r '.result // ""' 2>/dev/null || true)
-    [ -z "$result" ] && result="$last_text"
-    rm -f "$tmpfile"
-  fi
-  [ -z "$result" ] && result="[no response]"
+  rm -f "$tmpfile"
 
   t_end=$(date +%s)
   duration=$((t_end - t_start))
 
   echo "[$(date '+%H:%M:%S')] Complete: ${#result} chars in ${duration}s"
 
-  # Final update
+  # ── TX: Finalize response → complete ──
   es_update "ai:message" "$resp_id" "$(jq -n \
-    --arg content "$result" --argjson dur "$duration" \
-    '{content:$content, status:"complete", metadata:{duration_s:$dur, model:"sonnet"}}'
+    --arg content "$result" --argjson dur "$duration" --arg mdl "$model" --arg prov "$provider_id" \
+    '{content:$content, status:"complete", metadata:{duration_s:$dur, model:$mdl, provider_id:$prov}}'
   )" > /dev/null 2>&1
 
-  # Mark original answered
+  # ── TX: Mark input → answered ──
   es_update "ai:message" "$msg_id" '{"status":"answered"}' > /dev/null 2>&1
 
-  # Update conversation
-  es_update "ai:conversation" "$conv_id" "{\"last_message\":\"$(NOW)\"}" > /dev/null 2>&1
+  # ── Update conversation status → active ──
+  es_update "ai:conversation" "$conv_id" "{\"status\":\"active\",\"last_message\":\"$(NOW)\"}" > /dev/null 2>&1
 
-  # Update agent run count
+  # ── Update agent stats ──
   run_count=$(echo "$AGENT_DATA" | jq -r '.run_count // 0')
   es_update "ai:agent" "$AGENT_ID" "{\"run_count\":$((run_count+1)),\"last_run\":\"$(NOW)\"}" > /dev/null 2>&1
 

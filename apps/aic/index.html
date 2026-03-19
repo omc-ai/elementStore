@@ -115,6 +115,14 @@ header h1{font-size:1.1em;color:#0550ae}
 .fi-type.t-message{background:#ddf4ff;color:#0550ae}
 .fi-type.t-request{background:#fff8c5;color:#9a6700}
 .fi-type.t-response{background:#dafbe1;color:#1a7f37}
+/* TX status indicators */
+.fi-status{font-size:0.65em;padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:600}
+.fi-status.pending{background:#fff8c5;color:#9a6700}
+.fi-status.processing{background:#ddf4ff;color:#0550ae}
+.fi-status.streaming{background:#dafbe1;color:#1a7f37;animation:blink-green 1.2s ease-in-out infinite}
+.fi-status.complete{background:#f0f2f5;color:#59636e}
+.fi-status.answered{background:#dafbe1;color:#1a7f37}
+.fi-status.error{background:#ffebe9;color:#cf222e}
 .feed-item.fi-mine{background:#f0f4ff;border-color:#0550ae}
 
 /* Question cards for owner */
@@ -859,13 +867,21 @@ header h1{font-size:1.1em;color:#0550ae}
     switch(cls) {
       case 'ai:message':
         var role = item.role || '?';
+        var mst = item.status || '';
+        var stBadge = (mst && mst !== 'complete' && mst !== 'answered') ? '<span class="fi-status '+mst+'">'+mst+'</span>' : '';
         if(role === 'user') {
-          body = '<b>'+agentName(item.agent_id||item.user_id)+'</b>: '+esc(str(item.content,120));
+          body = '<b>'+agentName(item.agent_id||item.user_id)+'</b>: '+esc(str(item.content,120))+stBadge;
         } else if(role === 'system') {
           body = '<span style="color:#8b949e">'+esc(str(item.content,100))+'</span>';
         } else {
-          body = '<b>'+agentName(item.agent_id)+'</b> → '+esc(str(item.content,100));
-          if(item.metadata && item.metadata.duration_s) detail = item.metadata.duration_s+'s';
+          body = '<b>'+agentName(item.agent_id)+'</b> → '+esc(str(item.content,100))+stBadge;
+          var parts = [];
+          if(item.metadata) {
+            if(item.metadata.duration_s) parts.push(item.metadata.duration_s+'s');
+            if(item.metadata.model) parts.push(item.metadata.model);
+            if(item.metadata.provider_id) parts.push(item.metadata.provider_id.replace('provider:',''));
+          }
+          if(parts.length) detail = parts.join(' · ');
         }
         break;
       case 'ai:task':
