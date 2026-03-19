@@ -23,6 +23,7 @@ const { WebSocketServer } = require('ws');
 const url = require('url');
 
 const PORT = parseInt(process.env.WS_PORT || '3100', 10);
+const ES_API = process.env.ES_API_URL || 'http://elementstore_php83:9000';
 
 // Subscription maps
 const classSubs = new Map();    // class_id → Set<ws>
@@ -191,24 +192,27 @@ function handleClientMessage(ws, msg) {
     switch (msg.action) {
         case 'subscribe':
             if (msg.class_id === '*') {
-                // Wildcard: receive ALL broadcasts
                 ws._subscriptions.all = true;
                 wsSend(ws, { event: 'subscribed', class_id: '*' });
             } else if (msg.scope_id) {
-                // Subscribe to a scope (any parent element/container) — all items tagged with this scope_id
                 addToSet(scopeSubs, msg.scope_id, ws);
                 ws._subscriptions.scopes.add(msg.scope_id);
                 wsSend(ws, { event: 'subscribed', scope_id: msg.scope_id });
             } else if (msg.id) {
-                // Subscribe to specific object: "class_id/object_id"
                 addToSet(objectSubs, msg.id, ws);
                 ws._subscriptions.objects.add(msg.id);
                 wsSend(ws, { event: 'subscribed', id: msg.id });
             } else if (msg.class_id) {
-                // Subscribe to entire class
                 addToSet(classSubs, msg.class_id, ws);
                 ws._subscriptions.classes.add(msg.class_id);
                 wsSend(ws, { event: 'subscribed', class_id: msg.class_id });
+
+                // Fetch historical objects if requested
+                // msg.fetch: number of recent objects to return (default: 0 = none)
+                // msg.since: ISO timestamp — only return objects updated after this time
+                if (msg.fetch && msg.fetch > 0) {
+                    fetchHistorical(ws, msg.class_id, msg.fetch, msg.since || null, msg.sort || '_sort=updated_at&_order=desc');
+                }
             }
             break;
 
@@ -235,6 +239,48 @@ function handleClientMessage(ws, msg) {
         default:
             wsSend(ws, { event: 'error', message: 'Unknown action: ' + msg.action });
     }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Fetch historical objects from ES API on subscribe
+// ─────────────────────────────────────────────────────────────
+
+function fetchHistorical(ws, classId, limit, since, sort) {
+    var queryParams = '_limit=' + Math.min(limit, 100);
+    if (sort) {
+        queryParams += '&' + sort;
+    } else {
+        queryParams += '&_sort=updated_at&_order=desc';
+    }
+    if (since) {
+        queryParams += '&updated_at_gte=' + encodeURIComponent(since);
+    }
+
+    var fetchUrl = ES_API + '/query/' + encodeURIComponent(classId) + '?' + queryParams;
+
+    var proto = fetchUrl.startsWith('https') ? require('https') : require('http');
+    proto.get(fetchUrl, function(res) {
+        var data = '';
+        res.on('data', function(chunk) { data += chunk; });
+        res.on('end', function() {
+            try {
+                var items = JSON.parse(data);
+                if (Array.isArray(items) && items.length > 0) {
+                    wsSend(ws, {
+                        event: 'initial',
+                        class_id: classId,
+                        items: items,
+                        count: items.length
+                    });
+                    console.log('[WS] fetch-on-subscribe: ' + classId + ' → ' + items.length + ' items to ' + ws._connId);
+                }
+            } catch (e) {
+                console.log('[WS] fetch error for ' + classId + ': ' + e.message);
+            }
+        });
+    }).on('error', function(e) {
+        console.log('[WS] fetch error: ' + e.message);
+    });
 }
 
 // ─────────────────────────────────────────────────────────────
