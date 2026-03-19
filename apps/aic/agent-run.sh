@@ -45,7 +45,15 @@ echo "[$(date '+%H:%M:%S')] Agent: $AGENT_NAME ($AGENT_ID) mode=$SESSION_MODE"
 
 # Find messages to process
 if [ -n "$MSG_ID" ]; then
-  MESSAGES=$(es_get "ai:message" "$MSG_ID" | jq -r '@json')
+  # Fetch specific message by ID
+  MSG_RAW=$(curl -sf "$ES_URL/store/ai:message/$MSG_ID" 2>/dev/null)
+  if [ -n "$MSG_RAW" ] && echo "$MSG_RAW" | jq -e '.id' > /dev/null 2>&1; then
+    MESSAGES=$(echo "$MSG_RAW" | jq -c '.')
+    echo "[$(date '+%H:%M:%S')] Found message: $MSG_ID"
+  else
+    echo "[$(date '+%H:%M:%S')] Message not found: $MSG_ID"
+    MESSAGES=""
+  fi
 else
   # Find pending messages for this agent
   if [ "$AGENT_ID" = "agent:owner" ]; then
