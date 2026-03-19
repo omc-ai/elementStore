@@ -200,6 +200,7 @@ wait_agent() {
 }
 
 # Run agent synchronously (for round shifts — one at a time)
+# Creates a round-context message, then calls agent-run.sh to process it
 run_agent_sync() {
   local agent_id="$1"
   local agent_name
@@ -208,7 +209,34 @@ run_agent_sync() {
   wlog "▶ Running $agent_name..."
   worker_update "{\"current_agent\":\"$agent_id\",\"status\":\"running\"}"
 
-  ES_URL="$ES_URL" bash "$SCRIPT_DIR/agent-run.sh" "$agent_id" "" >> "/tmp/aic-agent-${agent_id##*:}.log" 2>&1
+  # Build round context — tasks, findings, questions for this agent
+  local tasks findings questions
+  tasks=$(get_open_tasks | jq -c '[.[] | {id,name,priority,status,step,project}]' 2>/dev/null || echo '[]')
+  findings=$(get_findings | jq -c '[.[] | {id,name,severity,category,fix}]' 2>/dev/null || echo '[]')
+  questions=$(es_query "ai:question" "status=open" 2>/dev/null | jq -c '[.[] | {id,question,from_agent,to_agents}]' 2>/dev/null || echo '[]')
+
+  local round_prompt="Round execution. Review open tasks and findings in your domain. Take action.
+
+Open tasks: $tasks
+
+Open findings: $findings
+
+Open questions: $questions"
+
+  # Create a pending message for this agent to process
+  local msg_id
+  msg_id=$(es_create "ai:message" "$(jq -n \
+    --arg agent "$agent_id" --arg content "$round_prompt" --arg now "$(NOW)" \
+    '{class_id:"ai:message", user_id:"system", agent_id:"system", to_agents:[$agent], role:"user", content:$content, status:"pending", created:$now}'
+  )" | jq -r '.id // ""' 2>/dev/null)
+
+  if [ -n "$msg_id" ] && [ "$msg_id" != "null" ]; then
+    wlog "  Round message: $msg_id"
+    ES_URL="$ES_URL" bash "$SCRIPT_DIR/agent-run.sh" "$agent_id" "$msg_id" >> "/tmp/aic-agent-${agent_id##*:}.log" 2>&1
+  else
+    wlog "  Failed to create round message"
+  fi
+
   local exit_code=$?
 
   # Update agent run count
