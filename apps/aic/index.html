@@ -89,7 +89,7 @@ header h1{font-size:1.1em;color:#0550ae}
 .ch-tab .ch-unread{background:#cf222e;color:#fff;border-radius:8px;padding:0 5px;font-size:0.8em;margin-left:4px}
 
 /* Chat feed — message-focused */
-.feed{overflow-y:auto;display:flex;flex-direction:column;gap:0;padding:0;min-height:0}
+.feed{overflow-y:auto;display:flex;flex-direction:column;gap:0;padding:0;min-height:0;justify-content:flex-end}
 .conv-title{padding:6px 12px;font-size:0.75em;color:#59636e;background:#f6f8fa;border-bottom:1px solid #e8e8e8;font-weight:500;position:sticky;top:0;z-index:2}
 
 /* Message bubble */
@@ -735,11 +735,11 @@ header h1{font-size:1.1em;color:#0550ae}
     try {
       var targetAgent = activeChannel === 'general' ? 'agent:owner' : activeChannel;
       var convId = null;
-      // For agent channels, get or create conversation
       if(activeChannel !== 'general') {
         convId = await getChannelConversation(activeChannel);
       }
-      var msgBody = {class_id:'ai:message', user_id:'owner', role:'user', content:text, status:'pending', created:new Date().toISOString()};
+      var now = new Date().toISOString();
+      var msgBody = {class_id:'ai:message', user_id:'owner', role:'user', content:text, status:'pending', created:now};
       if(activeChannel === 'general') {
         msgBody.agent_id = 'agent:owner';
       } else {
@@ -747,15 +747,27 @@ header h1{font-size:1.1em;color:#0550ae}
         msgBody.agent_id = targetAgent;
         if(convId) msgBody.conversation_id = convId;
       }
+
+      // Optimistic: show immediately with temp ID
+      var tempId = '_sending_' + Date.now();
+      var optimistic = Object.assign({id: tempId}, msgBody);
+      feedUpsert(optimistic);
+
       var resp = await fetch(API+'/store/ai:message', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify(msgBody)
       });
       var created = await resp.json();
+
+      // Replace temp with real
+      delete feedItems[tempId];
       if(created.id) {
-        feedUpsert(created);
+        feedUpsert(Object.assign({}, msgBody, created));
       }
+
+      // Scroll to bottom
+      feedEl.scrollTop = feedEl.scrollHeight;
     } catch(e) {
       console.error('[FEED] send error:', e);
     }
