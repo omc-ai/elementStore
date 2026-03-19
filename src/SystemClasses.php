@@ -67,7 +67,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Data Type',
                 Prop::PF_DESCRIPTION => 'Type of value this property holds',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_DEFAULT_VALUE => Constants::DT_STRING,
                 Prop::PF_OPTIONS => [
                     'values' => [
@@ -82,7 +82,6 @@ class SystemClasses
                     ],
                 ],
                 Prop::PF_DISPLAY_ORDER => 1,
-                Prop::PF_GROUP_NAME => 'Type',
             ],
             [
                 Prop::PF_KEY => Prop::PF_IS_ARRAY,
@@ -91,7 +90,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
                 Prop::PF_DISPLAY_ORDER => 2,
-                Prop::PF_GROUP_NAME => 'Type',
             ],
 
             // Core group
@@ -100,9 +98,8 @@ class SystemClasses
                 Prop::PF_LABEL => 'Key',
                 Prop::PF_DESCRIPTION => 'Property key (field name in data)',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_DISPLAY_ORDER => 10,
-                Prop::PF_GROUP_NAME => 'Core',
             ],
             [
                 Prop::PF_KEY => Prop::PF_LABEL,
@@ -110,7 +107,6 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'Display label in UI',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_DISPLAY_ORDER => 11,
-                Prop::PF_GROUP_NAME => 'Core',
             ],
             [
                 Prop::PF_KEY => Prop::PF_DESCRIPTION,
@@ -119,7 +115,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_EDITOR => 'textarea',
                 Prop::PF_DISPLAY_ORDER => 12,
-                Prop::PF_GROUP_NAME => 'Core',
             ],
 
             // Options group
@@ -129,7 +124,6 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'Type-specific options (varies by data_type)',
                 Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
                 Prop::PF_DISPLAY_ORDER => 20,
-                Prop::PF_GROUP_NAME => 'Options',
             ],
 
             // Relation group
@@ -140,7 +134,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_IS_ARRAY => true,
                 Prop::PF_DISPLAY_ORDER => 30,
-                Prop::PF_GROUP_NAME => 'Relation',
             ],
             [
                 Prop::PF_KEY => Prop::PF_OBJECT_CLASS_STRICT,
@@ -149,7 +142,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
                 Prop::PF_DISPLAY_ORDER => 31,
-                Prop::PF_GROUP_NAME => 'Relation',
             ],
             [
                 Prop::PF_KEY => Prop::PF_ON_ORPHAN,
@@ -161,7 +153,6 @@ class SystemClasses
                 ],
                 Prop::PF_DEFAULT_VALUE => Prop::ORPHAN_KEEP,
                 Prop::PF_DISPLAY_ORDER => 32,
-                Prop::PF_GROUP_NAME => 'Relation',
             ],
 
             // UI group
@@ -172,7 +163,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_RELATION,
                 Prop::PF_OBJECT_CLASS_ID => [Constants::K_EDITOR],
                 Prop::PF_DISPLAY_ORDER => 40,
-                Prop::PF_GROUP_NAME => 'UI',
             ],
             [
                 Prop::PF_KEY => Prop::PF_DISPLAY_ORDER,
@@ -181,7 +171,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_INTEGER,
                 Prop::PF_DEFAULT_VALUE => 0,
                 Prop::PF_DISPLAY_ORDER => 42,
-                Prop::PF_GROUP_NAME => 'UI',
             ],
             [
                 Prop::PF_KEY => 'flags',
@@ -223,7 +212,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Name',
                 Prop::PF_DESCRIPTION => 'Class display name',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_DISPLAY_ORDER => 1,
             ],
             [
@@ -240,7 +229,7 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'Parent class for inheritance',
                 Prop::PF_DATA_TYPE => Constants::DT_RELATION,
                 Prop::PF_OBJECT_CLASS_ID => [Constants::K_CLASS],
-                Prop::PF_CREATE_ONLY => true,
+                'flags' => ['create_only' => true],
                 Prop::PF_DISPLAY_ORDER => 3,
             ],
             [
@@ -272,10 +261,9 @@ class SystemClasses
                 Prop::PF_LABEL => 'System Class',
                 Prop::PF_DESCRIPTION => 'Protected system class (cannot be deleted)',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
-                Prop::PF_READONLY => true,
+                'flags' => ['readonly' => true],
                 Prop::PF_DEFAULT_VALUE => false,
                 Prop::PF_DISPLAY_ORDER => 7,
-                Prop::PF_GROUP_NAME => 'Advanced',
             ],
             [
                 Prop::PF_KEY => 'is_abstract',
@@ -284,7 +272,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
                 Prop::PF_DISPLAY_ORDER => 8,
-                Prop::PF_GROUP_NAME => 'Advanced',
             ],
             [
                 Prop::PF_KEY => 'providers',
@@ -294,17 +281,14 @@ class SystemClasses
                 Prop::PF_IS_ARRAY => true,
                 Prop::PF_OBJECT_CLASS_ID => [Constants::K_PROVIDER],
                 Prop::PF_DISPLAY_ORDER => 9,
-                Prop::PF_GROUP_NAME => 'Advanced',
             ],
             [
                 Prop::PF_KEY => '_links',
                 Prop::PF_LABEL => 'External Links',
                 Prop::PF_DESCRIPTION => 'Maps storage_id to external ID for provider-linked objects. Managed by ActionExecutor — never set manually.',
                 Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
-                Prop::PF_SERVER_ONLY => true,
-                Prop::PF_HIDDEN => true,
+                'flags' => ['server_only' => true, 'hidden' => true],
                 Prop::PF_DISPLAY_ORDER => 100,
-                Prop::PF_GROUP_NAME => 'Internal',
             ],
         ];
 
@@ -330,7 +314,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Name',
                 Prop::PF_DESCRIPTION => 'Storage provider display name',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_DISPLAY_ORDER => 1,
             ],
             [
@@ -359,7 +343,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_RELATION,
                 Prop::PF_OBJECT_CLASS_ID => [Constants::K_PROVIDER],
                 Prop::PF_DISPLAY_ORDER => 10,
-                Prop::PF_GROUP_NAME => 'Composite',
             ],
             [
                 Prop::PF_KEY => 'read',
@@ -368,7 +351,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_IS_ARRAY => true,
                 Prop::PF_DISPLAY_ORDER => 11,
-                Prop::PF_GROUP_NAME => 'Composite',
             ],
             [
                 Prop::PF_KEY => 'write',
@@ -376,7 +358,6 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'Storage ID to write to (type=composite).',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_DISPLAY_ORDER => 12,
-                Prop::PF_GROUP_NAME => 'Composite',
             ],
             [
                 Prop::PF_KEY => 'read_strategy',
@@ -388,7 +369,6 @@ class SystemClasses
                 ],
                 Prop::PF_DEFAULT_VALUE => 'fallback',
                 Prop::PF_DISPLAY_ORDER => 13,
-                Prop::PF_GROUP_NAME => 'Composite',
             ],
             [
                 Prop::PF_KEY => 'write_strategy',
@@ -400,7 +380,6 @@ class SystemClasses
                 ],
                 Prop::PF_DEFAULT_VALUE => 'sequential',
                 Prop::PF_DISPLAY_ORDER => 14,
-                Prop::PF_GROUP_NAME => 'Composite',
             ],
         ];
 
@@ -427,7 +406,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Name',
                 Prop::PF_DESCRIPTION => 'Action display name',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_DISPLAY_ORDER => 1,
             ],
             [
@@ -443,7 +422,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Type',
                 Prop::PF_DESCRIPTION => 'Execution type: api (HTTP), cli (shell), function (registry), event (bus), composite (chain), ui (JS handler)',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_OPTIONS => [
                     'values' => ['api', 'cli', 'function', 'event', 'composite', 'ui'],
                 ],
@@ -507,7 +486,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_RELATION,
                 Prop::PF_OBJECT_CLASS_ID => [Constants::K_PROVIDER],
                 Prop::PF_DISPLAY_ORDER => 10,
-                Prop::PF_GROUP_NAME => 'API',
             ],
             [
                 Prop::PF_KEY => 'method',
@@ -519,7 +497,6 @@ class SystemClasses
                 ],
                 Prop::PF_DEFAULT_VALUE => 'GET',
                 Prop::PF_DISPLAY_ORDER => 11,
-                Prop::PF_GROUP_NAME => 'API',
             ],
             [
                 Prop::PF_KEY => 'endpoint',
@@ -527,7 +504,6 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'URL path relative to provider base_url. Supports {field} placeholders (type=api)',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_DISPLAY_ORDER => 12,
-                Prop::PF_GROUP_NAME => 'API',
             ],
             [
                 Prop::PF_KEY => 'headers',
@@ -535,7 +511,6 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'Additional HTTP headers as key:value object (type=api)',
                 Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
                 Prop::PF_DISPLAY_ORDER => 13,
-                Prop::PF_GROUP_NAME => 'API',
             ],
 
             // CLI group
@@ -546,7 +521,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_EDITOR => 'code',
                 Prop::PF_DISPLAY_ORDER => 20,
-                Prop::PF_GROUP_NAME => 'CLI',
             ],
             [
                 Prop::PF_KEY => 'working_dir',
@@ -554,7 +528,6 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'Directory to run command from. Supports {field} placeholders (type=cli)',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_DISPLAY_ORDER => 21,
-                Prop::PF_GROUP_NAME => 'CLI',
             ],
 
             // Function group
@@ -564,7 +537,6 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => "FunctionRegistry key to call (type=function), e.g. 'billing.calculate'",
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_DISPLAY_ORDER => 30,
-                Prop::PF_GROUP_NAME => 'Function',
             ],
 
             // Event group
@@ -574,7 +546,6 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'EventBus event name to emit (type=event)',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_DISPLAY_ORDER => 40,
-                Prop::PF_GROUP_NAME => 'Event',
             ],
             [
                 Prop::PF_KEY => 'payload',
@@ -582,7 +553,6 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'param→event_field mapping for event payload (type=event)',
                 Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
                 Prop::PF_DISPLAY_ORDER => 41,
-                Prop::PF_GROUP_NAME => 'Event',
             ],
 
             // Composite group
@@ -594,7 +564,6 @@ class SystemClasses
                 Prop::PF_OBJECT_CLASS_ID => [Constants::K_ACTION],
                 Prop::PF_IS_ARRAY => true,
                 Prop::PF_DISPLAY_ORDER => 50,
-                Prop::PF_GROUP_NAME => 'Composite',
             ],
             [
                 Prop::PF_KEY => 'strategy',
@@ -606,7 +575,6 @@ class SystemClasses
                 ],
                 Prop::PF_DEFAULT_VALUE => 'sequential',
                 Prop::PF_DISPLAY_ORDER => 51,
-                Prop::PF_GROUP_NAME => 'Composite',
             ],
 
             // UI group
@@ -617,7 +585,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_FUNCTION,
                 Prop::PF_EDITOR => 'javascript',
                 Prop::PF_DISPLAY_ORDER => 60,
-                Prop::PF_GROUP_NAME => 'UI',
             ],
             [
                 Prop::PF_KEY => 'requires_selection',
@@ -626,7 +593,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => true,
                 Prop::PF_DISPLAY_ORDER => 61,
-                Prop::PF_GROUP_NAME => 'UI',
             ],
             [
                 Prop::PF_KEY => 'bulk',
@@ -635,7 +601,6 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
                 Prop::PF_DEFAULT_VALUE => false,
                 Prop::PF_DISPLAY_ORDER => 62,
-                Prop::PF_GROUP_NAME => 'UI',
             ],
             [
                 Prop::PF_KEY => 'confirm',
@@ -643,7 +608,6 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'Confirmation message before running (empty = no confirm)',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_DISPLAY_ORDER => 63,
-                Prop::PF_GROUP_NAME => 'UI',
             ],
             [
                 Prop::PF_KEY => 'icon',
@@ -651,7 +615,6 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'Icon name for UI display',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
                 Prop::PF_DISPLAY_ORDER => 64,
-                Prop::PF_GROUP_NAME => 'UI',
             ],
         ];
 
@@ -677,7 +640,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Name',
                 Prop::PF_DESCRIPTION => 'Event name',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_DISPLAY_ORDER => 1,
             ],
             [
@@ -712,7 +675,7 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'Event handler: (scope) => void',
                 Prop::PF_DATA_TYPE => Constants::DT_FUNCTION,
                 Prop::PF_EDITOR => 'javascript',
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_DISPLAY_ORDER => 5,
             ],
             [
@@ -764,7 +727,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Name',
                 Prop::PF_DESCRIPTION => 'Editor display name',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_DISPLAY_ORDER => 1,
             ],
             [
@@ -793,7 +756,7 @@ class SystemClasses
                         Constants::DT_FUNCTION,
                     ],
                 ],
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_DISPLAY_ORDER => 3,
             ],
             [
@@ -809,7 +772,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'System Editor',
                 Prop::PF_DESCRIPTION => 'Protected system editor (cannot be deleted)',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
-                Prop::PF_READONLY => true,
+                'flags' => ['readonly' => true],
                 Prop::PF_DEFAULT_VALUE => false,
                 Prop::PF_DISPLAY_ORDER => 5,
             ],
@@ -868,7 +831,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Name',
                 Prop::PF_DESCRIPTION => 'Function display name',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_DISPLAY_ORDER => 1,
             ],
             [
@@ -884,7 +847,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Function Type',
                 Prop::PF_DESCRIPTION => 'Category of function',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_OPTIONS => [
                     'values' => ['validator', 'transformer', 'computed', 'generator', 'custom'],
                 ],
@@ -913,7 +876,7 @@ class SystemClasses
                 Prop::PF_DESCRIPTION => 'JavaScript: (obj, prop, value, params) => result',
                 Prop::PF_DATA_TYPE => Constants::DT_FUNCTION,
                 Prop::PF_EDITOR => 'javascript',
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_DISPLAY_ORDER => 6,
             ],
             [
@@ -921,7 +884,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'System',
                 Prop::PF_DESCRIPTION => 'Protected system function',
                 Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
-                Prop::PF_READONLY => true,
+                'flags' => ['readonly' => true],
                 Prop::PF_DEFAULT_VALUE => false,
                 Prop::PF_DISPLAY_ORDER => 7,
             ],
@@ -949,7 +912,7 @@ class SystemClasses
                 Prop::PF_LABEL => 'Name',
                 Prop::PF_DESCRIPTION => 'Provider display name',
                 Prop::PF_DATA_TYPE => Constants::DT_STRING,
-                Prop::PF_REQUIRED => true,
+                'flags' => ['required' => true],
                 Prop::PF_DISPLAY_ORDER => 1,
             ],
             [

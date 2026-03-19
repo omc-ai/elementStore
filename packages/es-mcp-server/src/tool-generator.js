@@ -165,7 +165,7 @@ export function generateGenericTools() {
       inputSchema: {
         type: 'object',
         properties: {
-          class_id: { type: 'string', description: 'The class ID (e.g. "@class", "ai:agent", "es:feature")' },
+          class_id: { type: 'string', description: 'The class ID (e.g. "@class", "ai:agent", "@feature")' },
         },
         required: ['class_id'],
       },

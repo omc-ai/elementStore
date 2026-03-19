@@ -33,23 +33,23 @@
 #
 # EXAMPLES
 #   # List all features as a table
-#   es-view.sh table es:feature --url http://arc3d.master.local/elementStore
+#   es-view.sh table @feature --url http://arc3d.master.local/elementStore
 #
 #   # Show specific columns
-#   es-view.sh table es:feature --cols id,name,category,group,scope
+#   es-view.sh table @feature --cols id,name,category,group,scope
 #
 #   # Detailed card for one object
-#   es-view.sh card es:app app:es-php-backend
+#   es-view.sh card @app app:es-php-backend
 #
 #   # Filter + table
-#   es-view.sh table es:app_feature --filter application_id=app:es-php-backend --cols feature_id,progress,notes
+#   es-view.sh table @app_feature --filter application_id=app:es-php-backend --cols feature_id,progress,notes
 #
 #   # Cross-class pivot matrix: feature (rows) x app (cols), value = progress
-#   es-view.sh matrix es:app_feature feature_id application_id progress \
+#   es-view.sh matrix @app_feature feature_id application_id progress \
 #     --url http://arc3d.master.local/elementStore
 #
 #   # Pretty JSON
-#   es-view.sh raw es:feature feat:object_crud
+#   es-view.sh raw @feature feat:object_crud
 # =============================================================================
 
 set -euo pipefail

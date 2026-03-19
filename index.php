@@ -124,7 +124,35 @@ function error($message, $code = 400, $details = null): Response
  */
 function handleException(\Exception $e): Response
 {
-    // TODO: Save @log entry once setObject is stable
+    // Save @log entry — guarded against recursion
+    static $saving = false;
+    if (!$saving) {
+        $saving = true;
+        try {
+            global $app;
+            /** @var ClassModel $model */
+            $model = $app->di->get('model');
+            $logEntry = [
+                'class_id' => '@log',
+                'level' => ($e instanceof StorageException) ? 'warning' : 'error',
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'source' => 'api',
+                'endpoint' => $_SERVER['REQUEST_URI'] ?? '',
+                'method' => $_SERVER['REQUEST_METHOD'] ?? '',
+                'trace' => $e->getTraceAsString(),
+                'created_at' => date('c'),
+            ];
+            if ($e instanceof StorageException && $e->getErrors()) {
+                $logEntry['details'] = $e->getErrors();
+            }
+            $model->getStorage()->setobj('@log', $logEntry);
+        } catch (\Exception $logEx) {
+            // Silently ignore — prevent recursion and log-save failures from masking the original error
+        } finally {
+            $saving = false;
+        }
+    }
 
     if ($e instanceof StorageException) {
         $code = match ($e->getErrorCode()) {

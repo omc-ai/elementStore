@@ -1,97 +1,123 @@
 /**
- * Server instructions — injected as MCP prompts so Claude knows
- * how to use the elementStore tools effectively.
+ * Instructions builder — constructs the MCP server prompt dynamically
+ * from the agent object, its tool bindings, team agents, and class catalog.
+ *
+ * The agent's prompt from elementStore is the PRIMARY source of truth.
+ * This module wraps it with MCP tool context and team awareness.
  */
 
-export const ES_SERVER_INSTRUCTIONS = `
-# ElementStore MCP Server
+/**
+ * Build the full agent instructions from elementStore data.
+ *
+ * @param {object|null} agent - The ai:agent object (e.g. agent:owner)
+ * @param {object[]} allAgents - All ai:agent objects
+ * @param {object[]} aiTools - All ai:tool objects
+ * @param {object[]} classes - Discovered class list
+ * @returns {string} Complete instructions for the MCP prompt
+ */
+export function buildAgentInstructions(agent, allAgents, aiTools, classes) {
+  const sections = [];
 
-You have access to a live elementStore instance — a self-describing object store where
-classes are objects and everything is queryable via the same API.
+  // ── Header ──
+  sections.push(`# ElementStore MCP Server — ${agent?.title || agent?.name || 'Agent'}`);
+  sections.push(`Connected to: elementStore`);
+  sections.push(`Agent: ${agent?.id || 'unknown'} (${agent?.title || agent?.name || 'unnamed'})`);
+  sections.push('');
 
-## IMPORTANT: All Operations Through the Store
+  // ── Agent's own prompt (from the store — this is the primary directive) ──
+  if (agent?.prompt) {
+    sections.push('## Agent Directive (from elementStore)');
+    sections.push('');
+    sections.push(agent.prompt);
+    sections.push('');
+  }
 
-Every task, session, agent, and object operation MUST go through the elementStore.
-The store is the single source of truth. Do NOT bypass it with direct file edits
-or ad-hoc scripts when the store can handle the operation.
+  // ── MCP Tools available ──
+  sections.push('## MCP Tools');
+  sections.push('');
+  sections.push('You have these elementStore tools available via MCP:');
+  sections.push('');
+  sections.push('| Tool | Purpose |');
+  sections.push('|------|---------|');
+  sections.push('| es_health | Check server connectivity |');
+  sections.push('| es_classes | List all classes (id, name, description) |');
+  sections.push('| es_class_props | Get property schema for a class |');
+  sections.push('| es_query | Query objects with filters, sort, pagination |');
+  sections.push('| es_create | Create object (class_id + data) |');
+  sections.push('| es_update | Update object (class_id, id, data) |');
+  sections.push('| es_delete | Delete object |');
+  sections.push('| es_find | Find object by ID across all classes |');
+  sections.push('| es_action | Execute an @action |');
+  sections.push('');
 
-## Available Tools
+  // ── Tool bindings (from ai:tool objects) ──
+  if (aiTools.length > 0) {
+    sections.push('## Registered Tool Bindings (ai:tool)');
+    sections.push('');
+    sections.push('These are the defined tool capabilities with their class bindings:');
+    sections.push('');
+    for (const tool of aiTools) {
+      if (!tool.enabled) continue;
+      const actions = (tool.allowed_actions || [])
+        .map(a => {
+          if (a.type === 'class') return `${a.ref_class_id} [${(a.actions || []).join(',')}]`;
+          if (a.type === 'class_action') return `${a.ref_class_id}.${a.action}`;
+          return JSON.stringify(a);
+        })
+        .join(', ');
+      sections.push(`- **${tool.id}** (${tool.category || 'general'}): ${tool.description || ''}`);
+      if (actions) sections.push(`  Bindings: ${actions}`);
+    }
+    sections.push('');
+  }
 
-### Generic CRUD (work with ANY class)
-- **es_health** — Check server connectivity
-- **es_classes** — List all classes (id, name, description)
-- **es_class_props** — Get property schema for a class (including inherited props)
-- **es_query** — Query objects with filters, sorting, pagination
-- **es_create** — Create an object (provide class_id + data)
-- **es_update** — Update an object (provide class_id, id, data)
-- **es_delete** — Delete an object
-- **es_find** — Find object by ID across all classes
-- **es_action** — Execute an @action definition
+  // ── Team agents ──
+  if (allAgents.length > 0) {
+    sections.push('## Team Agents');
+    sections.push('');
+    sections.push('All registered agents in the system:');
+    sections.push('');
+    sections.push('| ID | Title | Active | Domain |');
+    sections.push('|----|-------|--------|--------|');
+    for (const a of allAgents) {
+      const domain = Array.isArray(a.domain) ? a.domain.join(', ') : (a.domain || '-');
+      sections.push(`| ${a.id} | ${a.title || a.name} | ${a.is_active ? 'yes' : 'no'} | ${domain} |`);
+    }
+    sections.push('');
+  }
 
-## Session Startup
+  // ── Class catalog summary ──
+  if (classes.length > 0) {
+    // Group by namespace
+    const groups = {};
+    for (const c of classes) {
+      const ns = c.id.includes(':') ? c.id.split(':')[0] : 'core';
+      if (!groups[ns]) groups[ns] = [];
+      groups[ns].push(c);
+    }
 
-On every new session:
-1. Call **es_health** to verify the store is up
-2. Call **es_classes** to discover available classes
-3. Register this session by creating an ai:session object:
-   es_create({ class_id: "ai:session", data: { project: "<current_project>", branch: "<git_branch>", status: "active" } })
-4. Check for the correct agent via: es_query({ class_id: "ai:agent", filter: { is_active: true } })
+    sections.push('## Available Classes');
+    sections.push('');
+    sections.push(`${classes.length} classes across ${Object.keys(groups).length} namespaces:`);
+    sections.push('');
+    for (const [ns, cls] of Object.entries(groups).sort()) {
+      const names = cls.map(c => c.id).join(', ');
+      sections.push(`- **${ns}** (${cls.length}): ${names}`);
+    }
+    sections.push('');
+  }
 
-## Task Management — Everything Through the Store
+  // ── Core rules (always present) ──
+  sections.push('## Core Rules');
+  sections.push('');
+  sections.push('1. **All operations through the store** — use es_* tools for every read/write. Never bypass.');
+  sections.push('2. **Check schema first** — call es_class_props before creating/updating objects.');
+  sections.push('3. **Use es_query with filters** — never list entire classes without need.');
+  sections.push('4. **Object IDs follow namespace:name** — e.g. agent:cto, feat:mcp_server, task:fix-login.');
+  sections.push('5. **Task lifecycle** — create ai:task objects for work items (open → in_progress → done).');
+  sections.push('6. **Feature tracking** — every feature tracked as @feature + @app_feature objects.');
+  sections.push('7. **Agent awareness** — check which agent handles a domain before acting outside yours.');
+  sections.push('');
 
-When working on tasks, ALL tracking goes through elementStore:
-
-### Start a task:
-es_create({ class_id: "ai:task", data: {
-  name: "<task_description>",
-  status: "in_progress",
-  project: "<project_name>",
-  agent_id: "<assigned_agent>"
-}})
-
-### Complete a task:
-es_update({ class_id: "ai:task", id: "<task_id>", data: {
-  status: "done",
-  result: "<summary_of_what_was_done>"
-}})
-
-### Task statuses: open → in_progress → blocked → done → wont_do
-
-## Agent Management
-
-Agents are defined as ai:agent objects in the store. Before starting ANY task:
-1. Query active agents: es_query({ class_id: "ai:agent", filter: { is_active: true } })
-2. Find the agent whose domain matches the task
-3. Reference the agent in task creation
-
-## Workflow
-
-1. Use **es_classes** to discover what classes exist
-2. Use **es_class_props** to understand a class's schema before creating/updating
-3. Use **es_query** to list/search objects of a class
-4. Use **es_create** / **es_update** / **es_delete** to mutate objects
-
-## Key Concepts
-
-- **class_id**: Every object belongs to a class (e.g. "ai:agent", "es:feature", "mcp:server")
-- **id**: Objects have unique IDs, often namespaced (e.g. "agent:cdo", "feat:object_crud")
-- **System classes**: Prefixed with @ (e.g. @class, @prop) — the meta-schema
-- **Inheritance**: Classes can extend other classes via extends_id
-- **Relations**: Properties can reference other objects via data_type: "relation"
-
-## Feature-Driven Development
-
-Every feature MUST be tracked:
-1. Check if es:feature exists for it. If not, create one.
-2. Check if es:app_feature exists for the target app. If not, create one with progress: "in_progress".
-3. Implement the feature.
-4. Update es:app_feature: set progress to "implemented", update implemented_in.
-
-## Important Rules
-
-- Always check es_class_props before creating objects to know required fields
-- Use es_query with filters rather than listing all objects
-- Object IDs should follow namespace:name convention
-- All operations through the store — no bypassing with direct file edits
-- Register sessions and tasks to maintain traceability
-`;
+  return sections.join('\n');
+}

@@ -709,22 +709,22 @@ ES=bash\ util/es-cli.sh
 bash util/es-cli.sh health --url $ES_URL
 
 # List all known features
-bash util/es-cli.sh list --class es:feature --url $ES_URL
+bash util/es-cli.sh list --class @feature --url $ES_URL
 
 # Get a specific feature
-bash util/es-cli.sh get --class es:feature --id feat:filter_by --url $ES_URL
+bash util/es-cli.sh get --class @feature --id feat:filter_by --url $ES_URL
 
 # List all registered applications
-bash util/es-cli.sh list --class es:app --url $ES_URL
+bash util/es-cli.sh list --class @app --url $ES_URL
 
 # List implementation status for all apps × features
-bash util/es-cli.sh list --class es:app_feature --url $ES_URL
+bash util/es-cli.sh list --class @app_feature --url $ES_URL
 
 # Filter: all features for a specific app
-bash util/es-cli.sh list --class es:app_feature --filter application_id=app:es-admin --url $ES_URL
+bash util/es-cli.sh list --class @app_feature --filter application_id=app:es-admin --url $ES_URL
 
 # Filter: all app statuses for a specific feature
-bash util/es-cli.sh list --class es:app_feature --filter feature_id=feat:filter_by --url $ES_URL
+bash util/es-cli.sh list --class @app_feature --filter feature_id=feat:filter_by --url $ES_URL
 
 # List system classes (the meta-schema)
 bash util/es-cli.sh classes --url $ES_URL
@@ -750,7 +750,7 @@ When you implement a new feature or change an existing one, update the registry 
 # Add a new feature definition
 bash util/es-cli.sh set --url $ES_URL --data '{
   "id": "feat:filter_by",
-  "class_id": "es:feature",
+  "class_id": "@feature",
   "name": "filter_by — Cross-Field Object Picker Filter",
   "description": "When an object/relation prop has object_class_id + options.filter_by, picker candidates are filtered: candidate[field] includes/equals thisObject[source]",
   "category": "schema",
@@ -761,7 +761,7 @@ bash util/es-cli.sh set --url $ES_URL --data '{
 # Update an app_feature status
 bash util/es-cli.sh set --url $ES_URL --data '{
   "id": "af:es-admin:filter_by",
-  "class_id": "es:app_feature",
+  "class_id": "@app_feature",
   "application_id": "app:es-admin",
   "feature_id": "feat:filter_by",
   "progress": "not_started"

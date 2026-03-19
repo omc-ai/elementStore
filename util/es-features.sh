@@ -28,9 +28,9 @@
 #
 # DATA SOURCE
 #   By default reads from local .es/ JSON files:
-#     .es/@es-feature.json      Feature definitions
-#     .es/@es-app_feature.json  Per-app implementation status
-#     .es/@es-app.json          App definitions (for display names)
+#     .es/@feature.json      Feature definitions
+#     .es/@app_feature.json  Per-app implementation status
+#     .es/@app.json          App definitions (for display names)
 #   Use --from-api or --url to fetch from a running ElementStore server.
 #
 # EXAMPLES
@@ -123,13 +123,13 @@ load_data() {
   if [[ "$FROM_API" == true ]]; then
     [[ -z "$ES_BASE" ]] && { echo "No ES URL. Set --url or \$ES_URL." >&2; exit 1; }
     ES_BASE="${ES_BASE%/}"
-    FEATURES_JSON=$(_curl "${ES_BASE}/query/es:feature?_limit=200")
-    APP_FEATURES_JSON=$(_curl "${ES_BASE}/query/es:app_feature?_limit=200")
-    APPS_JSON=$(_curl "${ES_BASE}/query/es:app?_limit=200")
+    FEATURES_JSON=$(_curl "${ES_BASE}/query/@feature?_limit=200")
+    APP_FEATURES_JSON=$(_curl "${ES_BASE}/query/@app_feature?_limit=200")
+    APPS_JSON=$(_curl "${ES_BASE}/query/@app?_limit=200")
   else
-    FEATURES_JSON=$(cat "${ES_ROOT}/.es/@es-feature.json")
-    APP_FEATURES_JSON=$(cat "${ES_ROOT}/.es/@es-app_feature.json")
-    APPS_JSON=$(cat "${ES_ROOT}/.es/@es-app.json")
+    FEATURES_JSON=$(cat "${ES_ROOT}/.es/@feature.json")
+    APP_FEATURES_JSON=$(cat "${ES_ROOT}/.es/@app_feature.json")
+    APPS_JSON=$(cat "${ES_ROOT}/.es/@app.json")
   fi
 }
 

@@ -314,8 +314,12 @@ class AtomObj implements \JsonSerializable
     }
 
     /**
-     * Convert to array for API responses (strips security fields)
+     * Convert to array for API responses (strips security & server_only fields)
      * Use this instead of toArray() when returning data to clients.
+     *
+     * Automatically excludes:
+     * - Security fields (owner_id, app_id, domain)
+     * - Props flagged as server_only in the class definition
      *
      * @return array
      */
@@ -325,6 +329,25 @@ class AtomObj implements \JsonSerializable
         foreach (static::$securityFields as $field) {
             unset($data[$field]);
         }
+
+        // Strip server_only fields based on class prop definitions
+        if ($this->class_id !== '') {
+            $model = $this->getModel();
+            if ($model !== null) {
+                try {
+                    $props = $model->getClassProps($this->class_id);
+                    foreach ($props as $prop) {
+                        if ($prop->isServerOnly()) {
+                            unset($data[$prop->key]);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // If class props can't be resolved, skip server_only filtering
+                    // (e.g., system bootstrap, unknown class)
+                }
+            }
+        }
+
         return $data;
     }
 

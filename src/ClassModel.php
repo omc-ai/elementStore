@@ -198,6 +198,7 @@ class ClassModel
                 $storageConfig['username'] ?? null,
                 $storageConfig['password'] ?? null
             ),
+            'composite' => self::createCompositeStorage($storageConfig, $basePath),
             default => new JsonStorageProvider($storageConfig['data_dir'])
         };
 
@@ -206,6 +207,74 @@ class ClassModel
         $model->esDir = $resolvedEsDir;
 
         return $model;
+    }
+
+    /**
+     * Create a CompositeStorageProvider from config
+     *
+     * Config format:
+     *   type: "composite"
+     *   read: [{ type: "couchdb", server: "...", ... }, ...]
+     *   write: [{ type: "couchdb", ... }, { type: "json", dir: "/path" }]
+     *   read_strategy: "fallback" | "merge"
+     *   write_strategy: "sequential" | "parallel" | "best_effort"
+     */
+    private static function createCompositeStorage(array $config, string $basePath): CompositeStorageProvider
+    {
+        $readSources = [];
+        foreach ($config['read'] ?? [] as $src) {
+            $readSources[] = self::createSingleStorage($src, $basePath);
+        }
+        $writeTargets = [];
+        foreach ($config['write'] ?? [] as $tgt) {
+            $writeTargets[] = self::createSingleStorage($tgt, $basePath);
+        }
+
+        if (empty($readSources)) {
+            throw new StorageException('Composite storage requires at least one read source', 'config_error');
+        }
+        if (empty($writeTargets)) {
+            throw new StorageException('Composite storage requires at least one write target', 'config_error');
+        }
+
+        return new CompositeStorageProvider(
+            $readSources,
+            $writeTargets,
+            $config['read_strategy'] ?? 'fallback',
+            $config['write_strategy'] ?? 'sequential'
+        );
+    }
+
+    /**
+     * Create a single storage provider from a config block
+     */
+    private static function createSingleStorage(array $config, string $basePath): IStorageProvider
+    {
+        $type = $config['type'] ?? 'json';
+
+        return match ($type) {
+            'mongo' => new MongoStorageProvider(
+                $config['connection'] ?? 'mongodb://localhost:27017',
+                $config['database'] ?? 'elementstore'
+            ),
+            'couchdb' => new CouchDbStorageProvider(
+                $config['server'] ?? 'http://localhost:5984',
+                $config['username'] ?? null,
+                $config['password'] ?? null
+            ),
+            'json' => new JsonStorageProvider(
+                self::resolveDir($config['dir'] ?? Constants::ES_DIR, $basePath)
+            ),
+            default => throw new StorageException("Unknown storage type: {$type}", 'config_error')
+        };
+    }
+
+    /**
+     * Resolve a directory path — absolute paths pass through, relative paths resolve from basePath
+     */
+    private static function resolveDir(string $dir, string $basePath): string
+    {
+        return str_starts_with($dir, '/') ? $dir : $basePath . '/' . $dir;
     }
 
     // =========================================================================
@@ -1015,7 +1084,7 @@ class ClassModel
                         }
                         // Use primary target class for validation (first in array)
                         $targetClass = $prop->getPrimaryTargetClass();
-                        if ($targetClass) {
+                        if ($targetClass && !$this->isInlineReference($targetClass, $item)) {
                             $nestedResult = $this->validate($targetClass, $item, $oldItem);
                             $mergedArray[] = $nestedResult['data'];
                             foreach ($nestedResult['errors'] as $err) {
@@ -1034,6 +1103,11 @@ class ClassModel
                 if ($prop->isEmbeddedObject() && is_array($inputValue)) {
                     // Use primary target class for validation (first in array)
                     $targetClass = $prop->getPrimaryTargetClass();
+                    // Skip validation for inline references (e.g. editor: {id: "textarea"})
+                    if ($targetClass && $this->isInlineReference($targetClass, $inputValue)) {
+                        $result[$key] = $inputValue;
+                        continue;
+                    }
                     $nestedResult = $this->validate($targetClass, $inputValue, $oldValue);
                     $result[$key] = $nestedResult['data'];
                     foreach ($nestedResult['errors'] as $err) {
@@ -1084,6 +1158,52 @@ class ClassModel
         }
 
         return ['data' => $result, 'errors' => $errors];
+    }
+
+    /**
+     * Check if an embedded object is an inline reference rather than a full instance.
+     *
+     * Inline references have an 'id' field but lack the required fields of the target class.
+     * Example: a prop's editor field set to {id: "textarea"} is a reference to an @editor
+     * object, NOT a full @editor instance (which requires name, data_types, etc.).
+     *
+     * @param string $targetClassId  The embedded object's target class (e.g. "@editor")
+     * @param array  $data           The embedded object data
+     * @return bool  True if this is a lightweight reference, not a full instance
+     */
+    private function isInlineReference(string $targetClassId, array $data): bool
+    {
+        // Must have an id to be a reference
+        if (!isset($data[Constants::F_ID])) {
+            return false;
+        }
+
+        // Get the target class's required fields
+        $meta = $this->getClass($targetClassId);
+        if ($meta === null) {
+            return false;
+        }
+
+        $requiredProps = [];
+        $targetProps = $this->getClassProps($targetClassId);
+        foreach ($targetProps as $p) {
+            if ($p->isRequired() && $p->key !== Constants::F_ID) {
+                $requiredProps[] = $p->key;
+            }
+        }
+
+        // If the object has none of the required fields, it's just a reference
+        if (empty($requiredProps)) {
+            return false;
+        }
+
+        foreach ($requiredProps as $reqKey) {
+            if (array_key_exists($reqKey, $data)) {
+                return false; // Has a required field — treat as full instance
+            }
+        }
+
+        return true;
     }
 
     /**

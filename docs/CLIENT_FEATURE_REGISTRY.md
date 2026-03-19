@@ -5,8 +5,8 @@
 >
 > **Source of truth**: Live server registry — query via `es-cli.sh`, never read `.es/*.json` directly.
 > ```bash
-> bash util/es-cli.sh list --class es:feature --url http://arc3d.master.local/elementStore
-> bash util/es-cli.sh list --class es:app_feature --url http://arc3d.master.local/elementStore
+> bash util/es-cli.sh list --class @feature --url http://arc3d.master.local/elementStore
+> bash util/es-cli.sh list --class @app_feature --url http://arc3d.master.local/elementStore
 > ```
 
 ## Clients
@@ -431,7 +431,7 @@ These exist only on the server and don't need client parity:
 ## Gap Summary (Updated 2026-03-09)
 
 > Status verified by code audit of `packages/es-client/src/` and live registry queries.
-> Query: `bash util/es-cli.sh list --class es:app_feature --filter application_id=<id> --url $ES_URL`
+> Query: `bash util/es-cli.sh list --class @app_feature --filter application_id=<id> --url $ES_URL`
 
 ### Feature × Client Matrix (from live registry)
 
