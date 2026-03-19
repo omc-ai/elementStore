@@ -86,9 +86,12 @@ class SystemClasses
             [
                 Prop::PF_KEY => Prop::PF_IS_ARRAY,
                 Prop::PF_LABEL => 'Is Array',
-                Prop::PF_DESCRIPTION => 'Property holds multiple values',
-                Prop::PF_DATA_TYPE => Constants::DT_BOOLEAN,
-                Prop::PF_DEFAULT_VALUE => false,
+                Prop::PF_DESCRIPTION => 'Property holds multiple values: false, indexed (ordered list), or assoc (keyed map)',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_OPTIONS => [
+                    'values' => ['false', 'indexed', 'assoc'],
+                ],
+                Prop::PF_DEFAULT_VALUE => 'false',
                 Prop::PF_DISPLAY_ORDER => 2,
             ],
 
@@ -159,8 +162,8 @@ class SystemClasses
             [
                 Prop::PF_KEY => 'editor',
                 Prop::PF_LABEL => 'Editor',
-                Prop::PF_DESCRIPTION => 'UI editor — relation to @editor instance',
-                Prop::PF_DATA_TYPE => Constants::DT_RELATION,
+                Prop::PF_DESCRIPTION => 'UI editor — inline @editor object',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
                 Prop::PF_OBJECT_CLASS_ID => [Constants::K_EDITOR],
                 Prop::PF_DISPLAY_ORDER => 40,
             ],
@@ -184,8 +187,21 @@ class SystemClasses
                 Prop::PF_KEY => Prop::PF_DEFAULT_VALUE,
                 Prop::PF_LABEL => 'Default Value',
                 Prop::PF_DESCRIPTION => 'Default value for new objects',
-                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_OBJECT_CLASS_ID => ['@obj_ref'],
                 Prop::PF_DISPLAY_ORDER => 30,
+            ],
+
+            // Contexts
+            [
+                Prop::PF_KEY => 'contexts',
+                Prop::PF_LABEL => 'Contexts',
+                Prop::PF_DESCRIPTION => 'Per-context overrides for this property',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_IS_ARRAY => 'assoc',
+                Prop::PF_OBJECT_CLASS_ID => ['@prop_context'],
+                Prop::PF_OPTIONS => ['keys' => ['extensible' => true]],
+                Prop::PF_DISPLAY_ORDER => 40,
             ],
         ];
 
@@ -289,6 +305,39 @@ class SystemClasses
                 Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
                 'flags' => ['server_only' => true, 'hidden' => true],
                 Prop::PF_DISPLAY_ORDER => 100,
+            ],
+
+            // Additional class metadata
+            [
+                Prop::PF_KEY => 'contexts',
+                Prop::PF_LABEL => 'Contexts',
+                Prop::PF_DESCRIPTION => 'Per-context configuration for this class',
+                Prop::PF_DATA_TYPE => Constants::DT_OBJECT,
+                Prop::PF_IS_ARRAY => 'assoc',
+                Prop::PF_DISPLAY_ORDER => 10,
+            ],
+            [
+                Prop::PF_KEY => 'unique',
+                Prop::PF_LABEL => 'Unique Constraints',
+                Prop::PF_DESCRIPTION => 'Unique field constraints for this class',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_IS_ARRAY => 'indexed',
+                Prop::PF_DISPLAY_ORDER => 11,
+            ],
+            [
+                Prop::PF_KEY => 'version',
+                Prop::PF_LABEL => 'Version',
+                Prop::PF_DESCRIPTION => 'Class definition version',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_DISPLAY_ORDER => 12,
+            ],
+            [
+                Prop::PF_KEY => 'prompt',
+                Prop::PF_LABEL => 'Prompt',
+                Prop::PF_DESCRIPTION => 'LLM prompt context for this class',
+                Prop::PF_DATA_TYPE => Constants::DT_STRING,
+                Prop::PF_EDITOR => 'textarea',
+                Prop::PF_DISPLAY_ORDER => 13,
             ],
         ];
 

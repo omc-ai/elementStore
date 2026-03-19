@@ -344,7 +344,7 @@ export class AtomStorage extends AtomObj {
           const allProps = obj.store.collectClassProps(classId);
           const readonlyKeys = new Set<string>();
           for (const p of allProps) {
-            if (p.data.readonly) readonlyKeys.add(p.data.key as string);
+            if (p.data.flags?.readonly ?? p.data.readonly) readonlyKeys.add(p.data.key as string);
           }
           if (readonlyKeys.size > 0) {
             dataToSave = {};

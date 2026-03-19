@@ -431,7 +431,7 @@ const elementStore = {
         const groupMap = {};
 
         for (const prop of sorted) {
-            const gn = prop.group_name || null;
+            const gn = prop.group_name || prop.contexts?.form?.group || null;
             if (!groupMap[gn]) {
                 const group = { name: gn, props: [] };
                 groupMap[gn] = group;

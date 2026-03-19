@@ -78,6 +78,16 @@ header h1{font-size:1.1em;color:#0550ae}
 .dec:last-child{border-bottom:none}
 .dec .d-topic{font-weight:500}
 
+/* Channel tabs */
+.ch-tabs{display:flex;gap:0;overflow-x:auto;border-bottom:1px solid #d1d9e0;flex-shrink:0;background:#f6f8fa}
+.ch-tab{padding:5px 10px;font-size:0.78em;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;color:#59636e;font-weight:500;transition:all .15s}
+.ch-tab:hover{background:#e8e8e8}
+.ch-tab.active{color:#0550ae;border-bottom-color:#0550ae;background:#fff;font-weight:600}
+.ch-tab .ch-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:4px}
+.ch-tab .ch-dot.running{background:#1a7f37;animation:blink-green 1.2s ease-in-out infinite}
+.ch-tab .ch-dot.idle{background:#d1d9e0}
+.ch-tab .ch-unread{background:#cf222e;color:#fff;border-radius:8px;padding:0 5px;font-size:0.8em;margin-left:4px}
+
 /* Activity feed — WhatsApp style: messages at bottom, input pinned */
 .feed{overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding:4px;justify-content:flex-end;min-height:0}
 .feed-item{background:#fff;border:1px solid #e8e8e8;border-radius:4px;padding:4px 8px;font-size:0.78em;display:flex;gap:6px;align-items:flex-start;transition:background .15s}
@@ -126,6 +136,11 @@ header h1{font-size:1.1em;color:#0550ae}
 .wk:last-child{border-bottom:none}
 .wk .wk-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .wk .wk-dot.running{background:#1a7f37}.wk .wk-dot.stopped{background:#59636e}.wk .wk-dot.idle{background:#0550ae}.wk .wk-dot.error{background:#cf222e}
+@keyframes blink-green{0%,100%{box-shadow:0 0 0 0 rgba(26,127,55,.6)}50%{box-shadow:0 0 6px 2px rgba(26,127,55,.6)}}
+.wk .wk-dot.running{animation:blink-green 1.2s ease-in-out infinite}
+.agent .agent-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.agent .agent-dot.running{background:#1a7f37;animation:blink-green 1.2s ease-in-out infinite}
+.agent .agent-dot.idle{background:#d1d9e0}
 .wk .wk-info{flex:1;min-width:0}
 .wk .wk-name{font-weight:600;font-size:0.88em}
 .wk .wk-meta{font-size:0.75em;color:#59636e}
@@ -152,9 +167,9 @@ header h1{font-size:1.1em;color:#0550ae}
 
 <!-- LEFT: Workers + Agents + Decisions -->
 <div class="col" style="overflow-y:auto">
-  <div class="card" style="flex-shrink:0">
-    <div class="card-hdr">Workers <span class="count" id="worker-count">0</span></div>
-    <div class="card-body" id="workers-list" style="padding:0"></div>
+  <div class="card" style="flex-shrink:0;max-height:300px;display:flex;flex-direction:column">
+    <div class="card-hdr" style="flex-shrink:0">Workers <span class="count" id="worker-count">0</span></div>
+    <div class="card-body" id="workers-list" style="padding:0;overflow-y:auto;flex:1"></div>
   </div>
   <div class="card" style="flex-shrink:0">
     <div class="card-hdr">Agents <span class="count" id="agent-count">0</span></div>
@@ -169,16 +184,21 @@ header h1{font-size:1.1em;color:#0550ae}
 <!-- CENTER: Activity feed + Tasks -->
 <div class="col">
   <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-    <div class="card-hdr" style="flex-shrink:0">
-      <span>Activity Feed</span>
-      <div class="worker-bar">
-        <span class="w-st stopped" id="w-st">STOPPED</span>
-        <span class="w-info" id="w-info"></span>
+    <div class="card-hdr" style="flex-shrink:0;padding:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:0 10px 0 0">
+        <div class="ch-tabs" id="ch-tabs">
+          <div class="ch-tab active" data-channel="general" onclick="switchChannel('general')">#general</div>
+        </div>
+        <div class="worker-bar" style="flex-shrink:0">
+          <span class="w-st stopped" id="w-st">STOPPED</span>
+          <span class="w-info" id="w-info"></span>
+        </div>
       </div>
     </div>
     <div class="feed" id="feed" style="flex:1;overflow-y:auto;position:relative"></div>
     <div id="feed-ff" onclick="document.getElementById('feed').scrollTop=document.getElementById('feed').scrollHeight;this.style.display='none'" style="display:none;position:absolute;bottom:50px;left:50%;transform:translateX(-50%);background:#0550ae;color:#fff;padding:4px 12px;border-radius:12px;font-size:0.75em;cursor:pointer;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.2)">↓ new</div>
-    <div style="flex-shrink:0;padding:6px;border-top:1px solid #d1d9e0;display:flex;gap:6px">
+    <div style="flex-shrink:0;padding:6px;border-top:1px solid #d1d9e0;display:flex;gap:6px;align-items:center">
+      <span id="ch-label" style="font-size:0.75em;color:#0550ae;font-weight:600;white-space:nowrap">#general</span>
       <input id="feed-input" type="text" placeholder="Type a message..." style="flex:1;padding:6px 10px;border:1px solid #d1d9e0;border-radius:6px;font-size:0.85em;font-family:inherit" onkeydown="if(event.key==='Enter')sendFeedMessage()">
       <button onclick="sendFeedMessage()" class="act-btn" style="background:#0550ae;padding:6px 14px">Send</button>
     </div>
@@ -302,39 +322,76 @@ header h1{font-size:1.1em;color:#0550ae}
       var sessions = []; try{sessions=await fetch(API+'/store/ai:agent_session').then(r=>r.ok?r.json():[]);}catch(e){}
       window._sessions = sessions;
 
-      // Workers list
-      document.getElementById('worker-count').textContent = workers.length;
+      // Workers list — show daemon + all agents as workers
+      var activeWorker = workers[0] || null;
+      var runningAgentIds = {};
+      if(activeWorker && activeWorker.status === 'running' && activeWorker.current_agent) {
+        runningAgentIds[activeWorker.current_agent] = true;
+      }
+      // Check log for recently spawned agents (parallel execution)
+      if(activeWorker && activeWorker.log) {
+        var logStr = activeWorker.log.join('\n');
+        var spawnMatches = logStr.match(/Spawning .+?\(([^)]+)\)/g) || [];
+        var completeMatch = logStr.match(/All agents completed/);
+        // If there's no "All agents completed" after spawns, agents are still running
+        if(spawnMatches.length > 0) {
+          var lastSpawnIdx = logStr.lastIndexOf('Spawning');
+          var lastCompleteIdx = logStr.lastIndexOf('All agents completed');
+          if(lastSpawnIdx > lastCompleteIdx) {
+            // Agents still running — mark all spawned ones
+            spawnMatches.forEach(function(m) {
+              var id = m.match(/\(([^)]+)\)/);
+              if(id) runningAgentIds[id[1]] = true;
+            });
+          }
+        }
+      }
+      window._runningAgentIds = runningAgentIds;
+
+      // Daemon row
       var wkh = '';
-      workers.forEach(function(wk) {
-        var st = wk.status || 'stopped';
-        wkh += '<div class="wk"><span class="wk-dot '+st+'"></span><div class="wk-info">';
-        wkh += '<div class="wk-name">'+(wk.name||wk.id)+'</div>';
-        var parts = [];
-        parts.push(st.toUpperCase());
-        if(wk.current_agent) parts.push(agentName(wk.current_agent));
-        if(wk.pid) parts.push('PID:'+wk.pid);
-        if(wk.rounds_completed) parts.push('R:'+wk.rounds_completed);
-        if(wk.last_heartbeat) parts.push(wk.last_heartbeat.substring(11,19));
-        wkh += '<div class="wk-meta">'+parts.join(' &middot; ')+'</div>';
+      if(activeWorker) {
+        var dst = activeWorker.status || 'stopped';
+        wkh += '<div class="wk"><span class="wk-dot '+(dst==='idle'||dst==='running'?'running':'stopped')+'"></span><div class="wk-info">';
+        wkh += '<div class="wk-name">Daemon</div>';
+        var dp = [dst.toUpperCase()];
+        if(activeWorker.rounds_completed) dp.push('R:'+activeWorker.rounds_completed);
+        if(activeWorker.last_heartbeat) dp.push(activeWorker.last_heartbeat.substring(11,19));
+        wkh += '<div class="wk-meta">'+dp.join(' &middot; ')+'</div>';
+        wkh += '</div></div>';
+      }
+      // Agent rows as workers — click to switch channel
+      agents.forEach(function(a) {
+        if(a.id === 'agent:owner') return; // skip owner
+        var isRunning = !!runningAgentIds[a.id];
+        var agSt = isRunning ? 'running' : (a.last_run ? 'idle' : 'stopped');
+        var isSel = activeChannel === a.id;
+        wkh += '<div class="wk" style="cursor:pointer;'+(isSel?'background:#f0f4ff;border-left:2px solid #0550ae;':'')+'" onclick="switchChannel(\''+a.id+'\')">';
+        wkh += '<span class="wk-dot '+agSt+'"></span><div class="wk-info">';
+        wkh += '<div class="wk-name">'+a.name+'</div>';
+        var ap = [isRunning ? 'RUNNING' : 'IDLE'];
+        if(a.run_count) ap.push(a.run_count+' runs');
+        if(a.last_run) ap.push(a.last_run.substring(11,19));
+        wkh += '<div class="wk-meta">'+ap.join(' &middot; ')+'</div>';
         wkh += '</div></div>';
       });
-      document.getElementById('workers-list').innerHTML = wkh || '<div style="padding:8px;color:#59636e;font-size:0.82em">No workers running</div>';
+      document.getElementById('worker-count').textContent = agents.filter(function(a){return a.id!=='agent:owner'}).length;
+      document.getElementById('workers-list').innerHTML = wkh || '<div style="padding:8px;color:#59636e;font-size:0.82em">No workers</div>';
 
       window._agents = agents;
       agents.sort(function(a,b){return (a.execution_order||99)-(b.execution_order||99)});
-      var w = workers[0]||null;
 
       // Worker bar update
-      if(w){
+      if(activeWorker){
         var wst=document.getElementById('w-st');
         var winfo=document.getElementById('w-info');
-        var st=w.status||'stopped';
-        wst.textContent=st.toUpperCase()+(w.current_agent?' — '+agentName(w.current_agent):'');
-        wst.className='w-st '+st;
+        var st=activeWorker.status||'stopped';
+        var runCount = Object.keys(runningAgentIds).length;
+        wst.textContent=st.toUpperCase()+(runCount?' — '+runCount+' agents running':'');
+        wst.className='w-st '+(runCount?'running':st);
         var wp=[];
-        if(w.pid)wp.push('PID:'+w.pid);
-        if(w.rounds_completed)wp.push('R:'+w.rounds_completed);
-        if(w.last_heartbeat)wp.push(w.last_heartbeat.substring(11,19));
+        if(activeWorker.rounds_completed)wp.push('R:'+activeWorker.rounds_completed);
+        if(activeWorker.last_heartbeat)wp.push(activeWorker.last_heartbeat.substring(11,19));
         winfo.textContent=wp.join(' | ');
       }
 
@@ -342,8 +399,9 @@ header h1{font-size:1.1em;color:#0550ae}
       document.getElementById('agent-count').textContent=agents.length;
       var ah='';
       agents.forEach(function(a,i){
-        var isAct=w&&w.current_agent===a.id;
-        ah+='<div class="agent'+(isAct?' active':'')+'" onclick="showAgent('+i+')">';
+        var isAct=!!runningAgentIds[a.id];
+        ah+='<div class="agent'+(isAct?' active':'')+'" onclick="switchChannel(\''+a.id+'\')" ondblclick="showAgent('+i+')">';
+        ah+='<span class="agent-dot '+(isAct?'running':'idle')+'"></span>';
         ah+='<div class="ord">'+(a.execution_order||'?')+'</div>';
         ah+='<div class="info"><div class="name">'+a.name+'</div>';
         ah+='<div class="meta">'+(a.title||'')+(a.run_count?' &middot; '+a.run_count+' runs':'')+'</div>';
@@ -441,6 +499,16 @@ header h1{font-size:1.1em;color:#0550ae}
         dh+='<div class="dec"><div class="d-topic">'+bg(d.priority||'?',(d.priority||'').toLowerCase())+' '+(d.topic||d.name||'?').substring(0,50)+'</div></div>';
       });
       document.getElementById('decisions').innerHTML=dh||'<div style="padding:8px;color:#59636e">None</div>';
+
+      // Render channel tabs
+      renderChannelTabs();
+
+      // Map existing conversations to channels
+      var allConvs = [];
+      try { allConvs = await fetch(API+'/query/ai:conversation?status=active&_limit=50').then(function(r){return r.json()}); } catch(e){}
+      allConvs.forEach(function(c) {
+        if(c.agent_id && !channelConversations[c.agent_id]) channelConversations[c.agent_id] = c.id;
+      });
 
       document.getElementById('ws-status').innerHTML='<span class="dot ok"></span>connected';
       var cls=await fetch(API+'/class').then(r=>r.json());
@@ -561,6 +629,73 @@ header h1{font-size:1.1em;color:#0550ae}
     setTimeout(function(){document.getElementById('action-modal').classList.remove('open');load();},800);
   };
 
+  // ─── Channels ──────────────────────────────────────────
+  var activeChannel = 'general'; // 'general' or agent_id like 'agent:ceo'
+  var channelConversations = {}; // agent_id → conversation_id
+  var channelMessages = {}; // conversation_id → [messages]
+  var channelUnread = {}; // agent_id → count
+
+  window.switchChannel = function(ch) {
+    activeChannel = ch;
+    // Update tabs UI
+    document.querySelectorAll('.ch-tab').forEach(function(t) {
+      t.classList.toggle('active', t.dataset.channel === ch);
+    });
+    // Update input label
+    var label = ch === 'general' ? '#general' : '#' + agentName(ch).toLowerCase();
+    document.getElementById('ch-label').textContent = label;
+    document.getElementById('feed-input').placeholder = ch === 'general' ? 'Type a message...' : 'Message ' + agentName(ch) + '...';
+    // Clear unread for this channel
+    channelUnread[ch] = 0;
+    renderChannelTabs();
+    // Re-render feed for this channel
+    feedDirty = true;
+    renderFeed();
+  };
+
+  function renderChannelTabs() {
+    var tabs = document.getElementById('ch-tabs');
+    var h = '<div class="ch-tab'+(activeChannel==='general'?' active':'')+'" data-channel="general" onclick="switchChannel(\'general\')">#general</div>';
+    (window._agents||[]).forEach(function(a) {
+      if(a.id === 'agent:owner') return;
+      var isRunning = !!(window._runningAgentIds||{})[a.id];
+      var shortName = a.name.toLowerCase().replace(/\s+/g,'-');
+      var unread = channelUnread[a.id] || 0;
+      h += '<div class="ch-tab'+(activeChannel===a.id?' active':'')+'" data-channel="'+a.id+'" onclick="switchChannel(\''+a.id+'\')">';
+      h += '<span class="ch-dot '+(isRunning?'running':'idle')+'"></span>';
+      h += '#'+shortName;
+      if(unread > 0 && activeChannel !== a.id) h += '<span class="ch-unread">'+unread+'</span>';
+      h += '</div>';
+    });
+    tabs.innerHTML = h;
+  }
+
+  // Get or create conversation for an agent channel
+  async function getChannelConversation(agentId) {
+    if(channelConversations[agentId]) return channelConversations[agentId];
+    // Find existing active conversation for this agent
+    try {
+      var convs = await fetch(API+'/query/ai:conversation?agent_id='+encodeURIComponent(agentId)+'&status=active&_sort=updated_at&_order=desc&_limit=1').then(function(r){return r.json()});
+      if(convs.length > 0) {
+        channelConversations[agentId] = convs[0].id;
+        return convs[0].id;
+      }
+    } catch(e) {}
+    // Create new conversation
+    try {
+      var resp = await fetch(API+'/store/ai:conversation', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({class_id:'ai:conversation', agent_id:agentId, user_id:'owner', title:agentName(agentId)+' Channel', status:'active', created:new Date().toISOString()})
+      });
+      var created = await resp.json();
+      if(created.id) {
+        channelConversations[agentId] = created.id;
+        return created.id;
+      }
+    } catch(e) {}
+    return null;
+  }
+
   // ─── Activity Feed — data-driven, sorted by date ────────
   var feedEl=document.getElementById('feed');
   var MAX_FEED=200;
@@ -590,10 +725,24 @@ header h1{font-size:1.1em;color:#0550ae}
     input.disabled = true;
 
     try {
+      var targetAgent = activeChannel === 'general' ? 'agent:owner' : activeChannel;
+      var convId = null;
+      // For agent channels, get or create conversation
+      if(activeChannel !== 'general') {
+        convId = await getChannelConversation(activeChannel);
+      }
+      var msgBody = {class_id:'ai:message', user_id:'owner', role:'user', content:text, status:'pending', created:new Date().toISOString()};
+      if(activeChannel === 'general') {
+        msgBody.agent_id = 'agent:owner';
+      } else {
+        msgBody.to_agents = [targetAgent];
+        msgBody.agent_id = targetAgent;
+        if(convId) msgBody.conversation_id = convId;
+      }
       var resp = await fetch(API+'/store/ai:message', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({class_id:'ai:message', user_id:'owner', agent_id:'agent:owner', role:'user', content:text, status:'pending', created:new Date().toISOString()})
+        body:JSON.stringify(msgBody)
       });
       var created = await resp.json();
       if(created.id) {
@@ -633,6 +782,27 @@ header h1{font-size:1.1em;color:#0550ae}
     wasAtBottom = (feedEl.scrollTop + feedEl.clientHeight >= feedEl.scrollHeight - 30);
 
     var items = Object.values(feedItems);
+
+    // Filter by active channel
+    if(activeChannel !== 'general') {
+      items = items.filter(function(item) {
+        // Show messages for this agent's conversations or directly addressed to this agent
+        if(item.class_id === 'ai:message') {
+          return item.agent_id === activeChannel ||
+            (item.to_agents && item.to_agents.indexOf(activeChannel) >= 0) ||
+            (item.conversation_id && channelConversations[activeChannel] === item.conversation_id);
+        }
+        if(item.class_id === 'ai:conversation') return item.agent_id === activeChannel;
+        if(item.class_id === 'ai:task') return item.agent_id === activeChannel;
+        if(item.class_id === 'ai:question') {
+          return item.from_agent === activeChannel ||
+            (item.to_agents && item.to_agents.indexOf(activeChannel) >= 0);
+        }
+        if(item.class_id === 'ai:worker') return item.current_agent === activeChannel;
+        return false;
+      });
+    }
+
     items.sort(function(a,b) {
       var da = a.updated_at || a.created || a.created_at || '';
       var db = b.updated_at || b.created || b.created_at || '';
@@ -960,6 +1130,21 @@ header h1{font-size:1.1em;color:#0550ae}
   esws.on('change',function(item){
     if(!item||!item.id) return;
     feedUpsert(item);
+    // Worker changes → update running indicators immediately
+    if(item.class_id==='ai:worker') {
+      if(item.current_agent && item.status==='running') {
+        window._runningAgentIds = window._runningAgentIds || {};
+        window._runningAgentIds[item.current_agent] = true;
+      }
+    }
+    // Track unread per agent channel
+    if(item.class_id==='ai:message' && item.agent_id && item.agent_id !== 'agent:owner') {
+      var msgChannel = item.agent_id;
+      if(msgChannel !== activeChannel) {
+        channelUnread[msgChannel] = (channelUnread[msgChannel]||0) + 1;
+        renderChannelTabs();
+      }
+    }
     sched();
   });
   esws.on('delete',function(item){

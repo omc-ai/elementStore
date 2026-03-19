@@ -1,0 +1,712 @@
+{
+  "version": "1.0.0",
+  "namespace": "ui",
+  "description": "UI element classes \u2014 dialogs, widgets, canvas, buttons. Shared by all frontend applications.",
+  "classes": [
+    {
+      "id": "ui:element",
+      "class_id": "@class",
+      "name": "UI Element",
+      "namespace_id": "ui",
+      "extends_id": "core:uiBase",
+      "is_abstract": true,
+      "is_system": true,
+      "is_seed": true,
+      "description": "Base class for all UI elements",
+      "props": [
+        {
+          "key": "x",
+          "data_type": "integer",
+          "default_value": 0,
+          "description": "X position"
+        },
+        {
+          "key": "y",
+          "data_type": "integer",
+          "default_value": 0,
+          "description": "Y position"
+        },
+        {
+          "key": "width",
+          "data_type": "integer",
+          "default_value": 100,
+          "description": "Width in pixels"
+        },
+        {
+          "key": "height",
+          "data_type": "integer",
+          "default_value": 100,
+          "description": "Height in pixels"
+        }
+      ],
+      "defaults": {
+        "x": 0,
+        "y": 0,
+        "width": 100,
+        "height": 100
+      }
+    },
+    {
+      "id": "ui:dialog",
+      "class_id": "@class",
+      "name": "Dialog",
+      "namespace_id": "ui",
+      "extends_id": "ui:element",
+      "is_abstract": false,
+      "is_container": true,
+      "is_system": true,
+      "is_seed": true,
+      "storage": "@storage:local",
+      "icon": "square",
+      "color": "#6366f1",
+      "description": "Base dialog class with draggable support",
+      "props": [
+        {
+          "key": "isOpen",
+          "data_type": "boolean",
+          "default_value": false,
+          "description": "Whether dialog is open"
+        },
+        {
+          "key": "title",
+          "data_type": "string",
+          "description": "Dialog title",
+          "readonly": true
+        },
+        {
+          "key": "modal",
+          "data_type": "boolean",
+          "default_value": false,
+          "description": "Whether dialog is modal",
+          "readonly": true
+        },
+        {
+          "key": "resizable",
+          "data_type": "boolean",
+          "default_value": true,
+          "description": "Whether dialog can be resized",
+          "readonly": true
+        },
+        {
+          "key": "childs",
+          "data_type": "relation",
+          "is_array": true,
+          "object_class_id": [
+            "ui:element"
+          ],
+          "description": "Child UI elements"
+        },
+        {
+          "key": "zIndex",
+          "data_type": "integer",
+          "default_value": 200,
+          "description": "Stacking order"
+        },
+        {
+          "key": "layoutPage",
+          "data_type": "string",
+          "description": "Page component to render inside dialog (from pageRegistry)",
+          "readonly": true
+        },
+        {
+          "key": "icon",
+          "data_type": "string",
+          "description": "Dialog icon (Lucide icon name)",
+          "readonly": true
+        },
+        {
+          "key": "minWidth",
+          "data_type": "integer",
+          "default_value": 200,
+          "description": "Minimum width",
+          "readonly": true
+        },
+        {
+          "key": "minHeight",
+          "data_type": "integer",
+          "default_value": 150,
+          "description": "Minimum height",
+          "readonly": true
+        },
+        {
+          "key": "docked",
+          "data_type": "string",
+          "default_value": "none",
+          "description": "Dock position (none = floating dialog)",
+          "options": {
+            "values": [
+              "none",
+              "left",
+              "right",
+              "top",
+              "bottom"
+            ]
+          }
+        },
+        {
+          "key": "collapsible",
+          "data_type": "boolean",
+          "default_value": false,
+          "description": "Whether dialog/panel can be collapsed",
+          "readonly": true
+        },
+        {
+          "key": "closable",
+          "data_type": "boolean",
+          "default_value": true,
+          "description": "Whether dialog can be closed",
+          "readonly": true
+        },
+        {
+          "key": "autosize",
+          "data_type": "boolean",
+          "default_value": false,
+          "description": "When docked top/bottom, height adjusts to content",
+          "readonly": true
+        },
+        {
+          "key": "dialogProps",
+          "data_type": "object",
+          "default_value": {},
+          "description": "Runtime dialog properties (confirm message, target node, etc.)"
+        },
+        {
+          "key": "prompt_type",
+          "data_type": "string",
+          "options": {
+            "values": [
+              "confirm",
+              "alert",
+              "password",
+              "number",
+              "text",
+              "options"
+            ]
+          },
+          "description": "Dialog input type (null for standard dialog)"
+        },
+        {
+          "key": "message",
+          "data_type": "string",
+          "description": "Prompt message for confirmation/input dialogs"
+        },
+        {
+          "key": "buttons",
+          "data_type": "object",
+          "is_array": true,
+          "description": "Button definitions: [{ label, value, style }]"
+        },
+        {
+          "key": "options",
+          "data_type": "string",
+          "is_array": true,
+          "description": "Choice list for options prompt type"
+        },
+        {
+          "key": "default_value",
+          "data_type": "string",
+          "description": "Pre-filled value"
+        },
+        {
+          "key": "validation",
+          "data_type": "object",
+          "description": "Input validation: { required, min, max, minLength, maxLength, pattern, integer }"
+        },
+        {
+          "key": "timeout",
+          "data_type": "integer",
+          "default_value": 0,
+          "description": "Seconds before auto-dismiss (0 = no timeout)"
+        },
+        {
+          "key": "parent_conversation_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:conversation"
+          ],
+          "description": "Parent conversation for response routing"
+        },
+        {
+          "key": "action_id",
+          "data_type": "string",
+          "description": "Tool call ID to match response"
+        },
+        {
+          "key": "message_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:message"
+          ],
+          "description": "Conversation message this dialog belongs to"
+        },
+        {
+          "key": "on_response",
+          "data_type": "object",
+          "description": "Response handler: { action, target }"
+        },
+        {
+          "key": "response",
+          "data_type": "object",
+          "description": "User response once submitted: { value, dismissed }"
+        }
+      ],
+      "defaults": {
+        "isOpen": false,
+        "modal": false,
+        "resizable": true,
+        "width": 400,
+        "height": 300,
+        "x": 100,
+        "y": 100,
+        "zIndex": 200,
+        "minWidth": 200,
+        "minHeight": 150,
+        "docked": "none",
+        "closable": true
+      }
+    },
+    {
+      "id": "ui:widget",
+      "class_id": "@class",
+      "name": "Widget",
+      "namespace_id": "ui",
+      "extends_id": "ui:element",
+      "is_abstract": true,
+      "is_system": true,
+      "is_seed": true,
+      "description": "Base class for interactive widgets"
+    },
+    {
+      "id": "ui:widget-container",
+      "class_id": "@class",
+      "name": "Widget Container",
+      "namespace_id": "ui",
+      "extends_id": "ui:widget",
+      "is_abstract": true,
+      "is_container": true,
+      "is_system": true,
+      "is_seed": true,
+      "description": "Container for widgets",
+      "props": [
+        {
+          "key": "childs",
+          "data_type": "relation",
+          "is_array": true,
+          "object_class_id": [
+            "ui:widget"
+          ],
+          "description": "Child widgets"
+        }
+      ]
+    },
+    {
+      "id": "ui:button-group",
+      "class_id": "@class",
+      "name": "Button Group",
+      "namespace_id": "ui",
+      "extends_id": "ui:widget-container",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Group of buttons",
+      "props": [
+        {
+          "key": "childs",
+          "data_type": "relation",
+          "is_array": true,
+          "object_class_id": [
+            "ui:button"
+          ],
+          "description": "Buttons in this group"
+        }
+      ]
+    },
+    {
+      "id": "ui:button",
+      "class_id": "@class",
+      "name": "Button",
+      "namespace_id": "ui",
+      "extends_id": "ui:widget",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Clickable button",
+      "props": [
+        {
+          "key": "label",
+          "data_type": "string",
+          "description": "Button label"
+        },
+        {
+          "key": "icon",
+          "data_type": "string",
+          "description": "Lucide icon name"
+        },
+        {
+          "key": "disabled",
+          "data_type": "boolean",
+          "default_value": false,
+          "description": "Whether button is disabled"
+        },
+        {
+          "key": "variant",
+          "data_type": "string",
+          "default_value": "secondary",
+          "description": "Button style variant",
+          "options": {
+            "values": [
+              "primary",
+              "secondary",
+              "danger",
+              "ghost"
+            ]
+          }
+        },
+        {
+          "key": "action",
+          "data_type": "object",
+          "object_class_id": [
+            "core:action"
+          ],
+          "description": "Action to execute on click"
+        },
+        {
+          "key": "shortcut",
+          "data_type": "string",
+          "description": "Keyboard shortcut (e.g. Ctrl+S, Ctrl+Shift+D)"
+        }
+      ],
+      "defaults": {
+        "disabled": false,
+        "variant": "secondary"
+      }
+    },
+    {
+      "id": "ui:input",
+      "class_id": "@class",
+      "name": "Input",
+      "namespace_id": "ui",
+      "extends_id": "ui:widget",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Text input field",
+      "props": [
+        {
+          "key": "value",
+          "data_type": "string",
+          "description": "Current value"
+        },
+        {
+          "key": "placeholder",
+          "data_type": "string",
+          "description": "Placeholder text"
+        },
+        {
+          "key": "inputType",
+          "data_type": "string",
+          "default_value": "text",
+          "description": "Input type",
+          "options": {
+            "values": [
+              "text",
+              "password",
+              "email",
+              "number"
+            ]
+          }
+        }
+      ],
+      "defaults": {
+        "inputType": "text"
+      }
+    },
+    {
+      "id": "ui:select",
+      "class_id": "@class",
+      "name": "Select",
+      "namespace_id": "ui",
+      "extends_id": "ui:widget",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Dropdown select",
+      "props": [
+        {
+          "key": "value",
+          "data_type": "string",
+          "description": "Selected value"
+        },
+        {
+          "key": "options",
+          "data_type": "object",
+          "is_array": true,
+          "description": "Available options"
+        },
+        {
+          "key": "multiple",
+          "data_type": "boolean",
+          "default_value": false,
+          "description": "Allow multiple selection"
+        }
+      ],
+      "defaults": {
+        "multiple": false
+      }
+    },
+    {
+      "id": "ui:label",
+      "class_id": "@class",
+      "name": "Label",
+      "namespace_id": "ui",
+      "extends_id": "ui:widget",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Text label",
+      "props": [
+        {
+          "key": "text",
+          "data_type": "string",
+          "description": "Label text"
+        },
+        {
+          "key": "forId",
+          "data_type": "string",
+          "description": "ID of associated input"
+        }
+      ]
+    },
+    {
+      "id": "ui:canvas",
+      "class_id": "@class",
+      "name": "Canvas",
+      "namespace_id": "ui",
+      "extends_id": "ui:element",
+      "is_abstract": false,
+      "is_container": true,
+      "is_system": true,
+      "is_seed": true,
+      "storage": "@storage:local",
+      "icon": "layout-grid",
+      "color": "#3b82f6",
+      "description": "Design canvas for elements",
+      "props": [
+        {
+          "key": "design_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "core:design"
+          ],
+          "description": "Design associated with this canvas"
+        },
+        {
+          "key": "showGrid",
+          "data_type": "boolean",
+          "default_value": true,
+          "description": "Show grid lines"
+        },
+        {
+          "key": "gridSize",
+          "data_type": "integer",
+          "default_value": 20,
+          "description": "Grid cell size in pixels"
+        },
+        {
+          "key": "zoom",
+          "data_type": "float",
+          "default_value": 1,
+          "description": "Zoom level"
+        },
+        {
+          "key": "panX",
+          "data_type": "integer",
+          "default_value": 0,
+          "description": "Pan X offset"
+        },
+        {
+          "key": "panY",
+          "data_type": "integer",
+          "default_value": 0,
+          "description": "Pan Y offset"
+        },
+        {
+          "key": "selectedIds",
+          "data_type": "object",
+          "default_value": [],
+          "description": "Selected element IDs on this canvas"
+        },
+        {
+          "key": "clipboardIds",
+          "data_type": "object",
+          "default_value": [],
+          "description": "Clipboard element IDs"
+        },
+        {
+          "key": "clipboardIsCut",
+          "data_type": "boolean",
+          "default_value": false,
+          "description": "Whether clipboard is cut (vs copy)"
+        },
+        {
+          "key": "viewportX",
+          "data_type": "integer",
+          "default_value": 0,
+          "description": "Viewport X offset"
+        },
+        {
+          "key": "viewportY",
+          "data_type": "integer",
+          "default_value": 0,
+          "description": "Viewport Y offset"
+        }
+      ],
+      "defaults": {
+        "showGrid": true,
+        "gridSize": 20,
+        "zoom": 1,
+        "panX": 0,
+        "panY": 0,
+        "selectedIds": [],
+        "clipboardIds": [],
+        "clipboardIsCut": false,
+        "viewportX": 0,
+        "viewportY": 0
+      }
+    },
+    {
+      "id": "ui:canvas-2d",
+      "class_id": "@class",
+      "name": "2D Canvas",
+      "namespace_id": "ui",
+      "extends_id": "ui:canvas",
+      "is_system": true,
+      "is_seed": true,
+      "icon": "layout-grid",
+      "color": "#3b82f6",
+      "description": "2D canvas using React Flow",
+      "defaults": {
+        "layoutPage": "Canvas2DPage"
+      }
+    },
+    {
+      "id": "ui:canvas-3d",
+      "class_id": "@class",
+      "name": "3D Canvas",
+      "namespace_id": "ui",
+      "extends_id": "ui:canvas",
+      "is_system": true,
+      "is_seed": true,
+      "icon": "box",
+      "color": "#10b981",
+      "description": "3D canvas using Three.js",
+      "props": [
+        {
+          "key": "cameraPosition",
+          "data_type": "object",
+          "default_value": {
+            "x": 0,
+            "y": 5,
+            "z": 10
+          },
+          "description": "Camera position"
+        },
+        {
+          "key": "cameraTarget",
+          "data_type": "object",
+          "default_value": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "description": "Camera look-at target"
+        }
+      ],
+      "defaults": {
+        "layoutPage": "Canvas3DPage",
+        "cameraPosition": {
+          "x": 0,
+          "y": 5,
+          "z": 10
+        },
+        "cameraTarget": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "id": "ui:canvas-element",
+      "class_id": "@class",
+      "name": "Canvas Element Visual",
+      "namespace_id": "ui",
+      "extends_id": "ui:element",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Visual configuration for canvas nodes",
+      "props": [
+        {
+          "key": "icon",
+          "data_type": "string",
+          "description": "Lucide icon name"
+        },
+        {
+          "key": "color",
+          "data_type": "string",
+          "default_value": "#3b82f6",
+          "description": "Node color"
+        },
+        {
+          "key": "shape",
+          "data_type": "string",
+          "default_value": "rounded-rect",
+          "description": "Node shape",
+          "options": {
+            "values": [
+              "rect",
+              "rounded-rect",
+              "circle",
+              "diamond",
+              "hexagon"
+            ]
+          }
+        },
+        {
+          "key": "labelPosition",
+          "data_type": "string",
+          "default_value": "bottom",
+          "description": "Label position",
+          "options": {
+            "values": [
+              "top",
+              "bottom",
+              "inside",
+              "none"
+            ]
+          }
+        }
+      ],
+      "defaults": {
+        "color": "#3b82f6",
+        "shape": "rounded-rect",
+        "labelPosition": "bottom"
+      }
+    },
+    {
+      "id": "ui:ai-conversation-canvas",
+      "class_id": "@class",
+      "name": "AI Conversation Canvas",
+      "namespace_id": "ui",
+      "extends_id": "ui:element",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Canvas element for AI conversation \u2014 binds to a conversation and provides scoped reactivity via collection hooks on the messages array",
+      "props": [
+        {
+          "key": "conversation_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:conversation"
+          ],
+          "description": "Active conversation \u2014 messages AtomCollection drives widget updates"
+        }
+      ]
+    }
+  ]
+}

@@ -39,11 +39,12 @@ export interface GenesisProp {
   key: string;
   data_type?: string;
   is_array?: boolean | 'indexed' | 'assoc';
-  object_class_id?: string;
+  object_class_id?: string | string[];
   object_class_strict?: boolean;
   on_orphan?: string;
   options?: unknown;
-  editor?: string;
+  editor?: string | { id: string; [key: string]: unknown };
+  flags?: Record<string, boolean>;
   enum_values?: string[];
   enum_allow_custom?: boolean;
   required?: boolean;

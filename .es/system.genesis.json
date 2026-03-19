@@ -658,6 +658,8 @@
               "seed",
               "composite",
               "couchdb",
+              "redis",
+              "mongo",
               "mysql",
               "json"
             ]
@@ -1696,10 +1698,11 @@
         {
           "key": "editor",
           "label": "Editor",
-          "description": "Override editor ID for context",
-          "data_type": "string",
+          "description": "Override editor for context",
+          "data_type": "object",
+          "object_class_id": ["@editor"],
           "display_order": 5,
-          "class_id": "@prop_string"
+          "class_id": "@prop_object"
         },
         {
           "key": "width",
@@ -1716,6 +1719,38 @@
           "data_type": "integer",
           "display_order": 7,
           "class_id": "@prop_number"
+        },
+        {
+          "key": "formatter",
+          "label": "Formatter",
+          "description": "Display template: {{value}} or any {{field}} from the object",
+          "data_type": "string",
+          "display_order": 8,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "css_class",
+          "label": "CSS Class",
+          "description": "CSS class to apply to this field in this context",
+          "data_type": "string",
+          "display_order": 9,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "link",
+          "label": "Link",
+          "description": "Clickable link template: /admin?class={{class_id}}&id={{id}}",
+          "data_type": "string",
+          "display_order": 10,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "tooltip",
+          "label": "Tooltip",
+          "description": "Hover tooltip template with {{field}} placeholders",
+          "data_type": "string",
+          "display_order": 11,
+          "class_id": "@prop_string"
         }
       ]
     },
@@ -1760,6 +1795,54 @@
           "default_value": 25,
           "display_order": 4,
           "class_id": "@prop_number"
+        },
+        {
+          "key": "formatter",
+          "label": "Formatter",
+          "description": "Display template with {{field}} placeholders for object label",
+          "data_type": "string",
+          "display_order": 5,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "label",
+          "label": "Label",
+          "description": "Which prop key is the primary display label",
+          "data_type": "string",
+          "display_order": 6,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "children",
+          "label": "Children",
+          "description": "Which prop key contains child items (for tree/menu)",
+          "data_type": "string",
+          "display_order": 7,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "icon",
+          "label": "Icon",
+          "description": "Which prop key provides the icon",
+          "data_type": "string",
+          "display_order": 8,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "group_by",
+          "label": "Group By",
+          "description": "Group items by this field",
+          "data_type": "string",
+          "display_order": 9,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "filter",
+          "label": "Filter",
+          "description": "Default filter criteria for this context",
+          "data_type": "object",
+          "display_order": 10,
+          "class_id": "@prop_object"
         }
       ]
     },

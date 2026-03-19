@@ -1029,6 +1029,7 @@
      * Get typed value from sender object
      */
     getPropValue(senderObj, propName) {
+      var _a, _b, _c;
       if (propName === "order_id" && senderObj._belongsTo) {
         const parent = senderObj._belongsTo;
         if (parent.objects) {
@@ -1091,10 +1092,10 @@
           return parseFloat(val) || 0;
         case "object":
           if (isIndexed && Array.isArray(val)) {
-            return new AtomCollection(val, store2, this.data.object_class_id, senderObj, propName);
+            return new AtomCollection(val, store2, (_a = this.getPrimaryTargetClass()) != null ? _a : void 0, senderObj, propName);
           }
-          if (typeof val === "object" && this.data.object_class_id && store2) {
-            if (!val.class_id) val.class_id = this.data.object_class_id;
+          if (typeof val === "object" && this.hasTargetClasses() && store2) {
+            if (!val.class_id) val.class_id = this.getPrimaryTargetClass();
             return new AtomObj(val, store2);
           }
           return val;
@@ -1117,10 +1118,10 @@
                 }
                 senderObj.objects[propName] = items;
               }
-              return new AtomCollection(senderObj.objects[propName], store2, this.data.object_class_id, senderObj, propName);
+              return new AtomCollection(senderObj.objects[propName], store2, (_b = this.getPrimaryTargetClass()) != null ? _b : void 0, senderObj, propName);
             }
             if (!senderObj.objects[propName]) {
-              const objectClassId = this.data.object_class_id;
+              const objectClassId = this.getPrimaryTargetClass();
               if (objectClassId && senderObj.data.id) {
                 const items = store2.getElementsByClass(objectClassId).filter((obj) => obj.data.owner_id === senderObj.data.id);
                 senderObj.objects[propName] = items;
@@ -1128,7 +1129,7 @@
                 senderObj.objects[propName] = [];
               }
             }
-            return new AtomCollection(senderObj.objects[propName], store2, this.data.object_class_id, senderObj, propName);
+            return new AtomCollection(senderObj.objects[propName], store2, (_c = this.getPrimaryTargetClass()) != null ? _c : void 0, senderObj, propName);
           }
           if (val === void 0 || val === null) return val;
           if (!senderObj.objects[propName]) {
@@ -1177,6 +1178,7 @@
      * Set and validate value on sender object
      */
     setPropValue(senderObj, propName, value) {
+      var _a, _b;
       const dataType = this.data.data_type;
       const arrayMode = this.getArrayMode();
       const isIndexed = arrayMode === "indexed";
@@ -1286,7 +1288,8 @@
           }
           break;
       }
-      if (this.data.required && (value === null || value === void 0 || value === "")) {
+      const isRequired = (_b = (_a = this.data.flags) == null ? void 0 : _a.required) != null ? _b : this.data.required;
+      if (isRequired && (value === null || value === void 0 || value === "")) {
         console.warn(`setPropValue: "${propName}" is required`);
       }
       const oldVal = senderObj.data[propName];
@@ -1569,6 +1572,7 @@
     }
     /** Persist a single object (no cascade). Handles type routing. */
     async _persistSingle(obj) {
+      var _a, _b;
       const id = obj.data.id;
       const isNew = !obj._snapshot;
       if (!id && !isNew) {
@@ -1597,7 +1601,7 @@
             const allProps = obj.store.collectClassProps(classId);
             const readonlyKeys = /* @__PURE__ */ new Set();
             for (const p of allProps) {
-              if (p.data.readonly) readonlyKeys.add(p.data.key);
+              if ((_b = (_a = p.data.flags) == null ? void 0 : _a.readonly) != null ? _b : p.data.readonly) readonlyKeys.add(p.data.key);
             }
             if (readonlyKeys.size > 0) {
               dataToSave = {};

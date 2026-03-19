@@ -1,0 +1,393 @@
+{
+  "version": "1.0.0",
+  "namespace": "core",
+  "description": "Core application building blocks \u2014 base elements, connections, designs. Shared by all visual applications.",
+  "classes": [
+    {
+      "id": "core:atomObj",
+      "class_id": "@class",
+      "name": "Atom Object",
+      "namespace_id": "core",
+      "extends_id": null,
+      "is_abstract": true,
+      "is_system": true,
+      "is_seed": true,
+      "description": "Base class for all objects - lifecycle hooks and identity",
+      "props": [
+        {
+          "key": "description",
+          "data_type": "string",
+          "description": "Element description"
+        },
+        {
+          "key": "@events",
+          "data_type": "object",
+          "default_value": {},
+          "description": "Lifecycle event hooks: onBeforeCreate, onAfterCreate, onBeforeUpdate, onAfterUpdate, onBeforeDelete, onAfterDelete"
+        }
+      ]
+    },
+    {
+      "id": "core:uiBase",
+      "class_id": "@class",
+      "name": "UI Base",
+      "namespace_id": "core",
+      "extends_id": "core:atomObj",
+      "is_abstract": true,
+      "is_system": true,
+      "is_seed": true,
+      "description": "Base class for UI elements with rendering and interaction hooks",
+      "props": [
+        {
+          "key": "@events",
+          "data_type": "object",
+          "default_value": {
+            "onMount": null,
+            "onUnmount": null,
+            "onRender": null,
+            "onPropertyChange": null
+          },
+          "description": "UI lifecycle events: onMount, onUnmount, onRender, onPropertyChange"
+        },
+        {
+          "key": "isVisible",
+          "data_type": "boolean",
+          "default_value": true,
+          "description": "Whether the element is visible"
+        },
+        {
+          "key": "layoutPage",
+          "data_type": "string",
+          "description": "Page component to render"
+        }
+      ]
+    },
+    {
+      "id": "core:action",
+      "class_id": "@class",
+      "name": "UI Action",
+      "namespace_id": "core",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Action definition for buttons and events",
+      "props": [
+        {
+          "key": "type",
+          "data_type": "string",
+          "description": "Action type",
+          "options": {
+            "values": [
+              "openDialog",
+              "closeDialog",
+              "createObject",
+              "deleteObject",
+              "callMethod",
+              "callFunction"
+            ]
+          }
+        },
+        {
+          "key": "target",
+          "data_type": "string",
+          "description": "Target class_id or element_id"
+        },
+        {
+          "key": "method",
+          "data_type": "string",
+          "description": "Method name to call"
+        },
+        {
+          "key": "params",
+          "data_type": "object",
+          "description": "Parameters to pass"
+        }
+      ]
+    },
+    {
+      "id": "core:app",
+      "class_id": "@class",
+      "name": "Application",
+      "namespace_id": "core",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "is_seed": true,
+      "icon": "app-window",
+      "color": "#6366f1",
+      "description": "Application root - not persisted to ElementStore",
+      "props": [
+        {
+          "key": "dialogs",
+          "data_type": "relation",
+          "is_array": true,
+          "object_class_id": [
+            "ui:dialog"
+          ],
+          "description": "Open dialogs collection"
+        },
+        {
+          "key": "canvases",
+          "data_type": "relation",
+          "is_array": true,
+          "object_class_id": [
+            "ui:canvas"
+          ],
+          "description": "Canvas instances"
+        },
+        {
+          "key": "buttons",
+          "data_type": "relation",
+          "is_array": true,
+          "object_class_id": [
+            "ui:button"
+          ],
+          "description": "Toolbar button instances"
+        },
+        {
+          "key": "diagrams",
+          "data_type": "relation",
+          "is_array": true,
+          "object_class_id": [
+            "core:design"
+          ],
+          "description": "Design diagrams"
+        },
+        {
+          "key": "elements",
+          "data_type": "relation",
+          "is_array": true,
+          "object_class_id": [
+            "core:baseElement"
+          ],
+          "description": "Domain elements on canvas"
+        }
+      ],
+      "storage": "@storage:local",
+      "defaults": {
+        "theme": "system",
+        "sidebarOpen": true,
+        "sidebarTab": "elements",
+        "propertiesPanelOpen": true,
+        "minimapVisible": true,
+        "canvasMode": "2d",
+        "snapToGrid": true,
+        "gridSize": 20,
+        "showGrid": true,
+        "editorMode": true
+      }
+    },
+    {
+      "id": "core:baseElement",
+      "class_id": "@class",
+      "name": "Base Element",
+      "namespace_id": "core",
+      "extends_id": "core:atomObj",
+      "storage": "storage_design",
+      "is_abstract": true,
+      "is_system": true,
+      "is_seed": true,
+      "description": "Base class for all domain elements",
+      "props": [
+        {
+          "key": "canvasElement",
+          "data_type": "object",
+          "object_class_id": [
+            "ui:canvas-element"
+          ],
+          "description": "Visual configuration for canvas rendering"
+        },
+        {
+          "key": "position",
+          "data_type": "object",
+          "default_value": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "description": "Position on canvas"
+        },
+        {
+          "key": "size",
+          "data_type": "object",
+          "default_value": {
+            "width": 150,
+            "height": 100,
+            "depth": 50
+          },
+          "description": "Element size"
+        },
+        {
+          "key": "design_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "core:design"
+          ],
+          "hidden": true,
+          "description": "Parent design (belongsTo back-reference)"
+        }
+      ],
+      "defaults": {
+        "nodeTypeId": "baseNode",
+        "isServerLinkable": false,
+        "isK8sLinkable": false,
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "size": {
+          "width": 150,
+          "height": 100,
+          "depth": 50
+        }
+      }
+    },
+    {
+      "id": "core:baseContainer",
+      "class_id": "@class",
+      "name": "Base Container",
+      "namespace_id": "core",
+      "extends_id": "core:baseElement",
+      "is_abstract": true,
+      "is_container": true,
+      "is_system": true,
+      "is_seed": true,
+      "description": "Base class for elements that can contain children",
+      "props": [
+        {
+          "key": "childs",
+          "data_type": "relation",
+          "is_array": true,
+          "object_class_id": [
+            "core:baseElement"
+          ],
+          "description": "Child elements"
+        }
+      ],
+      "defaults": {
+        "nodeTypeId": "containerNode",
+        "isContainer": true
+      }
+    },
+    {
+      "id": "core:connection",
+      "class_id": "@class",
+      "name": "Connection",
+      "namespace_id": "core",
+      "extends_id": "core:atomObj",
+      "storage": "storage_design",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Connection between elements",
+      "props": [
+        {
+          "key": "source_id",
+          "data_type": "string",
+          "required": true,
+          "description": "Source element ID"
+        },
+        {
+          "key": "target_id",
+          "data_type": "string",
+          "required": true,
+          "description": "Target element ID"
+        },
+        {
+          "key": "connectionType",
+          "data_type": "string",
+          "default_value": "default",
+          "description": "Edge rendering type",
+          "options": {
+            "values": [
+              "default",
+              "step",
+              "smoothstep",
+              "straight"
+            ]
+          }
+        },
+        {
+          "key": "animated",
+          "data_type": "boolean",
+          "default_value": false,
+          "description": "Animate the connection"
+        },
+        {
+          "key": "label",
+          "data_type": "string",
+          "description": "Connection label"
+        }
+      ],
+      "defaults": {
+        "connectionType": "default",
+        "animated": false
+      }
+    },
+    {
+      "id": "core:design",
+      "class_id": "@class",
+      "name": "Design",
+      "namespace_id": "core",
+      "extends_id": "core:atomObj",
+      "storage": "storage_design",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Design container - holds nodes and connections for a canvas layout",
+      "props": [
+        {
+          "key": "nodes",
+          "data_type": "relation",
+          "is_array": true,
+          "object_class_id": [
+            "core:atomObj"
+          ],
+          "default_value": [],
+          "description": "Element IDs in this design (nodes + connections)"
+        },
+        {
+          "key": "connections",
+          "data_type": "relation",
+          "is_array": true,
+          "object_class_id": [
+            "core:connection"
+          ],
+          "default_value": [],
+          "description": "Connection element IDs in this design"
+        },
+        {
+          "key": "viewportX",
+          "data_type": "float",
+          "default_value": 0,
+          "description": "Canvas viewport X offset"
+        },
+        {
+          "key": "viewportY",
+          "data_type": "float",
+          "default_value": 0,
+          "description": "Canvas viewport Y offset"
+        },
+        {
+          "key": "zoom",
+          "data_type": "float",
+          "default_value": 1,
+          "description": "Canvas zoom level"
+        },
+        {
+          "key": "autoSaveInterval",
+          "data_type": "integer",
+          "default_value": 5000,
+          "hidden": true,
+          "description": "Auto-save interval in ms (0 = disabled)"
+        }
+      ],
+      "defaults": {
+        "nodes": [],
+        "connections": [],
+        "viewportX": 0,
+        "viewportY": 0,
+        "zoom": 1,
+        "autoSaveInterval": 5000
+      }
+    }
+  ]
+}

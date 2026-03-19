@@ -16,24 +16,30 @@ export class AtomProp extends AtomObj {
 
   // Default field values (class-level)
   declare key: string | null;
-  declare name: string | null;
   declare label: string | null;
   declare description: string | null;
   declare data_type: string | null;
   declare is_array: boolean | string;
-  declare object_class_id: string | null;
+  declare object_class_id: string | string[] | null;
   declare object_class_strict: boolean;
   declare on_orphan: string | null;
   declare options: unknown;
-  declare editor: string | null;
+  /** Editor — can be a string ID or an inline editor instance object */
+  declare editor: unknown;
+  declare flags: Record<string, boolean>;
+  /** @deprecated Prefer flags.required */
   declare required: boolean;
+  /** @deprecated Prefer flags.readonly */
   declare readonly: boolean;
+  /** @deprecated Prefer flags.create_only */
   declare create_only: boolean;
   declare default_value: unknown;
   declare display_order: number;
-  declare group_name: string | null;
+  /** @deprecated Prefer flags.hidden */
   declare hidden: boolean;
+  /** @deprecated Prefer flags.server_only */
   declare server_only: boolean;
+  /** @deprecated Prefer flags.master_only */
   declare master_only: boolean;
 
   constructor(raw: RawData | string, store?: ElementStore) {
@@ -189,10 +195,10 @@ export class AtomProp extends AtomObj {
         return parseFloat(val as string) || 0;
       case 'object':
         if (isIndexed && Array.isArray(val)) {
-          return new AtomCollection(val, store!, this.data.object_class_id, senderObj, propName);
+          return new AtomCollection(val, store!, this.getPrimaryTargetClass() ?? undefined, senderObj, propName);
         }
-        if (typeof val === 'object' && this.data.object_class_id && store) {
-          if (!val.class_id) val.class_id = this.data.object_class_id;
+        if (typeof val === 'object' && this.hasTargetClasses() && store) {
+          if (!val.class_id) val.class_id = this.getPrimaryTargetClass();
           return new AtomObj(val, store);
         }
         return val;
@@ -213,11 +219,11 @@ export class AtomProp extends AtomObj {
               }
               senderObj.objects[propName] = items;
             }
-            return new AtomCollection(senderObj.objects[propName], store, this.data.object_class_id, senderObj, propName);
+            return new AtomCollection(senderObj.objects[propName], store, this.getPrimaryTargetClass() ?? undefined, senderObj, propName);
           }
           // Dynamic: query all instances of target class owned by this object
           if (!senderObj.objects[propName]) {
-            const objectClassId = this.data.object_class_id;
+            const objectClassId = this.getPrimaryTargetClass();
             if (objectClassId && senderObj.data.id) {
               const items = store.getElementsByClass(objectClassId)
                 .filter((obj: AtomObj) => obj.data.owner_id === senderObj.data.id);
@@ -226,7 +232,7 @@ export class AtomProp extends AtomObj {
               senderObj.objects[propName] = [];
             }
           }
-          return new AtomCollection(senderObj.objects[propName], store, this.data.object_class_id, senderObj, propName);
+          return new AtomCollection(senderObj.objects[propName], store, this.getPrimaryTargetClass() ?? undefined, senderObj, propName);
         }
         // Single relation → objects[propName] = AtomObj
         if (val === undefined || val === null) return val;
@@ -381,8 +387,9 @@ export class AtomProp extends AtomObj {
         break;
     }
 
-    // Required check
-    if (this.data.required && (value === null || value === undefined || value === '')) {
+    // Required check (flags.required takes precedence, fall back to top-level required)
+    const isRequired = this.data.flags?.required ?? this.data.required;
+    if (isRequired && (value === null || value === undefined || value === '')) {
       console.warn(`setPropValue: "${propName}" is required`);
     }
 

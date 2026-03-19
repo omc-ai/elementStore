@@ -84,8 +84,9 @@ const OPTIONS_TYPES = {
  * Returns field type instance ID string.
  */
 function resolveFieldType(prop) {
-    // 1. Explicit field_type set
-    if (prop.field_type) return prop.field_type;
+    // 1. Explicit editor set (inline object or legacy field_type)
+    const editorId = typeof prop.editor === 'object' ? prop.editor?.id : (prop.editor || prop.field_type);
+    if (editorId) return editorId;
 
     const dt = resolveDataType(prop.data_type);
     const opts = prop.options || {};
@@ -195,8 +196,8 @@ function validateField(input) {
     const dt = resolveDataType(prop.data_type);
     const opts = prop.options || {};
 
-    // Field type-driven validation (validator lives in the field type instance)
-    const ft = prop.field_type;
+    // Editor-driven validation
+    const ft = typeof prop.editor === 'object' ? prop.editor?.id : (prop.editor || prop.field_type);
     if (ft === 'email' || propKey === 'email') {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
             errors.push('Invalid email address');

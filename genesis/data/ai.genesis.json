@@ -1,0 +1,1924 @@
+{
+  "version": "1.0.0",
+  "namespace": "ai",
+  "description": "Shared AI/agent classes — used by aic.sh, cwm-architect, and any application that works with agents, tasks, prompts, decisions.",
+  "classes": [
+    {
+      "id": "ai:agent",
+      "class_id": "@class",
+      "name": "AI Agent",
+      "description": "WHO the agent is — identity, prompt, domain, tools. Runtime behavior in ai:agent_behavior via behavior prop.",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "name",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.name",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "description",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.description",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "title",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.title",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "prompt",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.prompt",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "tools",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:agent.tools",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "domain",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:agent.domain",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "boolean",
+          "key": "is_active",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.is_active",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "execution_order",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.execution_order",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "model",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.model",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "avatar",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.avatar",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "last_run",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.last_run",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "run_count",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.run_count",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "sessions",
+          "description": "All session IDs (ai:agent_session)",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:agent.sessions",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "last_session",
+          "description": "Most recent active session ID",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.last_session",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "object",
+          "key": "behavior",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent.behavior",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:task",
+      "class_id": "@class",
+      "name": "Task",
+      "description": "An actionable work item — assigned to agents, tracked through lifecycle.",
+      "props": [
+        {
+          "key": "name",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "description",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "priority",
+          "data_type": "string",
+          "display_order": 3,
+          "options": {
+            "values": [
+              "P0",
+              "P1",
+              "P2",
+              "P3"
+            ]
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "status",
+          "data_type": "string",
+          "display_order": 4,
+          "options": {
+            "values": [
+              "open",
+              "in_progress",
+              "blocked",
+              "done",
+              "wont_do"
+            ]
+          },
+          "default_value": "open",
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "project",
+          "data_type": "string",
+          "display_order": 5,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "agent_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:agent"
+          ],
+          "display_order": 6,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "round_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:round"
+          ],
+          "display_order": 7,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "source",
+          "data_type": "string",
+          "display_order": 8,
+          "options": {
+            "values": [
+              "manual",
+              "ceo_directive",
+              "roadmap",
+              "agent",
+              "audit",
+              "human_request"
+            ]
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "blocks",
+          "data_type": "relation",
+          "is_array": "indexed",
+          "object_class_id": [
+            "ai:task"
+          ],
+          "display_order": 9,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "blocked_by",
+          "data_type": "relation",
+          "is_array": "indexed",
+          "object_class_id": [
+            "ai:task"
+          ],
+          "display_order": 10,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "step",
+          "data_type": "integer",
+          "display_order": 11,
+          "description": "Execution step number",
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "files",
+          "data_type": "string",
+          "is_array": "indexed",
+          "display_order": 12,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "result",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 13,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "started",
+          "data_type": "string",
+          "display_order": 14,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "completed",
+          "data_type": "string",
+          "display_order": 15,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "tokens_used",
+          "data_type": "integer",
+          "display_order": 16,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "commits",
+          "data_type": "string",
+          "is_array": "indexed",
+          "display_order": 17,
+          "flags": {
+            "readonly": true
+          },
+          "class_id": "@prop_string"
+        }
+      ]
+    },
+    {
+      "id": "ai:prompt",
+      "class_id": "@class",
+      "name": "Prompt",
+      "description": "A reusable prompt template with variable substitution.",
+      "props": [
+        {
+          "key": "name",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "description",
+          "data_type": "string",
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "type",
+          "data_type": "string",
+          "display_order": 3,
+          "options": {
+            "values": [
+              "shared_context",
+              "system",
+              "first_run",
+              "every_run",
+              "review",
+              "domain",
+              "task"
+            ]
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "template",
+          "data_type": "string",
+          "editor": {
+            "id": "code"
+          },
+          "display_order": 4,
+          "description": "Prompt text with {{variable}} placeholders",
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "variables",
+          "data_type": "string",
+          "is_array": "indexed",
+          "display_order": 5,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "agent_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:agent"
+          ],
+          "display_order": 6,
+          "description": "Owner agent (null = shared)",
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "version",
+          "data_type": "string",
+          "display_order": 7,
+          "class_id": "@prop_string"
+        }
+      ]
+    },
+    {
+      "id": "ai:decision",
+      "class_id": "@class",
+      "name": "Decision",
+      "description": "A recorded decision with rationale and assignment.",
+      "props": [
+        {
+          "key": "name",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "topic",
+          "data_type": "string",
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "decision",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 3,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "rationale",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 4,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "priority",
+          "data_type": "string",
+          "display_order": 5,
+          "options": {
+            "values": [
+              "P0",
+              "P1",
+              "P2",
+              "P3"
+            ]
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "assigned_agents",
+          "data_type": "relation",
+          "is_array": "indexed",
+          "object_class_id": [
+            "ai:agent"
+          ],
+          "display_order": 6,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "round_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:round"
+          ],
+          "display_order": 7,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "implemented",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 8,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "owner_approved",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 9,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "preference_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:preference"
+          ],
+          "display_order": 10,
+          "class_id": "@prop_relation"
+        }
+      ]
+    },
+    {
+      "id": "ai:preference",
+      "class_id": "@class",
+      "name": "Preference",
+      "description": "A learned preference rule. Confidence grows with confirmation.",
+      "props": [
+        {
+          "key": "name",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": {
+            "required": true
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "category",
+          "data_type": "string",
+          "display_order": 2,
+          "options": {
+            "values": [
+              "security",
+              "architecture",
+              "product",
+              "design",
+              "marketing",
+              "finance",
+              "devops",
+              "content",
+              "general"
+            ]
+          },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "rule",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 3,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "confidence",
+          "data_type": "string",
+          "display_order": 4,
+          "options": {
+            "values": [
+              "low",
+              "medium",
+              "high",
+              "autonomous"
+            ]
+          },
+          "default_value": "low",
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "times_confirmed",
+          "data_type": "integer",
+          "default_value": 0,
+          "display_order": 5,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "applies_to",
+          "data_type": "relation",
+          "is_array": "indexed",
+          "object_class_id": [
+            "ai:agent"
+          ],
+          "display_order": 6,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "learned_from",
+          "data_type": "string",
+          "display_order": 7,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "overridden",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 8,
+          "class_id": "@prop_boolean"
+        }
+      ]
+    },
+    {
+      "id": "ai:round",
+      "class_id": "@class",
+      "name": "Round",
+      "description": "An execution round — one cycle of agents running sequentially.",
+      "props": [
+        {
+          "key": "name",
+          "data_type": "string",
+          "display_order": 1,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "round_number",
+          "data_type": "integer",
+          "display_order": 2,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "session_id",
+          "data_type": "string",
+          "display_order": 3,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "started",
+          "data_type": "string",
+          "display_order": 4,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "completed",
+          "data_type": "string",
+          "display_order": 5,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "agents_completed",
+          "data_type": "relation",
+          "is_array": "indexed",
+          "object_class_id": [
+            "ai:agent"
+          ],
+          "display_order": 6,
+          "class_id": "@prop_relation"
+        },
+        {
+          "key": "decisions_made",
+          "data_type": "integer",
+          "default_value": 0,
+          "display_order": 7,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "summary",
+          "data_type": "string",
+          "editor": {
+            "id": "textarea"
+          },
+          "display_order": 8,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "all_tasks_complete",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 9,
+          "class_id": "@prop_boolean"
+        }
+      ]
+    },
+    {
+      "id": "ai:tool",
+      "class_id": "@class",
+      "name": "AI Tool",
+      "namespace_id": "ai",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Tool that can be assigned to agents — binds to ElementStore classes and actions",
+      "storage": "storage_ai",
+      "props": [
+        {
+          "key": "category",
+          "data_type": "string",
+          "description": "Tool category"
+        },
+        {
+          "key": "type",
+          "data_type": "string",
+          "default_value": "class_binding",
+          "description": "Tool type (class_binding is default)"
+        },
+        {
+          "key": "enabled",
+          "data_type": "boolean",
+          "default_value": true
+        },
+        {
+          "key": "requires_confirmation",
+          "data_type": "boolean",
+          "default_value": false
+        },
+        {
+          "key": "allowed_actions",
+          "data_type": "object",
+          "is_array": true,
+          "description": "Class+action bindings. Each entry: { type: 'class'|'class_action', ref_class_id: string, actions?: string[], action?: string, params?: object }"
+        }
+      ]
+    },
+    {
+      "id": "ai:memory",
+      "class_id": "@class",
+      "name": "AI Memory",
+      "namespace_id": "ai",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "storage": "storage_ai",
+      "description": "Persistent memory entry — generic data field for AI to store anything",
+      "props": [
+        {
+          "key": "key",
+          "data_type": "string",
+          "required": true,
+          "description": "Memory key/label"
+        },
+        {
+          "key": "data",
+          "data_type": "object",
+          "description": "Generic data payload — AI stores whatever it needs"
+        },
+        {
+          "key": "agent_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:agent"
+          ],
+          "description": "Agent that owns this memory"
+        },
+        {
+          "key": "conversation_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:conversation"
+          ],
+          "description": "Conversation that created this memory (optional)"
+        },
+        {
+          "key": "scope",
+          "data_type": "string",
+          "description": "Memory scope: global, agent, conversation"
+        }
+      ]
+    },
+    {
+      "id": "ai:debug-entry",
+      "class_id": "@class",
+      "name": "Debug Entry",
+      "namespace_id": "ai",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "storage": "@storage:none",
+      "description": "Real-time debug trace entry — fire-and-forget via WebSocket, not persisted",
+      "props": [
+        {
+          "key": "conversation_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:conversation"
+          ]
+        },
+        {
+          "key": "message_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:message"
+          ]
+        },
+        {
+          "key": "seq",
+          "data_type": "integer",
+          "description": "Step sequence within message"
+        },
+        {
+          "key": "step",
+          "data_type": "string",
+          "options": {
+            "values": [
+              "llm_request",
+              "llm_response",
+              "tool_call",
+              "tool_result",
+              "elementstore_op",
+              "error"
+            ]
+          },
+          "description": "Step type"
+        },
+        {
+          "key": "data",
+          "data_type": "object",
+          "description": "Step payload — provider, tokens, params, results, errors"
+        },
+        {
+          "key": "duration",
+          "data_type": "integer",
+          "description": "Step duration in ms"
+        }
+      ]
+    },
+    {
+      "id": "ai:job",
+      "class_id": "@class",
+      "name": "AI Job",
+      "namespace_id": "ai",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "storage": "storage_ai",
+      "description": "Scheduled or triggered job — schema, events, and execution rules declared in object",
+      "props": [
+        {
+          "key": "type",
+          "data_type": "string",
+          "description": "Job type identifier"
+        },
+        {
+          "key": "status",
+          "data_type": "string",
+          "default_value": "pending",
+          "options": {
+            "values": [
+              "pending",
+              "running",
+              "complete",
+              "error",
+              "cancelled"
+            ]
+          }
+        },
+        {
+          "key": "schedule",
+          "data_type": "object",
+          "description": "Cron or interval schedule rules"
+        },
+        {
+          "key": "data",
+          "data_type": "object",
+          "description": "Job payload and configuration"
+        },
+        {
+          "key": "result",
+          "data_type": "object",
+          "description": "Execution result"
+        },
+        {
+          "key": "events",
+          "data_type": "object",
+          "description": "Event hooks: onStart, onComplete, onError"
+        },
+        {
+          "key": "agent_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:agent"
+          ]
+        },
+        {
+          "key": "conversation_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:conversation"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai:character",
+      "class_id": "@class",
+      "name": "Character",
+      "namespace_id": "ai",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Visual character with reactions for agent behavior",
+      "storage": "storage_ai",
+      "props": [
+        {
+          "key": "profileFile",
+          "data_type": "string",
+          "description": "Profile image filename"
+        },
+        {
+          "key": "profileFocus",
+          "data_type": "object",
+          "description": "Focus point for profile crop"
+        },
+        {
+          "key": "isSeed",
+          "data_type": "boolean",
+          "default_value": false
+        },
+        {
+          "key": "reactions",
+          "data_type": "object",
+          "is_array": true,
+          "description": "Reaction images/videos"
+        }
+      ]
+    },
+    {
+      "id": "ai:llmConfig",
+      "class_id": "@class",
+      "name": "LLM Configuration",
+      "namespace_id": "ai",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "is_seed": true,
+      "description": "LLM provider configuration with API keys",
+      "storage": "storage_ai",
+      "props": [
+        {
+          "key": "provider",
+          "data_type": "string",
+          "options": {
+            "values": [
+              "anthropic",
+              "openai",
+              "google",
+              "azure",
+              "xai",
+              "custom"
+            ]
+          }
+        },
+        {
+          "key": "apiKey",
+          "data_type": "string",
+          "description": "API key (masked)"
+        },
+        {
+          "key": "baseUrl",
+          "data_type": "string"
+        },
+        {
+          "key": "model",
+          "data_type": "string"
+        },
+        {
+          "key": "enabled",
+          "data_type": "boolean",
+          "default_value": true
+        },
+        {
+          "key": "isDefault",
+          "data_type": "boolean",
+          "default_value": false
+        }
+      ]
+    },
+    {
+      "id": "ai:chunk",
+      "class_id": "@class",
+      "name": "Message Chunk",
+      "namespace_id": "ai",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "is_seed": true,
+      "description": "Embedded chunk within ai:message — not independently stored",
+      "props": [
+        {
+          "key": "seq",
+          "data_type": "integer",
+          "description": "Sequence number within message"
+        },
+        {
+          "key": "type",
+          "data_type": "string",
+          "options": {
+            "values": [
+              "text",
+              "tool_call",
+              "tool_result",
+              "action",
+              "error"
+            ]
+          },
+          "description": "Chunk content type"
+        },
+        {
+          "key": "content",
+          "data_type": "string",
+          "description": "Text content or JSON payload"
+        },
+        {
+          "key": "status",
+          "data_type": "string",
+          "default_value": "streaming",
+          "options": {
+            "values": [
+              "streaming",
+              "complete"
+            ]
+          },
+          "description": "Chunk completion status"
+        },
+        {
+          "key": "tool_name",
+          "data_type": "string",
+          "description": "Tool name for tool_call/tool_result chunks"
+        }
+      ]
+    },
+    {
+      "id": "ai:prompt-request",
+      "class_id": "@class",
+      "name": "Prompt Request",
+      "namespace_id": "ai",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "description": "Generic user-input request from AI — rendered as inline widget in conversation. Types: confirm, alert, password, number, text, options",
+      "props": [
+        {
+          "key": "action_id",
+          "data_type": "string",
+          "required": true,
+          "description": "Unique request ID for matching response"
+        },
+        {
+          "key": "conversation_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:conversation"
+          ],
+          "description": "Parent conversation"
+        },
+        {
+          "key": "prompt_type",
+          "data_type": "string",
+          "required": true,
+          "options": {
+            "values": [
+              "confirm",
+              "alert",
+              "password",
+              "number",
+              "text",
+              "options"
+            ]
+          },
+          "description": "Type of input requested"
+        },
+        {
+          "key": "message",
+          "data_type": "string",
+          "required": true,
+          "description": "Display message / question"
+        },
+        {
+          "key": "options",
+          "data_type": "string",
+          "is_array": true,
+          "description": "Choice list for options/confirm types"
+        },
+        {
+          "key": "default_value",
+          "data_type": "string",
+          "description": "Pre-filled value or default option index"
+        },
+        {
+          "key": "validation",
+          "data_type": "object",
+          "description": "Type-specific validation: { min, max, integer, pattern, minLength, maxLength, required }"
+        },
+        {
+          "key": "timeout",
+          "data_type": "integer",
+          "default_value": 0,
+          "description": "Seconds before auto-dismiss (0 = no timeout)"
+        },
+        {
+          "key": "expires_at",
+          "data_type": "datetime",
+          "description": "Absolute expiry timestamp (computed from timeout)"
+        },
+        {
+          "key": "status",
+          "data_type": "string",
+          "default_value": "pending",
+          "options": {
+            "values": [
+              "pending",
+              "answered",
+              "dismissed",
+              "expired"
+            ]
+          },
+          "description": "Current state of the prompt"
+        },
+        {
+          "key": "metadata",
+          "data_type": "object",
+          "description": "Extra context: icon, severity, category"
+        }
+      ]
+    },
+    {
+      "id": "ai:prompt-response",
+      "class_id": "@class",
+      "name": "Prompt Response",
+      "namespace_id": "ai",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "description": "User response to an ai:prompt-request — includes confirm token for backend verification",
+      "props": [
+        {
+          "key": "request_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:prompt-request"
+          ],
+          "description": "Links to the prompt-request"
+        },
+        {
+          "key": "conversation_id",
+          "data_type": "relation",
+          "object_class_id": [
+            "ai:conversation"
+          ],
+          "description": "Parent conversation"
+        },
+        {
+          "key": "value",
+          "data_type": "string",
+          "description": "User answer (stringified): true/false for confirm, number string, selected index, free text"
+        },
+        {
+          "key": "valid",
+          "data_type": "boolean",
+          "description": "Passed client-side validation"
+        },
+        {
+          "key": "dismissed",
+          "data_type": "boolean",
+          "default_value": false,
+          "description": "User cancelled/dismissed"
+        },
+        {
+          "key": "confirm_token",
+          "data_type": "object",
+          "description": "Verification token: { timestamp: number, session_token: string }"
+        }
+      ]
+    },
+    {
+      "id": "ai:conversation",
+      "class_id": "@class",
+      "name": "AI Conversation",
+      "namespace_id": "ai",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "description": "A thread between participants. Messages ordered by created timestamp. Linked to project, task, agent.",
+      "storage": "storage_ai",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "user_id",
+          "description": "Owner/initiator of the conversation",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.user_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "agent_id",
+          "description": "Primary agent in this conversation",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.agent_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "project_ids",
+          "description": "Related projects",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:conversation.project_ids",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "task_id",
+          "description": "Related task",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.task_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "title",
+          "description": "Conversation title/summary",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.title",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "status",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.status",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "provider",
+          "description": "LLM provider",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.provider",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "model",
+          "description": "LLM model",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.model",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "created",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.created",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "last_message",
+          "description": "Timestamp of last message",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:conversation.last_message",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:message",
+      "class_id": "@class",
+      "name": "AI Message",
+      "namespace_id": "ai",
+      "extends_id": "core:atomObj",
+      "is_system": true,
+      "description": "Universal message in the pool. One message can produce multiple results (questions, decisions, tasks, findings, approvals).",
+      "storage": "storage_ai",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "user_id",
+          "description": "Person who sent this (server-set from JWT, or system for AI)",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.user_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "agent_id",
+          "description": "Agent that sent this message",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.agent_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "to_agents",
+          "description": "Agents that should act on this",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:message.to_agents",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "conversation_id",
+          "description": "Thread grouping (optional)",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.conversation_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "task_id",
+          "description": "Related task",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.task_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "project_ids",
+          "description": "Related projects",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:message.project_ids",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "round_id",
+          "description": "Execution round",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.round_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "role",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.role",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "content",
+          "description": "Plain text content",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.content",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "object",
+          "key": "chunks",
+          "description": "Rich content",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:message.chunks",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "object",
+          "key": "results",
+          "description": "Array of results — each has result_type + type-specific fields. One message can produce multiple questions, decisions, tasks, etc.",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:message.results",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "references",
+          "description": "Message IDs this responds to",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:message.references",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "status",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.status",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "object",
+          "key": "metadata",
+          "description": "Provider, model, tokens, timing",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.metadata",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "created",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:message.created",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:agent_behavior",
+      "class_id": "@class",
+      "name": "Agent Behavior",
+      "description": "Runtime behavior config — session, triggers, approval, cooldown, budget",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "session_mode",
+          "description": "fresh=new each run, persistent=keep alive, timed=keep for session_ttl",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.session_mode",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "session_ttl",
+          "description": "Seconds to keep session (timed mode). 0=unlimited",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.session_ttl",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "boolean",
+          "key": "auto_approve",
+          "description": "Can execute without CEO approval",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.auto_approve",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "requires_approval",
+          "description": "Actions needing approval: code_changes, decisions, task_creation",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:agent_behavior.requires_approval",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "trigger_on",
+          "description": "When to run: round, task_assigned, question_received, schedule",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:agent_behavior.trigger_on",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "schedule",
+          "description": "Cron or interval (e.g. 60m)",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.schedule",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "cooldown",
+          "description": "Min seconds between runs",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.cooldown",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "max_tokens_per_run",
+          "description": "Token budget per execution",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.max_tokens_per_run",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "max_rounds_per_session",
+          "description": "Rounds before forced session reset",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.max_rounds_per_session",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "on_error",
+          "description": "What to do on agent failure",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_behavior.on_error",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:question",
+      "class_id": "@class",
+      "name": "Question",
+      "description": "Agent question directed to agents or owner",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "name",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.name",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "question",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.question",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "from_agent",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.from_agent",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "to_agents",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:question.to_agents",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "to_title",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.to_title",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "context",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.context",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "round_id",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.round_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "status",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.status",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "answer",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.answer",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "answered_by",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.answered_by",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "created",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.created",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "answered_at",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:question.answered_at",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:agent_session",
+      "class_id": "@class",
+      "name": "Agent Session",
+      "description": "A session belonging to an agent — type identifies the runtime (claude, openai, etc.)",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "name",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.name",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "type",
+          "description": "Session runtime type",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.type",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "agent_id",
+          "description": "Owner agent",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.agent_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "session_id",
+          "description": "External session ID (e.g. claude CLI session ID)",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.session_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "status",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.status",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "mode",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.mode",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "started",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.started",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "last_activity",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.last_activity",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "expires_at",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.expires_at",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "rounds",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.rounds",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "tokens_used",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.tokens_used",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "integer",
+          "key": "messages",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.messages",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "worker_id",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.worker_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "cwd",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.cwd",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "git_branch",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.git_branch",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "model",
+          "description": "Model used in this session",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:agent_session.model",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:result_question",
+      "class_id": "@class",
+      "name": "Question Result",
+      "description": "Result shape when result_type=question",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "to_title",
+          "description": "Role title: owner, all, security, etc.",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_question.to_title",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "context",
+          "description": "Why this question matters",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_question.context",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "answer",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_question.answer",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "answered_by",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_question.answered_by",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "answered_at",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_question.answered_at",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "status",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_question.status",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:result_decision",
+      "class_id": "@class",
+      "name": "Decision Result",
+      "description": "Result shape when result_type=decision",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "topic",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_decision.topic",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "rationale",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_decision.rationale",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "priority",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_decision.priority",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "assigned_agents",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:result_decision.assigned_agents",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "boolean",
+          "key": "implemented",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_decision.implemented",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:result_task",
+      "class_id": "@class",
+      "name": "Task Result",
+      "description": "Result shape when result_type=task",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "task_id",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_task.task_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "action",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_task.action",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "summary",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_task.summary",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:result_finding",
+      "class_id": "@class",
+      "name": "Finding Result",
+      "description": "Result shape when result_type=finding",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "severity",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_finding.severity",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "category",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_finding.category",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "fix",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_finding.fix",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "location",
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:result_finding.location",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:result_approval",
+      "class_id": "@class",
+      "name": "Approval Result",
+      "description": "Result shape when result_type=approval",
+      "props": [
+        {
+          "data_type": "boolean",
+          "key": "approved",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_approval.approved",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "conditions",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_approval.conditions",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "reference_id",
+          "description": "ID of the message/question being approved",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:result_approval.reference_id",
+          "class_id": "@prop"
+        }
+      ]
+    }
+  ]
+}

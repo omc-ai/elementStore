@@ -26,8 +26,8 @@ class Prop extends EntityObj
     // Used for referencing property fields by name
     // =========================================================================
 
+    // Current prop field keys
     const PF_KEY = 'key';
-    const PF_NAME = 'name';
     const PF_LABEL = 'label';
     const PF_DESCRIPTION = 'description';
     const PF_DATA_TYPE = 'data_type';
@@ -37,15 +37,29 @@ class Prop extends EntityObj
     const PF_ON_ORPHAN = 'on_orphan';
     const PF_OPTIONS = 'options';
     const PF_EDITOR = 'editor';
-    const PF_REQUIRED = 'required';
-    const PF_READONLY = 'readonly';
     const PF_DEFAULT_VALUE = 'default_value';
     const PF_DISPLAY_ORDER = 'display_order';
-    const PF_GROUP_NAME = 'group_name';
+    const PF_FLAGS = 'flags';
+    const PF_CONTEXTS = 'contexts';
+
+    // Legacy constants — kept for backward compat in SystemClasses.php data entries
+    // These are normalized into flags{} by the Prop constructor
+    /** @deprecated Use 'flags' => ['required' => true] */
+    const PF_REQUIRED = 'required';
+    /** @deprecated Use 'flags' => ['readonly' => true] */
+    const PF_READONLY = 'readonly';
+    /** @deprecated Use 'flags' => ['hidden' => true] */
     const PF_HIDDEN = 'hidden';
+    /** @deprecated Use 'flags' => ['server_only' => true] */
     const PF_SERVER_ONLY = 'server_only';
+    /** @deprecated Use 'flags' => ['create_only' => true] */
     const PF_CREATE_ONLY = 'create_only';
+    /** @deprecated Use 'flags' => ['master_only' => true] */
     const PF_MASTER_ONLY = 'master_only';
+    /** @deprecated Grouping is now via contexts */
+    const PF_GROUP_NAME = 'group_name';
+    /** @deprecated Use PF_LABEL */
+    const PF_NAME = 'name';
 
     // =========================================================================
     // ORPHAN ACTION CONSTANTS
@@ -116,6 +130,9 @@ class Prop extends EntityObj
 
     /** @var mixed Default value for new objects */
     public mixed $default_value = null;
+
+    /** @var array|null Per-context overrides (grid, form, tree, etc.) — assoc map of context_name → @prop_context */
+    public ?array $contexts = null;
 
     /** @var int Display order in forms/tables */
     public int $display_order = 0;

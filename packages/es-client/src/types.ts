@@ -263,6 +263,19 @@ export interface PropOptions {
   [key: string]: unknown;
 }
 
+/**
+ * Flags object for property-level behavioral flags.
+ * Prefer flags.required over top-level required, etc.
+ */
+export interface PropFlags {
+  required?: boolean;
+  readonly?: boolean;
+  hidden?: boolean;
+  create_only?: boolean;
+  server_only?: boolean;
+  master_only?: boolean;
+}
+
 /** Property definition matching system.genesis.json @prop schema */
 export interface Prop {
   id: string;
@@ -273,7 +286,8 @@ export interface Prop {
   data_type: DataType;
   /** Multiplicity: false=scalar, true/'indexed'=ordered array, 'assoc'=key-value map */
   is_array?: ArrayMode;
-  object_class_id?: string;
+  /** Target class(es) for object/relation props. Can be a single ID or array of IDs. */
+  object_class_id?: string | string[] | null;
   object_class_strict?: boolean;
   on_orphan?: 'keep' | 'delete' | 'nullify';
   /**
@@ -283,18 +297,35 @@ export interface Prop {
    * For data_type: 'string' with enumerated values - contains values: string[]
    */
   options?: PropOptions | Array<{ value: string; label: string }>;
-  /** @editor ID — selects which editor to use for this property */
-  editor?: string;
+  /**
+   * Editor — either a string ID referencing an @editor, or an inline editor instance object.
+   * When an object, must contain at least { id: string }.
+   */
+  editor?: string | { id: string; [key: string]: unknown };
+  /**
+   * Behavioral flags. Prefer flags over top-level boolean properties.
+   * E.g., prefer flags.required over top-level required.
+   */
+  flags?: PropFlags;
   /** @deprecated Use editor + options instead */
   field_type?: string;
+  /** @deprecated Validation is now driven by options + data_type */
+  validators?: ValidatorConfig[];
+  /** @deprecated Prefer flags.required */
   required?: boolean;
+  /** @deprecated Prefer flags.readonly */
   readonly?: boolean;
+  /** @deprecated Prefer flags.create_only */
   create_only?: boolean;
   default_value?: unknown;
   display_order?: number;
+  /** @deprecated Use contexts or layout grouping instead */
   group_name?: string;
+  /** @deprecated Prefer flags.hidden */
   hidden?: boolean;
+  /** @deprecated Prefer flags.server_only */
   server_only?: boolean;
+  /** @deprecated Prefer flags.master_only */
   master_only?: boolean;
   /** Per-context overrides — assoc map of context_name → PropContext */
   contexts?: Record<string, PropContext>;

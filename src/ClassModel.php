@@ -265,6 +265,13 @@ class ClassModel
             'json' => new JsonStorageProvider(
                 self::resolveDir($config['dir'] ?? Constants::ES_DIR, $basePath)
             ),
+            'redis' => new RedisStorageProvider(
+                $config['host'] ?? 'localhost',
+                (int)($config['port'] ?? 6379),
+                $config['prefix'] ?? 'es:',
+                (int)($config['ttl'] ?? 0)
+            ),
+            'api' => new ApiStorageProvider($config),
             default => throw new StorageException("Unknown storage type: {$type}", 'config_error')
         };
     }
@@ -1030,8 +1037,12 @@ class ClassModel
      *
      * @return array ['data' => validated data, 'errors' => validation errors]
      */
-    private function validate(string $class_id, array $data, ?array $oldData = null): array
+    private function validate(string $class_id, array $data, ?array $oldData = null, int $depth = 0): array
     {
+        if ($depth > 20) {
+            return ['data' => $data, 'errors' => [['path' => '', 'message' => 'Maximum nesting depth (20) exceeded during validation', 'code' => 'MAX_DEPTH']]];
+        }
+
         $meta = $this->getClass($class_id);
         if ($meta === null) {
             return ['data' => $data, 'errors' => []];
@@ -1085,7 +1096,7 @@ class ClassModel
                         // Use primary target class for validation (first in array)
                         $targetClass = $prop->getPrimaryTargetClass();
                         if ($targetClass && !$this->isInlineReference($targetClass, $item)) {
-                            $nestedResult = $this->validate($targetClass, $item, $oldItem);
+                            $nestedResult = $this->validate($targetClass, $item, $oldItem, $depth + 1);
                             $mergedArray[] = $nestedResult['data'];
                             foreach ($nestedResult['errors'] as $err) {
                                 $err['path'] = "{$key}[{$i}].{$err['path']}";
@@ -1108,7 +1119,7 @@ class ClassModel
                         $result[$key] = $inputValue;
                         continue;
                     }
-                    $nestedResult = $this->validate($targetClass, $inputValue, $oldValue);
+                    $nestedResult = $this->validate($targetClass, $inputValue, $oldValue, $depth + 1);
                     $result[$key] = $nestedResult['data'];
                     foreach ($nestedResult['errors'] as $err) {
                         $err['path'] = "{$key}.{$err['path']}";

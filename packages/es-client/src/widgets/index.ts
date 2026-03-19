@@ -23,3 +23,7 @@ export type { PropertyDefinition } from './adapters.ts';
 
 export { getEditorLayout, getNestingStyle, columnWidths, ColumnWidthState, INDENT_PER_LEVEL, DEFAULT_COLUMNS, MIN_COLUMNS } from './EditorLayout.ts';
 export type { EditorColumnLayout, NestingStyle } from './EditorLayout.ts';
+
+export { EditorState, MAX_NESTING_DEPTH } from './EditorState.ts';
+
+export { RelationEditor } from './RelationEditor.ts';

@@ -83,6 +83,7 @@ async function geObjRef(prop, value, path, lvl, label, req, metaBtn, typeLabel) 
  * Render a single field (recursive)
  */
 async function geField(prop, value, path, lvl) {
+    if (lvl > 20) return '<span class="ge-error">Max nesting depth</span>';
     const dt = prop.data_type || 'string';
     const arrMode = elementStore.getArrayMode(prop);
     const isIndexed = arrMode === 'indexed';
