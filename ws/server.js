@@ -23,7 +23,9 @@ const { WebSocketServer } = require('ws');
 const url = require('url');
 
 const PORT = parseInt(process.env.WS_PORT || '3100', 10);
-const ES_API = process.env.ES_API_URL || 'http://elementstore_php83:9000';
+// ES API URL — must go through nginx (PHP-FPM is FastCGI, not HTTP)
+// Local dev: agura_web_1, Production: arc3d_nginx
+const ES_API = process.env.ES_API_URL || 'http://agura_web_1/elementStore';
 
 // Subscription maps
 const classSubs = new Map();    // class_id → Set<ws>
@@ -256,10 +258,19 @@ function fetchHistorical(ws, classId, limit, since, sort) {
         queryParams += '&updated_at_gte=' + encodeURIComponent(since);
     }
 
-    var fetchUrl = ES_API + '/query/' + encodeURIComponent(classId) + '?' + queryParams;
+    var fetchPath = '/query/' + encodeURIComponent(classId) + '?' + queryParams;
+    var fetchUrl = ES_API + fetchPath;
+
+    var parsedUrl = require('url').parse(fetchUrl);
+    var options = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || 80,
+        path: parsedUrl.path,
+        headers: { 'Host': process.env.ES_HOST || 'arc3d.master.local' }
+    };
 
     var proto = fetchUrl.startsWith('https') ? require('https') : require('http');
-    proto.get(fetchUrl, function(res) {
+    proto.get(options, function(res) {
         var data = '';
         res.on('data', function(chunk) { data += chunk; });
         res.on('end', function() {
