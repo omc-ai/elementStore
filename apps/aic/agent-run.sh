@@ -309,8 +309,13 @@ User message: ${msg_content}"
   # ── TX: Mark input → answered ──
   es_update "ai:message" "$msg_id" '{"status":"answered"}' > /dev/null 2>&1
 
-  # ── Update conversation status → active ──
-  es_update "ai:conversation" "$conv_id" "{\"status\":\"active\",\"last_message\":\"$(NOW)\"}" > /dev/null 2>&1
+  # ── Update conversation: status → active, auto-title from content ──
+  conv_title=$(echo "$result" | head -c 200 | tr '\n' ' ' | sed 's/^[#* -]*//' | head -c 60)
+  [ -z "$conv_title" ] && conv_title="Chat"
+  es_update "ai:conversation" "$conv_id" "$(jq -n \
+    --arg st "active" --arg lm "$(NOW)" --arg title "$conv_title" \
+    '{status:$st, last_message:$lm, title:$title}'
+  )" > /dev/null 2>&1
 
   # ── Update agent stats ──
   run_count=$(echo "$AGENT_DATA" | jq -r '.run_count // 0')

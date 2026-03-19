@@ -88,42 +88,42 @@ header h1{font-size:1.1em;color:#0550ae}
 .ch-tab .ch-dot.idle{background:#d1d9e0}
 .ch-tab .ch-unread{background:#cf222e;color:#fff;border-radius:8px;padding:0 5px;font-size:0.8em;margin-left:4px}
 
-/* Activity feed — WhatsApp style: messages at bottom, input pinned */
-.feed{overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding:4px;justify-content:flex-end;min-height:0}
-.feed-item{background:#fff;border:1px solid #e8e8e8;border-radius:4px;padding:4px 8px;font-size:0.78em;display:flex;gap:6px;align-items:flex-start;transition:background .15s}
-.feed-item:hover{background:#f6f8fa}
-.feed-item .fi-type{font-weight:600;font-size:0.68em;padding:0 4px;border-radius:3px;white-space:nowrap;flex-shrink:0;line-height:1.6}
-.feed-item .fi-body{flex:1;min-width:0;overflow:hidden}
-.feed-item .fi-body b{font-weight:600}
-.feed-item .fi-time{font-size:0.65em;color:#8b949e;white-space:nowrap;flex-shrink:0}
-.feed-item .fi-link{color:#0550ae;text-decoration:none;font-size:0.7em;flex-shrink:0}
-.feed-item .fi-meta{color:#8b949e;font-size:0.9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.feed-item .fi-detail{color:#59636e;margin-top:1px;max-height:2.4em;overflow:hidden;font-size:0.92em}
-.feed-item.fi-mine{border-left:2px solid #0550ae;background:#f8faff}
-/* Type colors */
-.fi-type.t-task{background:#fff8c5;color:#9a6700}
-.fi-type.t-question{background:#ddf4ff;color:#0550ae}
-.fi-type.t-decision{background:#f0f0ff;color:#6639ba}
-.fi-type.t-finding{background:#ffebe9;color:#cf222e}
-.fi-type.t-agent{background:#dafbe1;color:#1a7f37}
-.fi-type.t-worker{background:#f0f2f5;color:#59636e}
-.fi-type.t-round{background:#fff1e5;color:#bc4c00}
-.fi-type.t-session{background:#f0f2f5;color:#59636e}
-.fi-type.t-preference{background:#fff8c5;color:#9a6700}
-.fi-type.t-prompt{background:#f0f0ff;color:#6639ba}
-.fi-type.t-conversation{background:#f0f2f5;color:#59636e}
-.fi-type.t-message{background:#ddf4ff;color:#0550ae}
-.fi-type.t-request{background:#fff8c5;color:#9a6700}
-.fi-type.t-response{background:#dafbe1;color:#1a7f37}
-/* TX status indicators */
-.fi-status{font-size:0.65em;padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:600}
-.fi-status.pending{background:#fff8c5;color:#9a6700}
-.fi-status.processing{background:#ddf4ff;color:#0550ae}
-.fi-status.streaming{background:#dafbe1;color:#1a7f37;animation:blink-green 1.2s ease-in-out infinite}
-.fi-status.complete{background:#f0f2f5;color:#59636e}
-.fi-status.answered{background:#dafbe1;color:#1a7f37}
-.fi-status.error{background:#ffebe9;color:#cf222e}
-.feed-item.fi-mine{background:#f0f4ff;border-color:#0550ae}
+/* Chat feed — message-focused */
+.feed{overflow-y:auto;display:flex;flex-direction:column;gap:0;padding:0;min-height:0}
+.conv-title{padding:6px 12px;font-size:0.75em;color:#59636e;background:#f6f8fa;border-bottom:1px solid #e8e8e8;font-weight:500;position:sticky;top:0;z-index:2}
+
+/* Message bubble */
+.msg{padding:8px 12px;border-bottom:1px solid #f0f2f5;cursor:pointer;transition:background .1s}
+.msg:hover{background:#f6f8fa}
+.msg.expanded{background:#f6f8fa}
+.msg-hdr{display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.msg-avatar{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.65em;font-weight:700;flex-shrink:0;color:#fff}
+.msg-avatar.user{background:#0550ae}
+.msg-avatar.assistant{background:#1a7f37}
+.msg-avatar.system{background:#8b949e}
+.msg-name{font-weight:600;font-size:0.82em}
+.msg-time{font-size:0.68em;color:#8b949e;margin-left:auto}
+.msg-status{font-size:0.62em;padding:1px 5px;border-radius:3px;font-weight:600}
+.msg-status.pending{background:#fff8c5;color:#9a6700}
+.msg-status.processing{background:#ddf4ff;color:#0550ae}
+.msg-status.streaming{background:#dafbe1;color:#1a7f37;animation:blink-green 1.2s ease-in-out infinite}
+.msg-status.complete{display:none}
+.msg-status.answered{display:none}
+.msg-status.error{background:#ffebe9;color:#cf222e}
+
+/* Message content */
+.msg-content{font-size:0.85em;line-height:1.5;color:#1f2328;white-space:pre-wrap;word-break:break-word}
+.msg.collapsed .msg-content{max-height:3em;overflow:hidden;-webkit-mask-image:linear-gradient(180deg,#000 60%,transparent);mask-image:linear-gradient(180deg,#000 60%,transparent)}
+.msg.user-msg{background:#f0f4ff;border-left:2px solid #0550ae}
+.msg.streaming .msg-content{border-left:2px solid #1a7f37;padding-left:8px}
+.msg-expand{font-size:0.7em;color:#0550ae;cursor:pointer;margin-top:2px}
+
+/* Expanded logs */
+.msg-logs{margin-top:6px;padding:6px 8px;background:#f6f8fa;border:1px solid #e8e8e8;border-radius:4px;font-size:0.75em;display:none}
+.msg.expanded .msg-logs{display:block}
+.msg-log-row{display:flex;gap:8px;padding:2px 0;color:#59636e}
+.msg-log-row .label{font-weight:600;min-width:70px;color:#1f2328}
+.msg-log-row a{color:#0550ae;text-decoration:none}
 
 /* Question cards for owner */
 .q-card{padding:10px;border-bottom:1px solid #f0f2f5}
@@ -786,45 +786,49 @@ header h1{font-size:1.1em;color:#0550ae}
   var unreadCount = 0;
 
   function renderFeed() {
-    // Check if user was scrolled to bottom before render
     wasAtBottom = (feedEl.scrollTop + feedEl.clientHeight >= feedEl.scrollHeight - 30);
 
     var items = Object.values(feedItems);
 
+    // Messages only — the feed is a chat view
+    var messages = items.filter(function(item) {
+      return item.class_id === 'ai:message';
+    });
+
     // Filter by active channel
     if(activeChannel !== 'general') {
-      items = items.filter(function(item) {
-        // Show messages for this agent's conversations or directly addressed to this agent
-        if(item.class_id === 'ai:message') {
-          return item.agent_id === activeChannel ||
-            (item.to_agents && item.to_agents.indexOf(activeChannel) >= 0) ||
-            (item.conversation_id && channelConversations[activeChannel] === item.conversation_id);
-        }
-        if(item.class_id === 'ai:conversation') return item.agent_id === activeChannel;
-        if(item.class_id === 'ai:task') return item.agent_id === activeChannel;
-        if(item.class_id === 'ai:question') {
-          return item.from_agent === activeChannel ||
-            (item.to_agents && item.to_agents.indexOf(activeChannel) >= 0);
-        }
-        if(item.class_id === 'ai:worker') return item.current_agent === activeChannel;
-        return false;
+      messages = messages.filter(function(item) {
+        return item.agent_id === activeChannel ||
+          (item.to_agents && item.to_agents.indexOf(activeChannel) >= 0) ||
+          (item.conversation_id && channelConversations[activeChannel] === item.conversation_id);
       });
     }
 
-    items.sort(function(a,b) {
-      var da = a.updated_at || a.created || a.created_at || '';
-      var db = b.updated_at || b.created || b.created_at || '';
-      return da.localeCompare(db); // oldest first → newest at bottom
+    // Sort oldest → newest (chat style)
+    messages.sort(function(a,b) {
+      var da = a.created || a.created_at || a.updated_at || '';
+      var db = b.created || b.created_at || b.updated_at || '';
+      return da.localeCompare(db);
     });
-    if(items.length > MAX_FEED) items = items.slice(-MAX_FEED);
+    if(messages.length > MAX_FEED) messages = messages.slice(-MAX_FEED);
 
+    // Group by conversation — insert title headers
     var h = '';
-    for(var i = 0; i < items.length; i++) {
-      h += compactCard(items[i]);
+    var lastConv = '';
+    for(var i = 0; i < messages.length; i++) {
+      var m = messages[i];
+      var convId = m.conversation_id || '';
+      // Conversation title header
+      if(convId && convId !== lastConv) {
+        var convObj = feedItems[convId] || null;
+        var convTitle = convObj ? (convObj.title || 'Conversation') : 'Conversation';
+        h += '<div class="conv-title">' + esc(convTitle) + '</div>';
+        lastConv = convId;
+      }
+      h += messageCard(m);
     }
-    feedEl.innerHTML = h || '<div style="padding:12px;color:#8b949e;text-align:center;font-size:0.82em">No activity yet</div>';
+    feedEl.innerHTML = h || '<div style="padding:30px 12px;color:#8b949e;text-align:center;font-size:0.85em">No messages yet. Send one below.</div>';
 
-    // Auto-scroll to bottom if was already there
     if(wasAtBottom) {
       feedEl.scrollTop = feedEl.scrollHeight;
       unreadCount = 0;
@@ -852,260 +856,76 @@ header h1{font-size:1.1em;color:#0550ae}
     if(atBottom) { unreadCount = 0; updateFfBtn(); }
   });
 
-  // Compact card renderer — one line per item, type-specific
-  function compactCard(item) {
-    var cls = item.class_id || '';
-    var type = cls.replace('ai:','').replace('es:','');
-    var time = (item.updated_at || item.created || item.created_at || '').substring(11,19);
-    var link = '<a class="fi-link" href="'+objLink(cls,item.id)+'" target="_blank">&#x2197;</a>';
-    var isMine = item.user_id==='owner' || item.agent_id==='agent:owner';
-    var extra = isMine ? ' fi-mine' : '';
+  // Message card — chat bubble with expandable logs
+  function messageCard(item) {
+    var role = item.role || '?';
+    var status = item.status || '';
+    var isUser = role === 'user';
+    var isSystem = role === 'system';
+    var isStreaming = status === 'streaming';
+    var time = (item.created || item.created_at || item.updated_at || '').substring(11,19);
+    var content = item.content || '';
+    var collapsed = content.length > 200 && !isStreaming ? ' collapsed' : '';
 
-    var body = '';
-    var detail = '';
+    // Avatar
+    var avatarCls = isUser ? 'user' : (isSystem ? 'system' : 'assistant');
+    var avatarLetter = isUser ? 'U' : (isSystem ? 'S' : (agentName(item.agent_id)||'A').charAt(0));
+    var name = isUser ? agentName(item.user_id || 'owner') : (isSystem ? 'system' : agentName(item.agent_id));
 
-    switch(cls) {
-      case 'ai:message':
-        var role = item.role || '?';
-        var mst = item.status || '';
-        var stBadge = (mst && mst !== 'complete' && mst !== 'answered') ? '<span class="fi-status '+mst+'">'+mst+'</span>' : '';
-        if(role === 'user') {
-          body = '<b>'+agentName(item.agent_id||item.user_id)+'</b>: '+esc(str(item.content,120))+stBadge;
-        } else if(role === 'system') {
-          body = '<span style="color:#8b949e">'+esc(str(item.content,100))+'</span>';
-        } else {
-          body = '<b>'+agentName(item.agent_id)+'</b> → '+esc(str(item.content,100))+stBadge;
-          var parts = [];
-          if(item.metadata) {
-            if(item.metadata.duration_s) parts.push(item.metadata.duration_s+'s');
-            if(item.metadata.model) parts.push(item.metadata.model);
-            if(item.metadata.provider_id) parts.push(item.metadata.provider_id.replace('provider:',''));
-          }
-          if(parts.length) detail = parts.join(' · ');
-        }
-        break;
-      case 'ai:task':
-        body = bg(item.priority||'?',(item.priority||'').toLowerCase())+' '+esc(str(item.name,80));
-        if(item.status==='done') body += ' '+bg('done','done');
-        else body += ' <span style="color:#8b949e">'+item.status+'</span>';
-        if(item.result) detail = esc(str(item.result,60));
-        break;
-      case 'ai:question':
-        body = '<b>'+agentName(item.from_agent)+'</b> → '+(item.to_agents?item.to_agents.map(agentName).join(','):(item.to_title||'all'));
-        detail = esc(str(item.question||item.name,80));
-        if(item.answer) detail += ' <span style="color:#1a7f37">A: '+esc(str(item.answer,40))+'</span>';
-        break;
-      case 'ai:decision':
-        body = bg(item.priority||'P2',(item.priority||'').toLowerCase())+' '+esc(str(item.topic||item.name,80));
-        break;
-      case 'es:finding':
-        body = bg(item.severity||'?',item.severity||'medium')+' '+esc(str(item.name,80));
-        break;
-      case 'ai:worker':
-        var st = item.status||'stopped';
-        body = st.toUpperCase()+(item.current_agent?' — '+agentName(item.current_agent):'');
-        break;
-      case 'ai:round':
-        body = 'Round '+(item.round_number||'?')+(item.summary?' — '+esc(str(item.summary,60)):'');
-        break;
-      case 'ai:conversation':
-        body = agentName(item.agent_id)+' — '+(item.title||'conversation');
-        break;
-      default:
-        body = esc(str(item.name||item.content||item.id,80));
+    // Status badge (only show non-final states)
+    var stHtml = '';
+    if(status && status !== 'complete' && status !== 'answered') {
+      stHtml = '<span class="msg-status '+status+'">'+status+'</span>';
     }
 
-    return '<div class="feed-item'+extra+'" id="fi-'+item.id+'">'+
-      '<span class="fi-type t-'+type+'">'+type+'</span>'+
-      '<div class="fi-body">'+body+(detail?'<div class="fi-detail">'+detail+'</div>':'')+'</div>'+
-      '<span class="fi-time">'+time+'</span>'+
-      link+'</div>';
+    // Build logs section (hidden until expanded)
+    var logs = '';
+    if(!isSystem) {
+      logs += '<div class="msg-logs">';
+      logs += '<div class="msg-log-row"><span class="label">ID</span><span>'+item.id+'</span></div>';
+      if(item.conversation_id) logs += '<div class="msg-log-row"><span class="label">Conv</span><span>'+item.conversation_id+'</span></div>';
+      if(status) logs += '<div class="msg-log-row"><span class="label">Status</span><span>'+status+'</span></div>';
+      if(item.metadata) {
+        var md = item.metadata;
+        if(md.provider_id) logs += '<div class="msg-log-row"><span class="label">Provider</span><span>'+md.provider_id+'</span></div>';
+        if(md.model) logs += '<div class="msg-log-row"><span class="label">Model</span><span>'+md.model+'</span></div>';
+        if(md.duration_s) logs += '<div class="msg-log-row"><span class="label">Duration</span><span>'+md.duration_s+'s</span></div>';
+        if(md.input_tokens) logs += '<div class="msg-log-row"><span class="label">Tokens in</span><span>'+md.input_tokens+'</span></div>';
+        if(md.output_tokens) logs += '<div class="msg-log-row"><span class="label">Tokens out</span><span>'+md.output_tokens+'</span></div>';
+      }
+      if(item.references && item.references.length) logs += '<div class="msg-log-row"><span class="label">Refs</span><span>'+item.references.join(', ')+'</span></div>';
+      if(item.to_agents && item.to_agents.length) logs += '<div class="msg-log-row"><span class="label">To</span><span>'+item.to_agents.map(agentName).join(', ')+'</span></div>';
+      logs += '<div class="msg-log-row"><a href="'+objLink('ai:message',item.id)+'" target="_blank">Open in admin ↗</a></div>';
+      logs += '</div>';
+    }
+
+    var extraCls = isUser ? ' user-msg' : '';
+    if(isStreaming) extraCls += ' streaming';
+
+    return '<div class="msg'+collapsed+extraCls+'" id="fi-'+item.id+'" onclick="toggleMsg(this)">' +
+      '<div class="msg-hdr">' +
+        '<div class="msg-avatar '+avatarCls+'">'+avatarLetter+'</div>' +
+        '<span class="msg-name">'+name+'</span>' +
+        stHtml +
+        '<span class="msg-time">'+time+'</span>' +
+      '</div>' +
+      '<div class="msg-content">'+esc(content)+'</div>' +
+      (collapsed ? '<div class="msg-expand">show more</div>' : '') +
+      logs +
+    '</div>';
   }
 
-  // Legacy feedCard wrapper — redirects to feedUpsert
-  function feedCard(classId, item, isDelete) {
-    var type = classId.replace('ai:','').replace('es:','');
-    var now = new Date().toLocaleTimeString();
-    var link = '<a href="'+objLink(classId,item.id)+'" target="_blank" style="color:#0550ae;font-size:0.72em;text-decoration:none" title="Open in admin">&#x2197;</a>';
-
-    if (isDelete) {
-      return '<div class="feed-item" style="opacity:0.6"><div class="fi-hdr"><span class="fi-type t-'+type+'">'+type+' removed</span><span class="fi-time">'+now+'</span></div><div class="fi-body" style="color:#59636e">'+esc(item.id)+'</div></div>';
+  window.toggleMsg = function(el) {
+    if(el.classList.contains('collapsed')) {
+      el.classList.remove('collapsed');
+      var exp = el.querySelector('.msg-expand');
+      if(exp) exp.textContent = '';
+    } else if(el.classList.contains('expanded')) {
+      el.classList.remove('expanded');
+    } else {
+      el.classList.add('expanded');
     }
-
-    var extraClass = '';
-    var h = '<div class="feed-item"><div class="fi-hdr"><span class="fi-type t-'+type+'">';
-    var body = '';
-    var meta = '';
-
-    switch(classId) {
-      case 'ai:worker':
-        // Worker: "CEO started running prompt #prompt:ceo"
-        var wst=document.getElementById('w-st');
-        var winfo=document.getElementById('w-info');
-        var st=item.status||'stopped';
-        wst.textContent=st.toUpperCase()+(item.current_agent?' — '+agentName(item.current_agent):'');
-        wst.className='w-st '+st;
-        var wp=[];
-        if(item.pid)wp.push('PID:'+item.pid);
-        if(item.rounds_completed)wp.push('R:'+item.rounds_completed);
-        if(item.last_heartbeat)wp.push(item.last_heartbeat.substring(11,19));
-        winfo.textContent=wp.join(' | ');
-
-        if(item.current_agent && st==='running') {
-          h += 'running</span><span class="fi-time">'+now+'</span></div>';
-          body = '<b>'+agentName(item.current_agent)+'</b> started executing';
-          if(item.current_round) meta = 'round: '+item.current_round;
-        } else if(st==='stopped' || st==='idle') {
-          h += st+'</span><span class="fi-time">'+now+'</span></div>';
-          body = 'Worker '+st+(item.rounds_completed?' after '+item.rounds_completed+' rounds':'');
-        } else {
-          h += st+'</span><span class="fi-time">'+now+'</span></div>';
-          body = 'Worker: '+st;
-        }
-        break;
-
-      case 'ai:task':
-        var isDone = item.status==='done';
-        h += (isDone?'completed':'task')+'</span><span class="fi-time">'+now+'</span></div>';
-        body = bg(item.priority||'?',(item.priority||'').toLowerCase())+' ';
-        body += '<b>'+esc(str(item.name,60))+'</b> ';
-        body += link;
-        if(item.project) body += ' <code style="font-size:0.75em">'+esc(item.project)+'</code>';
-        body += ' '+bg(item.status||'open',item.status==='done'?'done':item.status==='in_progress'?'progress':'open');
-        if(isDone && item.result) body += '<div style="color:#59636e;margin-top:3px;font-size:0.9em">'+esc(str(item.result,150))+'</div>';
-        if(item.agent_id) meta = 'assigned: '+agentName(item.agent_id);
-        break;
-
-      case 'ai:question':
-        var isAnswered = item.status==='answered';
-        h += (isAnswered?'answered':'question')+'</span><span class="fi-time">'+now+'</span></div>';
-        var qTo = item.to_agents&&item.to_agents.length ? item.to_agents.map(agentName).join(', ') : (item.to_title||'all');
-        body = '<b>'+agentName(item.from_agent)+'</b> → <b>'+qTo+'</b> '+link;
-        body += '<div style="margin-top:3px">'+esc(str(item.question,180))+'</div>';
-        if(isAnswered && item.answer) {
-          body += '<div style="color:#1a7f37;margin-top:3px;border-top:1px solid #d1d9e0;padding-top:3px"><b>Answer:</b> '+esc(str(item.answer,150))+'</div>';
-        }
-        break;
-
-      case 'ai:decision':
-        h += 'decision</span><span class="fi-time">'+now+'</span></div>';
-        body = bg(item.priority||'P2',(item.priority||'').toLowerCase())+' ';
-        body += '<b>'+esc(str(item.topic||item.name,80))+'</b> '+link;
-        if(item.decision) body += '<div style="margin-top:3px;color:#59636e">'+esc(str(item.decision,150))+'</div>';
-        if(item.assigned_agents&&item.assigned_agents.length) meta = 'assigned: '+item.assigned_agents.map(agentName).join(', ');
-        break;
-
-      case 'es:finding':
-        h += 'finding</span><span class="fi-time">'+now+'</span></div>';
-        body = bg(item.severity||'medium',item.severity||'medium')+' ';
-        body += '<b>'+esc(item.name||item.id)+'</b> '+link;
-        if(item.project) body += ' <code style="font-size:0.75em">'+esc(item.project)+'</code>';
-        if(item.fix) body += '<div style="color:#59636e;margin-top:3px">Fix: '+esc(str(item.fix,120))+'</div>';
-        break;
-
-      case 'ai:agent':
-        h += 'agent</span><span class="fi-time">'+now+'</span></div>';
-        body = '<b>'+esc(item.name)+'</b>';
-        if(item.title) body += ' — '+esc(item.title);
-        body += ' '+link;
-        meta = (item.run_count||0)+' runs'+(item.last_run?' &middot; last: '+item.last_run.substring(11,19):'');
-        break;
-
-      case 'ai:round':
-        h += 'round</span><span class="fi-time">'+now+'</span></div>';
-        body = '<b>Round '+(item.round_number||'?')+'</b>';
-        if(item.completed) body += ' '+bg('done','done');
-        if(item.summary) body += '<div style="color:#59636e;margin-top:3px">'+esc(str(item.summary,100))+'</div>';
-        if(item.agents_completed&&item.agents_completed.length) meta = item.agents_completed.length+' agents completed';
-        break;
-
-      case 'ai:preference':
-        h += 'preference</span><span class="fi-time">'+now+'</span></div>';
-        body = '<b>'+esc(item.name||item.id)+'</b> '+link;
-        body += '<div style="margin-top:3px">'+esc(str(item.rule,120))+'</div>';
-        meta = 'confidence: '+bg(item.confidence||'low','p2')+' ('+(item.times_confirmed||0)+'x confirmed)';
-        break;
-
-      case 'ai:prompt':
-        h += 'prompt</span><span class="fi-time">'+now+'</span></div>';
-        body = '<b>'+esc(item.name||item.id)+'</b>';
-        if(item.agent_id) body += ' for '+agentName(item.agent_id);
-        body += ' '+link;
-        meta = 'type: '+(item.type||'?')+' &middot; '+(item.template?item.template.length+' chars':'no template');
-        break;
-
-      case 'ai:agent_session':
-        h += 'session</span><span class="fi-time">'+now+'</span></div>';
-        body = '<b>'+agentName(item.agent_id)+'</b> session '+(item.status||'?');
-        body += ' '+link;
-        meta = (item.type||'?')+' &middot; '+(item.rounds||0)+' rounds &middot; '+(item.tokens_used||0)+' tokens';
-        break;
-
-      case 'ai:conversation':
-        h += 'conversation</span><span class="fi-time">'+now+'</span></div>';
-        body = '<b>'+agentName(item.agent_id)+'</b>';
-        if(item.title) body += ' — '+esc(item.title);
-        body += ' '+link;
-        body += ' '+bg(item.status||'?',item.status==='active'?'open':'done');
-        break;
-
-      case 'ai:message':
-        var mRole = item.role||'?';
-        var isUser = mRole==='user';
-        var isMine = item.user_id==='owner' || item.agent_id==='agent:owner';
-        var isSystem = mRole==='system';
-        h += (isSystem?'system':isUser?'message':'response')+'</span><span class="fi-time">'+now+'</span></div>';
-        body = '<b>'+agentName(item.agent_id||item.user_id)+'</b> ';
-        if(isUser) {
-          if(item.content) body += '<div style="margin-top:3px">'+esc(str(item.content,300))+'</div>';
-        } else if(isSystem) {
-          if(item.content) body += '<span style="color:#59636e">'+esc(str(item.content,150))+'</span>';
-        } else {
-          body += '<span style="color:#1a7f37">responded</span>';
-          if(item.content) body += '<div style="margin-top:3px;max-height:80px;overflow:hidden">'+esc(str(item.content,300))+'</div>';
-          var rm = item.metadata||{};
-          meta = (rm.response_chars||rm.prompt_chars?(rm.response_chars||rm.prompt_chars)+' chars':'')+(rm.duration_s?' &middot; '+rm.duration_s+'s':'');
-        }
-        body += ' '+link;
-        if(item.to_agents&&item.to_agents.length) meta += (meta?' &middot; ':'')+'to: '+item.to_agents.map(agentName).join(', ');
-        if(isMine) extraClass = ' fi-mine';
-        break;
-
-      default:
-        h += type+'</span><span class="fi-time">'+now+'</span></div>';
-        body = '<b>'+esc(item.name||item.id||'?')+'</b> '+link;
-        meta = classId+'/'+item.id;
-    }
-
-    if(extraClass) h = h.replace('class="feed-item"', 'class="feed-item'+extraClass+'"');
-    h += '<div class="fi-body">'+body+'</div>';
-    if(meta) h += '<div class="fi-meta">'+meta+'</div>';
-    h += '</div>';
-    return h;
-  }
-
-  function addToFeed(html, itemId) {
-    // If item already in feed, update in place
-    if(itemId && feedIds[itemId]) {
-      feedIds[itemId].outerHTML = html;
-      // Re-find element after replacement
-      var newEl = document.getElementById('fi-'+itemId);
-      if(newEl) feedIds[itemId] = newEl;
-      return;
-    }
-    feedEl.insertAdjacentHTML('afterbegin', html);
-    // Track by ID
-    if(itemId) {
-      var el = feedEl.firstElementChild;
-      if(el) { el.id = 'fi-'+itemId; feedIds[itemId] = el; }
-    }
-    // Trim old items
-    while(feedEl.children.length > MAX_FEED) {
-      var last = feedEl.lastChild;
-      if(last && last.id) delete feedIds[last.id.replace('fi-','')];
-      feedEl.removeChild(last);
-    }
-  }
+  };
 
   function esc(s){return s?String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
   function str(s,n){return s?(s.length>n?s.substring(0,n)+'...':s):''}
