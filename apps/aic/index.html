@@ -68,6 +68,20 @@ header h1{font-size:1.1em;color:#0550ae}
 .modal textarea{width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.88em;font-family:inherit;resize:vertical}
 .modal select{padding:5px 8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.85em}
 
+/* Agent modal tabs */
+.m-tab{padding:5px 12px;border:none;background:none;cursor:pointer;font-size:0.8em;font-weight:500;color:#59636e;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .1s}
+.m-tab.active{color:#0550ae;border-bottom-color:#0550ae}
+.m-tab:hover{color:#0550ae}
+.m-tab-bar{display:flex;gap:0;border-bottom:1px solid #d1d9e0;margin:8px 0 10px}
+
+/* Rich q-card for agent-to-agent questions */
+.q-card-agent{padding:8px 10px;border-bottom:1px solid #f0f2f5;cursor:pointer;transition:background .1s}
+.q-card-agent:hover{background:#f6f8fa}
+.q-card-agent:last-child{border-bottom:none}
+.q-card-agent .q-hdr{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:3px}
+.q-card-agent .q-body{font-size:0.82em;color:#1f2328;line-height:1.4}
+.q-card-agent .q-more{font-size:0.72em;color:#0550ae;margin-top:2px}
+
 /* Worker bar */
 .worker-bar{display:flex;gap:10px;align-items:center;padding:8px 12px;font-size:0.82em}
 .w-st{font-weight:700}.w-st.running{color:#1a7f37}.w-st.idle{color:#0550ae}.w-st.stopped{color:#59636e}
@@ -192,11 +206,11 @@ header h1{font-size:1.1em;color:#0550ae}
 <!-- LEFT: Workers + Agents + Decisions -->
 <div class="col" style="overflow-y:auto">
   <div class="card" style="flex-shrink:0;max-height:300px;display:flex;flex-direction:column">
-    <div class="card-hdr" style="flex-shrink:0">Workers <span class="count" id="worker-count">0</span></div>
+    <div class="card-hdr" style="flex-shrink:0">Workers <span class="count" id="worker-count">0</span> <label style="font-weight:400;font-size:0.85em;margin-left:auto;cursor:pointer"><input type="checkbox" id="wk-only-active" onchange="load()" style="margin-right:3px">active only</label></div>
     <div class="card-body" id="workers-list" style="padding:0;overflow-y:auto;flex:1"></div>
   </div>
   <div class="card" style="flex-shrink:0">
-    <div class="card-hdr">Agents <span class="count" id="agent-count">0</span></div>
+    <div class="card-hdr">Agents <span class="count" id="agent-count">0</span> <label style="font-weight:400;font-size:0.85em;margin-left:auto;cursor:pointer"><input type="checkbox" id="ag-only-active" onchange="load()" style="margin-right:3px">active only</label></div>
     <div class="card-body" id="agents" style="padding:0"></div>
   </div>
   <div class="card" style="flex-shrink:0">
@@ -271,9 +285,22 @@ header h1{font-size:1.1em;color:#0550ae}
     <button class="close" onclick="document.getElementById('agent-modal').classList.remove('open')">&times;</button>
     <h2 id="m-name"></h2>
     <div class="meta-row" id="m-meta"></div>
-    <div class="modal-sessions" id="m-sessions"></div>
-    <h3 style="font-size:0.85em;color:#59636e;margin:12px 0 4px">Prompt</h3>
-    <pre id="m-prompt">No prompt</pre>
+    <div class="m-tab-bar">
+      <button class="m-tab active" onclick="switchAgentTab('prompt')">Prompt</button>
+      <button class="m-tab" onclick="switchAgentTab('tasks')">Tasks</button>
+      <button class="m-tab" onclick="switchAgentTab('feed')">Feed</button>
+    </div>
+    <div id="m-pane-prompt">
+      <div class="modal-sessions" id="m-sessions"></div>
+      <h3 style="font-size:0.85em;color:#59636e;margin:0 0 4px">Prompt</h3>
+      <pre id="m-prompt">No prompt</pre>
+    </div>
+    <div id="m-pane-tasks" style="display:none">
+      <div id="m-tasks" style="font-size:0.85em"></div>
+    </div>
+    <div id="m-pane-feed" style="display:none">
+      <div id="m-feed" style="font-size:0.85em;color:#59636e">Switch to agent channel in feed to view messages.</div>
+    </div>
   </div>
 </div>
 
@@ -340,16 +367,39 @@ header h1{font-size:1.1em;color:#0550ae}
   async function load(){
     try {
       var agents = await fetch(API+'/store/ai:agent').then(r=>r.json());
+      var assistants = []; try{assistants=await fetch(API+'/store/ai:assistant').then(r=>r.ok?r.json():[]);}catch(e){}
+      // Merge assistants into agents list (they extend ai:agent)
+      assistants.forEach(function(a){ if(!agents.find(function(ag){return ag.id===a.id})) agents.push(a); });
       var tasks = await fetch(API+'/store/ai:task').then(r=>r.json());
       var questions = await fetch(API+'/store/ai:question').then(r=>r.json());
       var decisions = await fetch(API+'/store/ai:decision').then(r=>r.json());
       var workers = []; try{workers=await fetch(API+'/store/ai:worker').then(r=>r.ok?r.json():[]);}catch(e){}
       var sessions = []; try{sessions=await fetch(API+'/store/ai:agent_session').then(r=>r.ok?r.json():[]);}catch(e){}
       window._sessions = sessions;
+      window._tasks = tasks;
+
+      // Build agent → last open task map
+      var agentLastTask = {};
+      tasks.forEach(function(t) {
+        if(t.agent_id && t.status !== 'done' && t.status !== 'completed') {
+          var existing = agentLastTask[t.agent_id];
+          // prefer in_progress over open; then by step
+          var tPriority = t.status === 'in_progress' ? 1 : 0;
+          var ePriority = existing ? (existing.status === 'in_progress' ? 1 : 0) : -1;
+          if(!existing || tPriority > ePriority) agentLastTask[t.agent_id] = t;
+        }
+      });
+      window._agentLastTask = agentLastTask;
 
       // Workers list — show daemon + all agents as workers
       var activeWorker = workers[0] || null;
       var runningAgentIds = {};
+      // Check all workers for running agents (AIC daemon + ASI workers)
+      workers.forEach(function(w) {
+        if((w.status === 'running' || w.status === 'listening') && w.current_agent) {
+          runningAgentIds[w.current_agent] = true;
+        }
+      });
       if(activeWorker && activeWorker.status === 'running' && activeWorker.current_agent) {
         runningAgentIds[activeWorker.current_agent] = true;
       }
@@ -386,10 +436,13 @@ header h1{font-size:1.1em;color:#0550ae}
         wkh += '</div></div>';
       }
       // Agent rows as workers — click to switch channel
+      var wkOnlyActive = document.getElementById('wk-only-active').checked;
+      var wkVisibleCount = 0;
       agents.forEach(function(a) {
-        if(a.id === 'agent:owner') return; // skip owner
         var isRunning = !!runningAgentIds[a.id];
         var agSt = isRunning ? 'running' : (a.last_run ? 'idle' : 'stopped');
+        if(wkOnlyActive && !isRunning) return;
+        wkVisibleCount++;
         var isSel = activeChannel === a.id;
         wkh += '<div class="wk" style="cursor:pointer;'+(isSel?'background:#f0f4ff;border-left:2px solid #0550ae;':'')+'" onclick="switchChannel(\''+a.id+'\')">';
         wkh += '<span class="wk-dot '+agSt+'"></span><div class="wk-info">';
@@ -397,10 +450,12 @@ header h1{font-size:1.1em;color:#0550ae}
         var ap = [isRunning ? 'RUNNING' : 'IDLE'];
         if(a.run_count) ap.push(a.run_count+' runs');
         if(a.last_run) ap.push(a.last_run.substring(11,19));
+        var wkTask = agentLastTask[a.id];
+        if(wkTask) ap.push('Task: '+(wkTask.name||'?').substring(0,22)+(wkTask.name&&wkTask.name.length>22?'…':''));
         wkh += '<div class="wk-meta">'+ap.join(' &middot; ')+'</div>';
         wkh += '</div></div>';
       });
-      document.getElementById('worker-count').textContent = agents.filter(function(a){return a.id!=='agent:owner'}).length;
+      document.getElementById('worker-count').textContent = wkVisibleCount;
       document.getElementById('workers-list').innerHTML = wkh || '<div style="padding:8px;color:#59636e;font-size:0.82em">No workers</div>';
 
       window._agents = agents;
@@ -421,19 +476,24 @@ header h1{font-size:1.1em;color:#0550ae}
       }
 
       // Agents
-      document.getElementById('agent-count').textContent=agents.length;
+      var agOnlyActive = document.getElementById('ag-only-active').checked;
+      var agVisibleCount = 0;
       var ah='';
       agents.forEach(function(a,i){
         var isAct=!!runningAgentIds[a.id];
+        if(agOnlyActive && !isAct) return;
+        agVisibleCount++;
         ah+='<div class="agent'+(isAct?' active':'')+'" onclick="switchChannel(\''+a.id+'\')" ondblclick="showAgent('+i+')">';
         ah+='<span class="agent-dot '+(isAct?'running':'idle')+'"></span>';
         ah+='<div class="ord">'+(a.execution_order||'?')+'</div>';
         ah+='<div class="info"><div class="name">'+a.name+'</div>';
         ah+='<div class="meta">'+(a.title||'')+(a.run_count?' &middot; '+a.run_count+' runs':'')+'</div>';
-        if(a.prompt)ah+='<div class="prompt-len">'+a.prompt.length+' chars</div>';
+        var agTask = agentLastTask[a.id];
+        if(agTask) ah+='<div class="prompt-len" style="color:'+(agTask.status==='in_progress'?'#9a6700':'#59636e')+'">'+agTask.name.substring(0,28)+(agTask.name.length>28?'…':'')+'</div>';
         ah+='</div></div>';
       });
-      document.getElementById('agents').innerHTML=ah||'<div style="padding:12px;color:#59636e">No agents</div>';
+      document.getElementById('agent-count').textContent=agVisibleCount+'/'+agents.length;
+      document.getElementById('agents').innerHTML=ah||'<div style="padding:12px;color:#59636e">'+(agOnlyActive?'No active agents':'No agents')+'</div>';
 
       // Tasks
       var openT=tasks.filter(function(t){return t.status!=='done'});
@@ -483,12 +543,24 @@ header h1{font-size:1.1em;color:#0550ae}
       });
       document.getElementById('q-mine').innerHTML = mh;
 
-      // Compact list for agent-to-agent questions
+      // Compact list for agent-to-agent questions — rich cards
       var oh = '';
       qForAgents.forEach(function(q) {
         var to = q.to_agents ? q.to_agents.map(agentName).join(', ') : '?';
-        oh += '<div class="question"><div class="q-from">'+agentName(q.from_agent)+' → '+to+'</div>';
-        oh += '<div class="q-text">'+esc(str(q.question,100))+'</div></div>';
+        var stCls = q.status==='open'?'open':(q.status==='answered'?'done':'p3');
+        var fullText = q.question || '';
+        var shortText = fullText.length > 90 ? fullText.substring(0, 90) + '…' : fullText;
+        var isLong = fullText.length > 90;
+        oh += '<div class="q-card-agent" onclick="toggleQCardAgent(\''+q.id+'\')">';
+        oh += '<div class="q-hdr">';
+        oh += '<span style="font-size:0.78em;font-weight:600;color:#0550ae">'+esc(agentName(q.from_agent))+' → '+esc(to)+'</span>';
+        if(q.project) oh += '<span class="badge b-p3">'+esc(q.project)+'</span>';
+        if(q.priority) oh += '<span class="badge b-'+((q.priority||'').toLowerCase())+'">'+esc(q.priority)+'</span>';
+        oh += '<span class="badge b-'+stCls+'">'+esc(q.status||'open')+'</span>';
+        oh += '</div>';
+        oh += '<div class="q-body" id="qt-'+q.id+'">'+esc(shortText)+'</div>';
+        if(isLong) oh += '<div class="q-more" id="qt-more-'+q.id+'">show more</div>';
+        oh += '</div>';
       });
       document.getElementById('q-others').innerHTML = oh || '<div style="padding:8px;color:#59636e;font-size:0.82em">No agent-to-agent questions</div>';
 
@@ -553,6 +625,27 @@ header h1{font-size:1.1em;color:#0550ae}
     document.getElementById('q-expand-icon').innerHTML = qExpanded ? '&#9650;' : '&#9660;';
   };
 
+  // Toggle expandable agent-to-agent question card
+  window.toggleQCardAgent = function(qid) {
+    var q = (window._questions||[]).find(function(x){return x.id===qid});
+    if(!q) return;
+    var textEl = document.getElementById('qt-'+qid);
+    var moreEl = document.getElementById('qt-more-'+qid);
+    if(!textEl) return;
+    if(textEl.dataset.expanded) {
+      var full = q.question||'';
+      textEl.textContent = full.length > 90 ? full.substring(0,90)+'…' : full;
+      textEl.style.overflow = '';
+      delete textEl.dataset.expanded;
+      if(moreEl) moreEl.textContent = 'show more';
+    } else {
+      textEl.textContent = q.question||'';
+      textEl.style.overflow = 'visible';
+      textEl.dataset.expanded = '1';
+      if(moreEl) moreEl.textContent = 'show less';
+    }
+  };
+
   window.toggleAnswerBox = function(qid) {
     var box = document.getElementById('qa-'+qid);
     box.style.display = box.style.display === 'none' ? 'block' : 'none';
@@ -569,6 +662,16 @@ header h1{font-size:1.1em;color:#0550ae}
     var card = document.getElementById('qc-'+qid);
     if(card) { card.classList.add('answered'); card.querySelector('.q-actions').innerHTML = '<span style="color:#1a7f37;font-size:0.82em">Answered: '+esc(str(answer,40))+'</span>'; }
     setTimeout(load, 500);
+  };
+
+  // ─── Agent modal tabs ────────────────────────────────────
+  window.switchAgentTab = function(tab) {
+    document.querySelectorAll('.m-tab').forEach(function(t) { t.classList.remove('active'); });
+    var activeBtn = document.querySelector('.m-tab-bar .m-tab:nth-child('+(tab==='prompt'?1:tab==='tasks'?2:3)+')');
+    if(activeBtn) activeBtn.classList.add('active');
+    document.getElementById('m-pane-prompt').style.display = tab === 'prompt' ? '' : 'none';
+    document.getElementById('m-pane-tasks').style.display = tab === 'tasks' ? '' : 'none';
+    document.getElementById('m-pane-feed').style.display = tab === 'feed' ? '' : 'none';
   };
 
   // ─── Agent modal ────────────────────────────────────────
@@ -602,6 +705,26 @@ header h1{font-size:1.1em;color:#0550ae}
     document.getElementById('m-sessions').innerHTML=sh;
 
     document.getElementById('m-prompt').textContent=a.prompt||'(no prompt)';
+
+    // Populate tasks tab
+    var agentTasks = (window._tasks||[]).filter(function(t){return t.agent_id===a.id || t.project===a.id});
+    var tasksByStatus = {in_progress:[], open:[], done:[]};
+    agentTasks.forEach(function(t){ var s=t.status||'open'; tasksByStatus[tasksByStatus[s]?s:'open'].push(t); });
+    if(!tasksByStatus.in_progress) tasksByStatus.in_progress=[];
+    var taskOrder = tasksByStatus.in_progress.concat(tasksByStatus.open||[]).concat(tasksByStatus.done||[]);
+    var tTaskH = taskOrder.length ? '' : '<div style="color:#59636e;padding:8px">No tasks</div>';
+    taskOrder.forEach(function(t) {
+      var pc=(t.priority||'').toLowerCase();
+      var sc=t.status==='in_progress'?'progress':t.status==='done'||t.status==='completed'?'done':'open';
+      tTaskH+='<div style="padding:6px 0;border-bottom:1px solid #f0f2f5">';
+      tTaskH+='<div>'+bg(t.priority||'?',pc)+' '+bg(t.status||'open',sc)+' <span style="font-weight:500">'+esc(t.name||'?')+'</span></div>';
+      if(t.description) tTaskH+='<div style="font-size:0.78em;color:#59636e;margin-top:2px">'+esc(str(t.description,80))+'</div>';
+      tTaskH+='</div>';
+    });
+    document.getElementById('m-tasks').innerHTML = tTaskH;
+
+    // Reset to prompt tab
+    switchAgentTab('prompt');
     document.getElementById('agent-modal').classList.add('open');
   };
 
