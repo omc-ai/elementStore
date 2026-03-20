@@ -1,0 +1,165 @@
+{
+  "version": "1.0.0",
+  "namespace": "es",
+  "description": "Multi-tenant isolation classes for elementStore. Each tenant is an isolated workspace. Demo tenant = public live version.",
+  "classes": [
+    {
+      "id": "es:tenant",
+      "class_id": "@class",
+      "name": "Tenant",
+      "description": "An isolated workspace/organization. All objects belong to a tenant. Demo tenant is the public live version.",
+      "props": [
+        {
+          "id": "es:tenant.name",
+          "class_id": "@prop",
+          "key": "name",
+          "data_type": "string",
+          "display_order": 0
+        },
+        {
+          "id": "es:tenant.description",
+          "class_id": "@prop",
+          "key": "description",
+          "data_type": "string",
+          "display_order": 1
+        },
+        {
+          "id": "es:tenant.domain",
+          "class_id": "@prop",
+          "key": "domain",
+          "data_type": "string",
+          "display_order": 2,
+          "description": "Custom domain or subdomain. e.g. acme.arc3d.ai"
+        },
+        {
+          "id": "es:tenant.owner_id",
+          "class_id": "@prop",
+          "key": "owner_id",
+          "data_type": "string",
+          "display_order": 3,
+          "description": "User ID of the tenant owner"
+        },
+        {
+          "id": "es:tenant.app_id",
+          "class_id": "@prop",
+          "key": "app_id",
+          "data_type": "string",
+          "display_order": 4,
+          "description": "Which application this tenant belongs to (cwm-architect, arc3d, etc.)"
+        },
+        {
+          "id": "es:tenant.plan",
+          "class_id": "@prop",
+          "key": "plan",
+          "data_type": "string",
+          "display_order": 5,
+          "description": "Subscription plan: free | starter | pro | enterprise"
+        },
+        {
+          "id": "es:tenant.status",
+          "class_id": "@prop",
+          "key": "status",
+          "data_type": "string",
+          "display_order": 6,
+          "description": "active | suspended | deleted"
+        },
+        {
+          "id": "es:tenant.is_demo",
+          "class_id": "@prop",
+          "key": "is_demo",
+          "data_type": "boolean",
+          "display_order": 7,
+          "description": "True = this is the public demo tenant (pre-loaded data, no auth required)"
+        },
+        {
+          "id": "es:tenant.limits",
+          "class_id": "@prop",
+          "key": "limits",
+          "data_type": "object",
+          "display_order": 8,
+          "description": "Resource limits: {max_objects, max_classes, max_users, max_storage_mb}"
+        },
+        {
+          "id": "es:tenant.created_at",
+          "class_id": "@prop",
+          "key": "created_at",
+          "data_type": "datetime",
+          "display_order": 9
+        }
+      ]
+    },
+    {
+      "id": "es:tenant_user",
+      "class_id": "@class",
+      "name": "Tenant User",
+      "description": "Mapping of a user to a tenant with role and permissions.",
+      "props": [
+        {
+          "id": "es:tenant_user.tenant_id",
+          "class_id": "@prop",
+          "key": "tenant_id",
+          "data_type": "string",
+          "display_order": 0,
+          "description": "ID of the tenant (es:tenant)"
+        },
+        {
+          "id": "es:tenant_user.user_id",
+          "class_id": "@prop",
+          "key": "user_id",
+          "data_type": "string",
+          "display_order": 1
+        },
+        {
+          "id": "es:tenant_user.role",
+          "class_id": "@prop",
+          "key": "role",
+          "data_type": "string",
+          "display_order": 2,
+          "description": "owner | admin | member | viewer"
+        },
+        {
+          "id": "es:tenant_user.status",
+          "class_id": "@prop",
+          "key": "status",
+          "data_type": "string",
+          "display_order": 3,
+          "description": "active | invited | suspended"
+        },
+        {
+          "id": "es:tenant_user.invited_by",
+          "class_id": "@prop",
+          "key": "invited_by",
+          "data_type": "string",
+          "display_order": 4
+        },
+        {
+          "id": "es:tenant_user.joined_at",
+          "class_id": "@prop",
+          "key": "joined_at",
+          "data_type": "datetime",
+          "display_order": 5
+        }
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "id": "tenant:demo",
+      "class_id": "es:tenant",
+      "name": "Demo",
+      "description": "Public demo tenant — pre-loaded with sample data. Visitors can explore without signing up.",
+      "domain": "demo.arc3d.ai",
+      "owner_id": "asi",
+      "app_id": "arc3d",
+      "plan": "enterprise",
+      "status": "active",
+      "is_demo": true,
+      "limits": {
+        "max_objects": 10000,
+        "max_classes": 500,
+        "max_users": 100,
+        "max_storage_mb": 1024
+      }
+    }
+  ]
+}
