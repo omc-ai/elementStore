@@ -119,9 +119,9 @@ class JsonStorageProvider implements IStorageProvider
         if ($content === false) {
             throw new StorageException(
                 "Failed to read file: $file",
-                'JSON',
-                'load',
-                ['class' => $class, 'file' => $file, 'error' => error_get_last()['message'] ?? 'Unknown error']
+                'io_error',
+                [],
+                ['provider' => 'json', 'op' => 'load', 'class' => $class, 'file' => $file, 'error' => error_get_last()['message'] ?? 'Unknown error']
             );
         }
 
@@ -129,9 +129,9 @@ class JsonStorageProvider implements IStorageProvider
         if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
             throw new StorageException(
                 "Failed to parse JSON: " . json_last_error_msg(),
-                'JSON',
-                'load',
-                ['class' => $class, 'file' => $file, 'json_error' => json_last_error_msg()]
+                'io_error',
+                [],
+                ['provider' => 'json', 'op' => 'load', 'class' => $class, 'file' => $file, 'json_error' => json_last_error_msg()]
             );
         }
 
@@ -153,9 +153,9 @@ class JsonStorageProvider implements IStorageProvider
         if ($json === false) {
             throw new StorageException(
                 "Failed to encode JSON: " . json_last_error_msg(),
-                'JSON',
-                'save',
-                ['class' => $class, 'json_error' => json_last_error_msg()]
+                'io_error',
+                [],
+                ['provider' => 'json', 'op' => 'save', 'class' => $class, 'json_error' => json_last_error_msg()]
             );
         }
 
@@ -163,9 +163,9 @@ class JsonStorageProvider implements IStorageProvider
         if ($result === false) {
             throw new StorageException(
                 "Failed to write file: $file",
-                'JSON',
-                'save',
-                ['class' => $class, 'file' => $file, 'error' => error_get_last()['message'] ?? 'Unknown error']
+                'io_error',
+                [],
+                ['provider' => 'json', 'op' => 'save', 'class' => $class, 'file' => $file, 'error' => error_get_last()['message'] ?? 'Unknown error']
             );
         }
     }

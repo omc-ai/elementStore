@@ -110,7 +110,7 @@ class CompositeStorageProvider implements IStorageProvider
                 if ($i === 0) {
                     $obj = $result; // includes generated ID, timestamps
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 if ($this->writeStrategy === 'sequential') {
                     throw $e; // Stop on first failure
                 }
@@ -129,7 +129,7 @@ class CompositeStorageProvider implements IStorageProvider
                 if ($target->delobj($class, $id)) {
                     $deleted = true;
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 if ($this->writeStrategy === 'sequential') throw $e;
             }
         }
@@ -152,7 +152,7 @@ class CompositeStorageProvider implements IStorageProvider
         foreach ($this->writeTargets as $target) {
             try {
                 $count += $target->renameProp($classId, $oldKey, $newKey);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 if ($this->writeStrategy === 'sequential') throw $e;
             }
         }
@@ -165,7 +165,7 @@ class CompositeStorageProvider implements IStorageProvider
         foreach ($this->writeTargets as $target) {
             try {
                 $count += $target->renameClass($oldClassId, $newClassId);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 if ($this->writeStrategy === 'sequential') throw $e;
             }
         }

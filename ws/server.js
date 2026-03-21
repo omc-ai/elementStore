@@ -27,6 +27,11 @@ const PORT = parseInt(process.env.WS_PORT || '3100', 10);
 // Local dev: agura_web_1, Production: arc3d_nginx
 const ES_API = process.env.ES_API_URL || 'http://agura_web_1/elementStore';
 
+// Connection limits
+const MAX_CONNECTIONS = parseInt(process.env.WS_MAX_CONNECTIONS || '500', 10);
+const HEARTBEAT_INTERVAL_MS = parseInt(process.env.WS_HEARTBEAT_MS || '30000', 10);
+const IDLE_TIMEOUT_MS = parseInt(process.env.WS_IDLE_TIMEOUT_MS || '60000', 10);
+
 // Subscription maps
 const classSubs = new Map();    // class_id → Set<ws>
 const objectSubs = new Map();   // "class_id/object_id" → Set<ws>
@@ -131,10 +136,19 @@ const server = http.createServer(function (req, res) {
 const wss = new WebSocketServer({ server: server });
 
 wss.on('connection', function (ws, req) {
+    // Reject if at connection limit
+    if (connections.size >= MAX_CONNECTIONS) {
+        wsSend(ws, { event: 'error', message: 'Server at capacity. Try again later.' });
+        ws.terminate();
+        console.log('[WS] rejected connection — at limit (' + MAX_CONNECTIONS + ')');
+        return;
+    }
+
     connectionCounter++;
     var connId = 'c' + connectionCounter;
     ws._connId = connId;
     ws._subscriptions = { classes: new Set(), objects: new Set(), scopes: new Set() };
+    ws._lastActivity = Date.now();
 
     // Extract user_id from JWT token in query string
     var parsed = url.parse(req.url, true);
@@ -169,6 +183,7 @@ wss.on('connection', function (ws, req) {
     console.log('[WS] connected: ' + connId + ' user=' + (userId || 'anonymous'));
 
     ws.on('message', function (raw) {
+        ws._lastActivity = Date.now();
         try {
             var msg = JSON.parse(raw);
             handleClientMessage(ws, msg);
@@ -235,6 +250,7 @@ function handleClientMessage(ws, msg) {
             break;
 
         case 'ping':
+            ws._lastActivity = Date.now();
             wsSend(ws, { event: 'pong' });
             break;
 
@@ -409,9 +425,33 @@ function cleanup(ws) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Heartbeat — ping all clients, terminate idle ones
+// ─────────────────────────────────────────────────────────────
+
+setInterval(function () {
+    var now = Date.now();
+    var terminated = 0;
+    connections.forEach(function (ws) {
+        if (now - ws._lastActivity > IDLE_TIMEOUT_MS) {
+            console.log('[WS] terminating idle connection: ' + ws._connId + ' (idle ' + Math.round((now - ws._lastActivity) / 1000) + 's)');
+            ws.terminate();
+            terminated++;
+            return;
+        }
+        // Send server-side ping; client should respond with ping action or any message
+        if (ws.readyState === 1) {
+            wsSend(ws, { event: 'ping' });
+        }
+    });
+    if (terminated > 0) {
+        console.log('[WS] heartbeat: terminated ' + terminated + ' idle connections, active=' + connections.size);
+    }
+}, HEARTBEAT_INTERVAL_MS);
+
+// ─────────────────────────────────────────────────────────────
 // Start
 // ─────────────────────────────────────────────────────────────
 
 server.listen(PORT, function () {
-    console.log('[ElementStore WS] listening on port ' + PORT);
+    console.log('[ElementStore WS] listening on port ' + PORT + ' (max=' + MAX_CONNECTIONS + ', heartbeat=' + HEARTBEAT_INTERVAL_MS + 'ms, idle_timeout=' + IDLE_TIMEOUT_MS + 'ms)');
 });

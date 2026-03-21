@@ -3,10 +3,16 @@
     "bootstrap": {
       "id": "bootstrap",
       "class_id": "@storage",
-      "type": "couchdb",
-      "server": "http://elementstore_couchdb:5984",
-      "username": "admin",
-      "password": "elementstore"
+      "type": "composite",
+      "read": [
+        {"type": "couchdb", "server": "http://elementstore_couchdb:5984", "username": "admin", "password": "elementstore"}
+      ],
+      "write": [
+        {"type": "couchdb", "server": "http://elementstore_couchdb:5984", "username": "admin", "password": "elementstore"},
+        {"type": "json", "dir": ".es"}
+      ],
+      "read_strategy": "fallback",
+      "write_strategy": "best_effort"
     }
   },
   "genesis": {

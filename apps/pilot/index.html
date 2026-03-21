@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pilot — Session Manager</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#1a1b1e;color:#e4e4e7;line-height:1.5;display:flex;flex-direction:column}
+
+/* Header */
+header{background:#27282c;border-bottom:1px solid #3a3b3f;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;-webkit-app-region:drag}
+header h1{font-size:1em;color:#a78bfa;font-weight:600;letter-spacing:0.5px}
+header .controls{display:flex;gap:8px;align-items:center;-webkit-app-region:no-drag}
+header .controls button{background:#3a3b3f;border:1px solid #4a4b4f;color:#e4e4e7;padding:4px 10px;border-radius:5px;font-size:0.75em;cursor:pointer}
+header .controls button:hover{background:#4a4b4f}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
+.dot.ok{background:#4ade80}.dot.err{background:#f87171}.dot.load{background:#fbbf24}
+#status{font-size:0.78em;color:#a1a1aa}
+
+/* Layout */
+.layout{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* Toolbar */
+.toolbar{display:flex;gap:8px;padding:8px 12px;background:#27282c;border-bottom:1px solid #3a3b3f;flex-shrink:0;align-items:center}
+.toolbar input[type=text]{flex:1;background:#1a1b1e;border:1px solid #3a3b3f;color:#e4e4e7;padding:6px 10px;border-radius:6px;font-size:0.82em;font-family:inherit}
+.toolbar input:focus{outline:none;border-color:#a78bfa}
+.toolbar select{background:#1a1b1e;border:1px solid #3a3b3f;color:#e4e4e7;padding:5px 8px;border-radius:5px;font-size:0.8em}
+.toolbar .btn{background:#a78bfa;color:#1a1b1e;border:none;padding:5px 12px;border-radius:5px;font-size:0.8em;font-weight:600;cursor:pointer}
+.toolbar .btn:hover{background:#8b5cf6}
+.toolbar .btn-ghost{background:transparent;border:1px solid #3a3b3f;color:#a1a1aa}
+.toolbar .btn-ghost:hover{background:#3a3b3f;color:#e4e4e7}
+
+/* Sessions list */
+.sessions-area{flex:1;display:flex;overflow:hidden}
+.sessions-list{flex:1;overflow-y:auto;padding:4px}
+.sessions-list::-webkit-scrollbar{width:6px}
+.sessions-list::-webkit-scrollbar-thumb{background:#3a3b3f;border-radius:3px}
+
+.session{padding:10px 12px;border-radius:6px;cursor:pointer;display:flex;gap:10px;align-items:flex-start;transition:background .1s;border:1px solid transparent;margin:2px 0}
+.session:hover{background:#27282c;border-color:#3a3b3f}
+.session.active{background:#2d2050;border-color:#a78bfa}
+.session .s-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.7em;font-weight:700;flex-shrink:0;background:#3a3b3f;color:#a78bfa}
+.session .s-icon.running{background:#1a3a1a;color:#4ade80;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+.session .s-body{flex:1;min-width:0}
+.session .s-title{font-weight:600;font-size:0.85em;color:#e4e4e7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.session .s-meta{font-size:0.72em;color:#71717a;display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+.session .s-summary{font-size:0.78em;color:#a1a1aa;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.session .s-date{font-size:0.7em;color:#71717a;flex-shrink:0;text-align:right}
+
+.badge{display:inline-block;padding:0 6px;border-radius:8px;font-size:0.7em;font-weight:600}
+.b-running{background:#1a3a1a;color:#4ade80}
+.b-idle{background:#1a2a3a;color:#60a5fa}
+.b-archived{background:#3a3b3f;color:#71717a}
+
+/* Session detail panel */
+.detail-panel{width:320px;background:#27282c;border-left:1px solid #3a3b3f;overflow-y:auto;display:none;flex-shrink:0}
+.detail-panel.open{display:flex;flex-direction:column}
+.detail-hdr{padding:12px;border-bottom:1px solid #3a3b3f;flex-shrink:0}
+.detail-hdr h2{font-size:0.95em;color:#e4e4e7;margin-bottom:4px}
+.detail-hdr .meta{font-size:0.75em;color:#71717a}
+.detail-body{padding:12px;flex:1;overflow-y:auto;font-size:0.82em}
+.detail-body .field{margin-bottom:10px}
+.detail-body .field label{display:block;font-size:0.72em;color:#71717a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}
+.detail-body .field .val{color:#e4e4e7}
+.detail-actions{padding:12px;border-top:1px solid #3a3b3f;display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}
+.detail-actions button{padding:5px 12px;border-radius:5px;border:1px solid #3a3b3f;background:#27282c;color:#e4e4e7;cursor:pointer;font-size:0.78em}
+.detail-actions button:hover{background:#3a3b3f}
+.detail-actions button.primary{background:#a78bfa;color:#1a1b1e;border-color:#a78bfa;font-weight:600}
+.detail-actions button.danger{color:#f87171;border-color:#f87171}
+
+/* Chat area */
+.chat-area{height:220px;border-top:1px solid #3a3b3f;display:flex;flex-direction:column;flex-shrink:0;background:#1e1f23}
+.chat-messages{flex:1;overflow-y:auto;padding:8px 12px;font-size:0.82em}
+.chat-messages::-webkit-scrollbar{width:4px}
+.chat-messages::-webkit-scrollbar-thumb{background:#3a3b3f;border-radius:2px}
+.chat-msg{padding:4px 0;display:flex;gap:8px}
+.chat-msg .cm-avatar{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6em;font-weight:700;flex-shrink:0}
+.chat-msg .cm-avatar.user{background:#3b82f6;color:#fff}
+.chat-msg .cm-avatar.assistant{background:#a78bfa;color:#fff}
+.chat-msg .cm-content{flex:1;color:#e4e4e7;line-height:1.5}
+.chat-msg .cm-content code{background:#27282c;padding:1px 4px;border-radius:3px;font-size:0.9em}
+.chat-msg .cm-content pre{background:#27282c;padding:6px;border-radius:4px;overflow-x:auto;margin:4px 0;font-size:0.85em}
+.chat-msg .cm-time{font-size:0.65em;color:#71717a;flex-shrink:0}
+.chat-input{display:flex;gap:6px;padding:8px 12px;border-top:1px solid #3a3b3f;flex-shrink:0}
+.chat-input input{flex:1;background:#27282c;border:1px solid #3a3b3f;color:#e4e4e7;padding:8px 12px;border-radius:8px;font-size:0.85em;font-family:inherit}
+.chat-input input:focus{outline:none;border-color:#a78bfa}
+.chat-input button{background:#a78bfa;color:#1a1b1e;border:none;padding:8px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em}
+.chat-input button:hover{background:#8b5cf6}
+
+/* Resize handle */
+.resize-handle{height:4px;background:#3a3b3f;cursor:ns-resize;flex-shrink:0}
+.resize-handle:hover{background:#a78bfa}
+
+/* Empty state */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#71717a;font-size:0.9em}
+.empty .icon{font-size:2.5em;margin-bottom:12px;opacity:0.5}
+
+/* Stats bar */
+.stats-bar{display:flex;gap:16px;padding:4px 16px;background:#27282c;border-top:1px solid #3a3b3f;font-size:0.72em;color:#71717a;flex-shrink:0}
+.stats-bar .stat{display:flex;gap:4px;align-items:center}
+.stats-bar .stat .num{color:#a78bfa;font-weight:600}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PILOT</h1>
+  <div class="controls">
+    <span id="status"><span class="dot load"></span>connecting</span>
+    <button onclick="syncSessions()">Sync</button>
+    <button onclick="loadSessions()">Refresh</button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="Search sessions..." oninput="filterSessions()">
+    <select id="sort-by" onchange="filterSessions()">
+      <option value="date">Latest first</option>
+      <option value="messages">Most messages</option>
+      <option value="project">By project</option>
+      <option value="status">By status</option>
+    </select>
+    <select id="filter-status" onchange="filterSessions()">
+      <option value="">All</option>
+      <option value="running">Running</option>
+      <option value="idle">Idle</option>
+      <option value="archived">Archived</option>
+    </select>
+    <button class="btn" onclick="newSession()">+ New</button>
+  </div>
+
+  <!-- Sessions + Detail -->
+  <div class="sessions-area">
+    <div class="sessions-list" id="sessions-list">
+      <div class="empty"><div class="icon">&#9881;</div>Loading sessions...</div>
+    </div>
+    <div class="detail-panel" id="detail-panel">
+      <div class="detail-hdr">
+        <h2 id="d-title">Session</h2>
+        <div class="meta" id="d-meta"></div>
+      </div>
+      <div class="detail-body" id="d-body"></div>
+      <div class="detail-actions" id="d-actions"></div>
+    </div>
+  </div>
+
+  <!-- Resize handle -->
+  <div class="resize-handle" id="resize-handle"></div>
+
+  <!-- Chat -->
+  <div class="chat-area" id="chat-area">
+    <div class="chat-messages" id="chat-messages">
+      <div style="color:#71717a;padding:20px;text-align:center;font-size:0.85em">
+        Chat with your assistant. Commands: /summarize, /tasks, /ideas
+      </div>
+    </div>
+    <div class="chat-input">
+      <input type="text" id="chat-input" placeholder="Ask anything... (/summarize, /tasks, /ideas)" onkeydown="if(event.key==='Enter')sendChat()">
+      <button onclick="sendChat()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stats bar -->
+<div class="stats-bar">
+  <div class="stat">Sessions: <span class="num" id="stat-total">0</span></div>
+  <div class="stat">Running: <span class="num" id="stat-running">0</span></div>
+  <div class="stat">Projects: <span class="num" id="stat-projects">0</span></div>
+  <div class="stat">Messages: <span class="num" id="stat-messages">0</span></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="/elementStore/admin/dist/element-store.js"></script>
+<script src="/elementStore/admin/ws-client.js"></script>
+<script>
+(function(){
+  var API = location.origin + '/elementStore';
+  var WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/elementStore/ws';
+  store.storage.data.url = API;
+
+  var sessions = [];
+  var filtered = [];
+  var selected = null;
+  var chatHistory = [];
+
+  // ─── Load sessions from elementStore ─────────────────────
+  window.loadSessions = async function() {
+    try {
+      var data = await fetch(API + '/query/@session?_limit=500&_sort=last_message&_order=desc').then(r => r.json());
+      if (!Array.isArray(data)) data = [];
+      sessions = data;
+      filterSessions();
+      updateStats();
+      document.getElementById('status').innerHTML = '<span class="dot ok"></span>' + sessions.length + ' sessions';
+    } catch(e) {
+      console.error('Load error:', e);
+      document.getElementById('status').innerHTML = '<span class="dot err"></span>offline';
+    }
+  };
+
+  // ─── Sync sessions from Claude CLI ───────────────────────
+  window.syncSessions = async function() {
+    document.getElementById('status').innerHTML = '<span class="dot load"></span>syncing...';
+    try {
+      // Call the sync endpoint (provided by our sync script running as a service)
+      var resp = await fetch('/pilot/api/sync', {method: 'POST'});
+      if (resp.ok) {
+        var result = await resp.json();
+        document.getElementById('status').innerHTML = '<span class="dot ok"></span>synced ' + (result.count || '?');
+        setTimeout(loadSessions, 500);
+      } else {
+        // Fallback: try direct elementStore scan
+        document.getElementById('status').innerHTML = '<span class="dot err"></span>sync service unavailable';
+        loadSessions();
+      }
+    } catch(e) {
+      document.getElementById('status').innerHTML = '<span class="dot err"></span>sync failed';
+      loadSessions();
+    }
+  };
+
+  // ─── Filter & sort ───────────────────────────────────────
+  window.filterSessions = function() {
+    var q = document.getElementById('search').value.toLowerCase();
+    var sortBy = document.getElementById('sort-by').value;
+    var filterStatus = document.getElementById('filter-status').value;
+
+    filtered = sessions.filter(function(s) {
+      if (filterStatus && s.run_status !== filterStatus) return false;
+      if (!q) return true;
+      var searchable = [s.name, s.project_name, s.summary, s.session_cwd, s.git_branch, s.first_prompt].join(' ').toLowerCase();
+      return searchable.indexOf(q) >= 0;
+    });
+
+    filtered.sort(function(a, b) {
+      if (sortBy === 'date') return (b.last_message || b.created || '').localeCompare(a.last_message || a.created || '');
+      if (sortBy === 'messages') return (b.message_count || 0) - (a.message_count || 0);
+      if (sortBy === 'project') return (a.project_name || 'zzz').localeCompare(b.project_name || 'zzz');
+      if (sortBy === 'status') return (a.run_status || 'zzz').localeCompare(b.run_status || 'zzz');
+      return 0;
+    });
+
+    renderSessions();
+  };
+
+  // ─── Render sessions list ────────────────────────────────
+  function renderSessions() {
+    var el = document.getElementById('sessions-list');
+    if (!filtered.length) {
+      el.innerHTML = '<div class="empty"><div class="icon">&#128269;</div>No sessions found</div>';
+      return;
+    }
+
+    var h = '';
+    filtered.forEach(function(s) {
+      var isActive = selected && selected.id === s.id;
+      var status = s.run_status || 'idle';
+      var icon = status === 'running' ? 'R' : (status === 'archived' ? 'A' : 'S');
+      var iconCls = status === 'running' ? ' running' : '';
+      var project = s.project_name || extractProject(s.session_cwd);
+      var date = formatDate(s.last_message || s.created);
+      var msgs = s.message_count || 0;
+
+      h += '<div class="session' + (isActive ? ' active' : '') + '" onclick="selectSession(\'' + esc(s.id) + '\')">';
+      h += '<div class="s-icon' + iconCls + '">' + icon + '</div>';
+      h += '<div class="s-body">';
+      h += '<div class="s-title">' + escH(s.name || project + ' session') + '</div>';
+      h += '<div class="s-meta">';
+      if (project) h += '<span>' + escH(project) + '</span>';
+      if (s.git_branch) h += '<span>&#9737; ' + escH(s.git_branch) + '</span>';
+      if (msgs) h += '<span>' + msgs + ' msgs</span>';
+      h += '<span class="badge b-' + status + '">' + status + '</span>';
+      h += '</div>';
+      if (s.summary) h += '<div class="s-summary">' + escH(s.summary) + '</div>';
+      else if (s.first_prompt) h += '<div class="s-summary">' + escH(s.first_prompt) + '</div>';
+      h += '</div>';
+      h += '<div class="s-date">' + date + '</div>';
+      h += '</div>';
+    });
+    el.innerHTML = h;
+  }
+
+  // ─── Select session ─────────────────────────────────────
+  window.selectSession = function(id) {
+    selected = sessions.find(function(s) { return s.id === id; });
+    if (!selected) return;
+
+    var panel = document.getElementById('detail-panel');
+    panel.classList.add('open');
+
+    var project = selected.project_name || extractProject(selected.session_cwd);
+    document.getElementById('d-title').textContent = selected.name || project + ' session';
+    document.getElementById('d-meta').textContent = formatDate(selected.created) + ' — ' + (selected.run_status || 'idle');
+
+    var bh = '';
+    var fields = [
+      ['Session ID', selected.session_id || selected.id],
+      ['Project', project],
+      ['Branch', selected.git_branch],
+      ['Working Dir', selected.session_cwd],
+      ['Messages', selected.message_count],
+      ['Created', selected.created],
+      ['Last Active', selected.last_message],
+      ['PID', selected.pid],
+      ['TTY', selected.tty],
+    ];
+    fields.forEach(function(f) {
+      if (!f[1]) return;
+      bh += '<div class="field"><label>' + f[0] + '</label><div class="val">' + escH(String(f[1])) + '</div></div>';
+    });
+    if (selected.summary) {
+      bh += '<div class="field"><label>Summary</label><div class="val">' + escH(selected.summary) + '</div></div>';
+    }
+    document.getElementById('d-body').innerHTML = bh;
+
+    var ah = '';
+    ah += '<button class="primary" onclick="resumeSession(\'' + esc(selected.session_id || selected.id) + '\')">Resume</button>';
+    ah += '<button onclick="summarizeSession(\'' + esc(selected.id) + '\')">Summarize</button>';
+    ah += '<button onclick="connectSession(\'' + esc(selected.session_id || selected.id) + '\')">Connect</button>';
+    ah += '<button class="danger" onclick="deleteSession(\'' + esc(selected.id) + '\')">Delete</button>';
+    document.getElementById('d-actions').innerHTML = ah;
+
+    renderSessions(); // re-render to show active state
+  };
+
+  // ─── Session actions ─────────────────────────────────────
+  window.resumeSession = function(sid) {
+    // Open terminal with claude --resume
+    addChatMessage('system', 'To resume: <code>claude --resume ' + sid + '</code>');
+    // If running in desktop app, can trigger via URL scheme
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pilot) {
+      window.webkit.messageHandlers.pilot.postMessage({action: 'resume', sessionId: sid});
+    }
+  };
+
+  window.summarizeSession = async function(id) {
+    addChatMessage('system', 'Summarizing session...');
+    try {
+      // Send summarize request via chat
+      var prompt = 'Please read session ' + id + ' and provide a 2-3 sentence summary of what was accomplished, what decisions were made, and any open items.';
+      await sendToChatProvider(prompt);
+    } catch(e) {
+      addChatMessage('system', 'Summarize failed: ' + e.message);
+    }
+  };
+
+  window.connectSession = function(sid) {
+    addChatMessage('system', 'Connecting to session ' + sid + '...');
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pilot) {
+      window.webkit.messageHandlers.pilot.postMessage({action: 'connect', sessionId: sid});
+    } else {
+      addChatMessage('system', 'Desktop app bridge not available. Use terminal: <code>claude --resume ' + sid + '</code>');
+    }
+  };
+
+  window.deleteSession = async function(id) {
+    if (!confirm('Delete this session from the index?')) return;
+    try {
+      await fetch(API + '/store/@session/' + encodeURIComponent(id), {method: 'DELETE'});
+      sessions = sessions.filter(function(s) { return s.id !== id; });
+      selected = null;
+      document.getElementById('detail-panel').classList.remove('open');
+      filterSessions();
+      addChatMessage('system', 'Session removed from index.');
+    } catch(e) {
+      addChatMessage('system', 'Delete failed: ' + e.message);
+    }
+  };
+
+  window.newSession = function() {
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pilot) {
+      window.webkit.messageHandlers.pilot.postMessage({action: 'new'});
+    } else {
+      addChatMessage('system', 'To start new session: <code>claude</code>');
+    }
+  };
+
+  // ─── Chat ────────────────────────────────────────────────
+  window.sendChat = async function() {
+    var input = document.getElementById('chat-input');
+    var text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+
+    addChatMessage('user', text);
+
+    // Handle slash commands
+    if (text.startsWith('/')) {
+      var cmd = text.split(' ')[0].toLowerCase();
+      var arg = text.substring(cmd.length).trim();
+      if (cmd === '/summarize') {
+        if (selected) {
+          summarizeSession(selected.id);
+        } else {
+          addChatMessage('system', 'Select a session first.');
+        }
+        return;
+      }
+      if (cmd === '/tasks') {
+        await sendToChatProvider('List all open tasks and ideas from my recent sessions. Check YouTrack and elementStore for related items.');
+        return;
+      }
+      if (cmd === '/ideas') {
+        await sendToChatProvider('Review my recent sessions and extract any ideas, suggestions, or things I mentioned wanting to do. Cross-reference with existing tasks.');
+        return;
+      }
+    }
+
+    await sendToChatProvider(text);
+  };
+
+  async function sendToChatProvider(text) {
+    try {
+      // Try Claude API via cwm-architect backend or local proxy
+      var endpoints = [
+        '/pilot/api/chat',
+        'http://localhost:3001/api/llm/chat',
+      ];
+
+      var body = {
+        message: text,
+        context: {
+          selectedSession: selected ? selected.id : null,
+          projectName: selected ? selected.project_name : null,
+          sessionCount: sessions.length,
+        }
+      };
+
+      var sent = false;
+      for (var i = 0; i < endpoints.length; i++) {
+        try {
+          var resp = await fetch(endpoints[i], {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+          });
+          if (resp.ok) {
+            var data = await resp.json();
+            addChatMessage('assistant', data.content || data.message || JSON.stringify(data));
+            sent = true;
+            break;
+          }
+        } catch(e) { continue; }
+      }
+
+      if (!sent) {
+        // Fallback: store as ai:message in elementStore for async processing
+        await fetch(API + '/store/ai:message', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            class_id: 'ai:message',
+            role: 'user',
+            content: text,
+            user_id: 'pilot',
+            agent_id: 'agent:pilot',
+            status: 'pending',
+            created: new Date().toISOString()
+          })
+        });
+        addChatMessage('system', 'Message queued (no live chat provider). Will be processed when an agent picks it up.');
+      }
+    } catch(e) {
+      addChatMessage('system', 'Error: ' + e.message);
+    }
+  }
+
+  function addChatMessage(role, content) {
+    var el = document.getElementById('chat-messages');
+    var time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    var avatarCls = role === 'user' ? 'user' : 'assistant';
+    var letter = role === 'user' ? 'U' : (role === 'system' ? 'S' : 'A');
+
+    var rendered = content;
+    if (role === 'assistant' && typeof marked !== 'undefined') {
+      try { rendered = marked.parse(content); } catch(e) { rendered = escH(content); }
+    } else if (role !== 'system') {
+      rendered = escH(content);
+    }
+
+    var msg = document.createElement('div');
+    msg.className = 'chat-msg';
+    msg.innerHTML = '<div class="cm-avatar ' + avatarCls + '">' + letter + '</div>' +
+      '<div class="cm-content">' + rendered + '</div>' +
+      '<div class="cm-time">' + time + '</div>';
+    el.appendChild(msg);
+    el.scrollTop = el.scrollHeight;
+
+    chatHistory.push({role: role, content: content, time: new Date().toISOString()});
+  }
+
+  // ─── Resize handle ──────────────────────────────────────
+  var resizing = false;
+  var chatArea = document.getElementById('chat-area');
+  document.getElementById('resize-handle').addEventListener('mousedown', function(e) {
+    resizing = true;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!resizing) return;
+    var h = window.innerHeight - e.clientY - 24; // 24 for stats bar
+    if (h < 80) h = 80;
+    if (h > window.innerHeight * 0.6) h = window.innerHeight * 0.6;
+    chatArea.style.height = h + 'px';
+  });
+  document.addEventListener('mouseup', function() { resizing = false; });
+
+  // ─── WebSocket for live updates ─────────────────────────
+  try {
+    var esws = new ElementStoreWS(store, WS_URL);
+    esws.on('connected', function() {
+      esws._send({action: 'subscribe', class_id: '@session', fetch: 50});
+    });
+    esws.on('change', function(item) {
+      if (!item || item.class_id !== '@session') return;
+      var idx = sessions.findIndex(function(s) { return s.id === item.id; });
+      if (idx >= 0) sessions[idx] = item;
+      else sessions.unshift(item);
+      filterSessions();
+      updateStats();
+    });
+    esws.on('delete', function(item) {
+      if (!item) return;
+      sessions = sessions.filter(function(s) { return s.id !== item.id; });
+      filterSessions();
+    });
+    esws.connect({user_id: 'pilot-dashboard'});
+  } catch(e) {
+    console.warn('[WS] not available:', e);
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────
+  function extractProject(cwd) {
+    if (!cwd) return '';
+    var parts = cwd.split('/');
+    return parts[parts.length - 1] || parts[parts.length - 2] || '';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    try {
+      var d = new Date(iso);
+      var now = new Date();
+      var diff = now - d;
+      if (diff < 60000) return 'just now';
+      if (diff < 3600000) return Math.floor(diff/60000) + 'm ago';
+      if (diff < 86400000) return Math.floor(diff/3600000) + 'h ago';
+      if (diff < 604800000) return Math.floor(diff/86400000) + 'd ago';
+      return d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+    } catch(e) { return iso.substring(0, 10); }
+  }
+
+  function updateStats() {
+    document.getElementById('stat-total').textContent = sessions.length;
+    document.getElementById('stat-running').textContent = sessions.filter(function(s){return s.run_status==='running'}).length;
+    var projects = {};
+    sessions.forEach(function(s) { if(s.project_name) projects[s.project_name]=1; });
+    document.getElementById('stat-projects').textContent = Object.keys(projects).length;
+    var totalMsgs = sessions.reduce(function(sum,s){return sum + (s.message_count||0)},0);
+    document.getElementById('stat-messages').textContent = totalMsgs;
+  }
+
+  function escH(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+  function esc(s) { return s ? String(s).replace(/'/g,"\\'").replace(/\\/g,'\\\\') : ''; }
+
+  // ─── Init ────────────────────────────────────────────────
+  loadSessions();
+})();
+</script>
+</body>
+</html>

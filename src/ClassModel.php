@@ -266,6 +266,23 @@ class ClassModel
     {
         $type = $config['type'] ?? 'json';
 
+        // Apply environment variable overrides for CouchDB credentials
+        // This ensures @init.json default values can be safely overridden at deploy time
+        if ($type === 'couchdb') {
+            $envUser = getenv('COUCHDB_USER');
+            if ($envUser !== false && $envUser !== '') {
+                $config['username'] = $envUser;
+            }
+            $envPass = getenv('COUCHDB_PASSWORD');
+            if ($envPass !== false && $envPass !== '') {
+                $config['password'] = $envPass;
+            }
+            $envServer = getenv('COUCHDB_SERVER');
+            if ($envServer !== false && $envServer !== '') {
+                $config['server'] = $envServer;
+            }
+        }
+
         return match ($type) {
             'mongo' => new MongoStorageProvider(
                 $config['connection'] ?? 'mongodb://localhost:27017',

@@ -2,87 +2,44 @@
 // CLASS LIST PANEL - Controller for the Classes (@class) tab
 // =====================================================================
 
-class ClassListPanel {
+/**
+ * ClassListPanel — extends ObjectListPanel for @class objects.
+ * Same grid behavior, adds "Objects" button per row and updates class caches.
+ */
+class ClassListPanel extends ObjectListPanel {
     constructor(containerEl) {
-        this.containerEl = containerEl;
-        this.gridApi = null;
-        this.gridData = [];
-
-        // Clone template and append
-        const tpl = document.getElementById('tpl-class-list');
-        const content = tpl.content.cloneNode(true);
-        this.containerEl.appendChild(content);
-
-        // Wire up the "New Class" button
-        const createBtn = this.containerEl.querySelector('[data-action="create"]');
-        if (createBtn) {
-            createBtn.addEventListener('click', () => {
-                renderModalForClass('@class', null);
-            });
-        }
+        super(containerEl, '@class');
     }
 
     async load() {
-        try {
-            // Fetch class metadata and all classes in parallel
-            const [classMeta, classes] = await Promise.all([
-                getClassMeta('@class'),
-                api('GET', '/class')
-            ]);
+        // Use parent load (ObjectListPanel handles grid, batch, actions)
+        await super.load();
 
-            // Update global caches
-            allClassesList = classes;
+        // Update global class caches after loading
+        if (this.gridData?.length) {
+            allClassesList = this.gridData;
             classesCache = {};
-            classTreeData = buildClassTree(classes);
-
-            this.gridData = classes;
-
-            // Build columns
-            const columnDefs = buildGridColumns(classMeta, '@class', (p) => {
-                const idx = p.rowIndex;
-                const id = p.data.id;
-                return `<button class="btn btn-ghost btn-xs" onclick="classListEditRow(${idx})">Edit</button>` +
-                    `<button class="btn btn-primary btn-xs" style="margin-left:4px" onclick="classListOpenObjects('${esc(id)}')">Objects</button>` +
-                    `<button class="btn btn-danger btn-xs" style="margin-left:4px" onclick="classListDeleteRow('${esc(id)}')">Del</button>`;
-            });
-
-            // Init grid
-            const gridDiv = this.containerEl.querySelector('.ag-grid-el');
-            gridDiv.innerHTML = '';
-
-            const gridOptions = {
-                columnDefs,
-                rowData: classes,
-                defaultColDef: {
-                    sortable: true,
-                    filter: true,
-                    resizable: true,
-                    flex: 1,
-                    minWidth: 100
-                },
-                rowSelection: 'single',
-                onRowDoubleClicked: (e) => renderModalForClass('@class', e.data),
-                animateRows: true,
-                pagination: true,
-                paginationPageSize: 20
-            };
-
-            this.gridApi = agGrid.createGrid(gridDiv, gridOptions);
-
-            // Store reference for global action functions
-            window._classListPanel = this;
-
-        } catch (err) {
-            showToast(err.message, 'error');
+            if (typeof buildClassTree === 'function') {
+                classTreeData = buildClassTree(this.gridData);
+            }
         }
-    }
 
-    destroy() {
+        // Add "Objects" button to each row via custom column
         if (this.gridApi) {
-            this.gridApi.destroy();
-            this.gridApi = null;
+            const colDefs = this.gridApi.getColumnDefs?.() || [];
+            const actCol = colDefs.find(c => c.headerName === 'Actions');
+            if (actCol) {
+                const origRenderer = actCol.cellRenderer;
+                actCol.cellRenderer = (p) => {
+                    const id = p.data?.id;
+                    const base = typeof origRenderer === 'function' ? origRenderer(p) : '';
+                    return base + `<button class="btn btn-primary btn-xs" style="margin-left:4px" onclick="classListOpenObjects('${esc(id)}')">Objects</button>`;
+                };
+                this.gridApi.setGridOption('columnDefs', colDefs);
+            }
         }
-        window._classListPanel = null;
+
+        window._classListPanel = this;
     }
 }
 

@@ -35,6 +35,52 @@ const elementStore = {
         return `fold_${path.replace(/[\[\].]/g, '_')}`;
     },
 
+    /**
+     * Resolve properties via EditorState (es-client) when available.
+     * Returns BoundProperty[] from the headless state machine, which provides
+     * class inheritance resolution, display_order sorting, and default values.
+     * Falls back to null if EditorState is not loaded or store is not seeded.
+     */
+    resolveViaEditorState(classId, obj) {
+        if (typeof EditorState === 'undefined' || typeof store === 'undefined') return null;
+        // EditorState needs the class seeded in the store (done by getClassMeta)
+        if (!store.objects[classId]) return null;
+        try {
+            const state = new EditorState(store, classId, obj || {});
+            return state.properties; // BoundProperty[]
+        } catch (e) {
+            console.warn('EditorState resolution failed, falling back to legacy:', e.message);
+            return null;
+        }
+    },
+
+    /**
+     * Convert a BoundProperty (from EditorState/resolveProperties) back to
+     * the raw prop format that geField() expects.
+     * BoundProperty has camelCase keys; raw props use snake_case.
+     */
+    boundPropToRaw(bp) {
+        // Start from the original schema (@prop definition) if available
+        const raw = bp.schema ? Object.assign({}, bp.schema) : {};
+        // Ensure all fields geField reads are present, using BoundProperty as authority
+        raw.key = bp.key;
+        raw.data_type = bp.dataType;
+        raw.label = bp.label;
+        raw.description = bp.description || raw.description || '';
+        raw.display_order = bp.displayOrder;
+        raw.group_name = bp.groupName || raw.group_name || null;
+        raw.editor = bp.editor || raw.editor || null;
+        raw.options = bp.options || raw.options || null;
+        raw.is_array = bp.isArray;
+        raw.object_class_id = bp.objectClassId || raw.object_class_id || null;
+        // Flags: reconstruct from BoundProperty booleans
+        if (!raw.flags) raw.flags = {};
+        if (bp.required) raw.flags.required = true;
+        if (bp.readonly) raw.flags.readonly = true;
+        if (bp.hidden) raw.flags.hidden = true;
+        return raw;
+    },
+
     /** Get sorted props from class meta */
     getSortedProps(meta) {
         const props = Array.isArray(meta.props) ? meta.props : Object.values(meta.props || {});
@@ -154,10 +200,21 @@ const elementStore = {
             window.es.editors[path] = ctx;
         }
 
-        const sorted = this.getSortedProps(meta);
+        // Use EditorState for property resolution when available (handles inheritance, defaults, ordering)
+        const resolved = cls ? this.resolveViaEditorState(cls, obj) : null;
+
         let html = `<table class="ge" data-path="${path}" data-class="${cls || ''}" data-level="${lvl + 1}">${this.getColgroup()}<tbody>`;
-        for (const p of sorted) {
-            html += await geField(p, (obj || {})[p.key], `${path}.${p.key}`, lvl + 1);
+        if (resolved) {
+            for (const bp of resolved) {
+                const rawProp = this.boundPropToRaw(bp);
+                html += await geField(rawProp, bp.value, `${path}.${rawProp.key}`, lvl + 1);
+            }
+        } else {
+            // Fallback: legacy prop resolution from API-fetched meta
+            const sorted = this.getSortedProps(meta);
+            for (const p of sorted) {
+                html += await geField(p, (obj || {})[p.key], `${path}.${p.key}`, lvl + 1);
+            }
         }
         html += `</tbody></table>`;
         this._parentStack.pop();
@@ -478,9 +535,32 @@ const elementStore = {
                 delete _geGrids[k];
             }
         }
-        const sorted = this.getSortedProps(meta);
-        const groups = this.groupProps(sorted);
-        const hasGroups = groups.some(g => g.name !== null);
+
+        // Use EditorState for property resolution when available
+        const resolved = this.resolveViaEditorState(classId, data);
+
+        // Build a value map: when EditorState resolves, use its values (includes defaults);
+        // otherwise fall back to raw data values.
+        let sorted, groups, hasGroups;
+        let valueMap = null; // key → resolved value (with defaults applied)
+        if (resolved) {
+            // Convert BoundProperty[] to raw props for rendering pipeline
+            sorted = resolved.map(bp => this.boundPropToRaw(bp));
+            valueMap = {};
+            for (const bp of resolved) {
+                valueMap[bp.key] = bp.value;
+            }
+            groups = this.groupProps(sorted);
+            hasGroups = groups.some(g => g.name !== null);
+        } else {
+            // Fallback: legacy prop resolution from API-fetched meta
+            sorted = this.getSortedProps(meta);
+            groups = this.groupProps(sorted);
+            hasGroups = groups.some(g => g.name !== null);
+        }
+
+        // Helper: get value for a prop key — uses resolved defaults or raw data
+        const getValue = (key) => valueMap ? valueMap[key] : data?.[key];
 
         let html = `<table class="ge" data-level="0">${this.getColgroup()}<tbody>`;
         if (!sorted.find(p => p.key === 'id')) {
@@ -501,20 +581,20 @@ const elementStore = {
                     // Wrap group props in a section body
                     let groupContent = '';
                     for (const prop of group.props) {
-                        groupContent += await geField(prop, data?.[prop.key], prop.key, 0);
+                        groupContent += await geField(prop, getValue(prop.key), prop.key, 0);
                     }
                     html += `<tr class="ge-section-body"><td colspan="4" class="ge-nest-content" id="${foldId}">${groupContent}</td></tr>`;
                 } else {
                     // Ungrouped props render directly
                     for (const prop of group.props) {
-                        html += await geField(prop, data?.[prop.key], prop.key, 0);
+                        html += await geField(prop, getValue(prop.key), prop.key, 0);
                     }
                 }
             }
         } else {
             // No groups — flat rendering
             for (const prop of sorted) {
-                html += await geField(prop, data?.[prop.key], prop.key, 0);
+                html += await geField(prop, getValue(prop.key), prop.key, 0);
             }
         }
 

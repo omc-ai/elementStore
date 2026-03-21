@@ -1,0 +1,12 @@
+[
+  {
+    "id": "@storage:none",
+    "class_id": "@storage",
+    "name": "No Storage (transient)",
+    "type": "none",
+    "is_system": true,
+    "is_seed": true,
+    "description": "Fire-and-forget delivery. Objects are sent via WebSocket but not persisted or cached in any store. Used for real-time transient data like debug trace entries.",
+    "rules": { "persist": false, "cache": false, "broadcast": true }
+  }
+]
