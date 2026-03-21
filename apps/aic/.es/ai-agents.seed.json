@@ -3,13 +3,13 @@
     "id": "agent:coordinator",
     "class_id": "ai:agent",
     "name": "Coordinator",
-    "description": "Team lead. Decomposes goals into tasks, assigns work, tracks progress, makes decisions. Does NOT write code.",
+    "description": "Team lead. Decomposes goals into tasks, assigns work, tracks progress, makes decisions. Does NOT write code. Uses curl to create messages and tasks for other agents.",
     "title": "Team Coordinator",
     "is_active": true,
     "execution_order": 1,
     "model": "claude-sonnet-4-6",
     "prompt": "",
-    "tools": [],
+    "tools": ["Bash"],
     "context_filter": {
       "classes": ["ai:task", "ai:question", "ai:decision", "es:finding"],
       "scope": "all"

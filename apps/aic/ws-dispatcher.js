@@ -185,6 +185,19 @@ function handleChange(item) {
     }
   }
 
+  // ── Agent completed a response → notify Coordinator to orchestrate ──
+  // This is the autonomous feedback loop: any agent finishes → coordinator decides what's next
+  if (item.class_id === 'ai:message' && item.status === 'complete' && item.role === 'assistant') {
+    const fromAgent = item.agent_id || '';
+    // Don't loop: coordinator doesn't notify itself, assistant doesn't trigger coordinator
+    if (fromAgent && fromAgent !== 'agent:coordinator' && fromAgent !== 'agent:assistant') {
+      const contentPreview = (item.content || '').substring(0, 300);
+      log(`  🔄 ${fromAgent} completed response → notifying Coordinator`);
+      createPendingMessage('agent:coordinator',
+        `Agent ${fromAgent} just completed their work. Here's a summary of their response:\n\n${contentPreview}${(item.content||'').length > 300 ? '...' : ''}\n\nReview the open tasks (GET /query/ai:task?status=open) and decide: what should happen next? Create new tasks, reassign work, or mark tasks as done. If all work is finished, report status to the owner via agent:assistant.`);
+    }
+  }
+
   // ── Task status changes → route to next agent ──
   if (item.class_id === 'ai:task') {
     // Task marked for review → notify reviewer

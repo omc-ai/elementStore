@@ -630,7 +630,15 @@ $app->get('/query/{class}', function ($c) use ($app) {
 // RESET / TEST
 // =============================================================================
 
-$app->post('/reset', function () use ($app) {
+$app->post('/reset', function () use ($app, $esEnv) {
+    // Hard block in production — this endpoint wipes all store data
+    if ($esEnv === 'production') {
+        return error('Reset endpoint is disabled in production', 403);
+    }
+    // Require admin JWT role even in non-production environments
+    if (!AuthService::requireAdmin()) {
+        return error('Admin role required', 403);
+    }
     try {
         /** @var ClassModel $model */
         $model = $app->di->get('model');
@@ -712,6 +720,10 @@ $app->get('/genesis/data', function () use ($app) {
 // Reload genesis from .es/ directory (uses GenesisLoader directly)
 // Accepts optional 'dir' param to load from an external .es/ directory
 $app->post('/genesis/reload', function () use ($app) {
+    // Require admin JWT role — loading arbitrary class definitions is a privileged operation
+    if (!AuthService::requireAdmin()) {
+        return error('Admin role required', 403);
+    }
     try {
         /** @var ClassModel $model */
         $model = $app->di->get('model');
@@ -724,8 +736,17 @@ $app->post('/genesis/reload', function () use ($app) {
         $dir = $input['dir'] ?? null;
 
         if ($dir !== null) {
-            // Load from external .es/ directory
-            $result = $loader->loadExternal($dir, $force);
+            // Security: resolve symlinks/traversal and verify dir is within the project root
+            $projectRoot = realpath(__DIR__);
+            $resolvedDir = realpath($dir);
+            if ($resolvedDir === false) {
+                return error('Invalid dir parameter: directory not found', 400);
+            }
+            if (!str_starts_with($resolvedDir . DIRECTORY_SEPARATOR, $projectRoot . DIRECTORY_SEPARATOR)) {
+                return error('Invalid dir parameter: must be within the project root', 403);
+            }
+            // Load from validated external .es/ directory
+            $result = $loader->loadExternal($resolvedDir, $force);
         } else {
             $result = $loader->load($force);
         }

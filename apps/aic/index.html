@@ -223,13 +223,25 @@ header h1{font-size:1.1em;color:#fff}
 .browse-item .bi-fields{color:#667781;font-size:0.9em;margin-top:2px}
 .browse-detail{padding:8px;background:#f6f8fa;border:1px solid #e8e8e8;margin:0 6px 6px;border-radius:4px;font-size:0.78em;white-space:pre-wrap;font-family:monospace;max-height:300px;overflow-y:auto}
 /* Findings list */
-.finding-item{padding:8px 10px;border-bottom:1px solid #f0f2f5}
-.finding-item .f-sev{font-size:0.7em;font-weight:600;padding:1px 6px;border-radius:3px;text-transform:uppercase}
-.finding-item .f-sev.critical,.finding-item .f-sev.high{background:#ffebe9;color:#cf222e}
+.finding-item{padding:8px 10px;border-bottom:1px solid #f0f2f5;cursor:pointer;transition:background .1s}
+.finding-item:hover{background:#f6f8fa}
+.finding-item .f-sev{font-size:0.68em;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:0.3px}
+.finding-item .f-sev.critical{background:#cf222e;color:#fff}
+.finding-item .f-sev.high{background:#ffebe9;color:#cf222e}
 .finding-item .f-sev.medium{background:#fff8c5;color:#9a6700}
 .finding-item .f-sev.low{background:#f0f2f5;color:#667781}
-.finding-item .f-desc{font-size:0.85em;margin-top:3px}
-.finding-item .f-meta{font-size:0.72em;color:#667781;margin-top:2px}
+.finding-item code{background:#f0f2f5;padding:1px 4px;border-radius:3px;font-size:0.9em}
+
+/* Activity bar */
+.activity-bar{background:#064e45;display:flex;gap:0;overflow-x:auto;flex-shrink:0;padding:0 8px;border-bottom:1px solid rgba(255,255,255,.1)}
+.ab-agent{display:flex;align-items:center;gap:5px;padding:5px 10px;font-size:0.76em;color:rgba(255,255,255,.5);white-space:nowrap;border-right:1px solid rgba(255,255,255,.08);flex-shrink:0}
+.ab-agent:last-child{border-right:none}
+.ab-agent.working{color:#25d366;font-weight:600}
+.ab-agent.working .ab-dot{background:#25d366;animation:blink-green 1.2s ease-in-out infinite}
+.ab-agent.idle .ab-dot{background:rgba(255,255,255,.25)}
+.ab-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ab-task{max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:0.92em;opacity:0.8}
+.ab-agent.working .ab-task{opacity:1}
 
 /* Voice controls */
 .mic-active{background:#cf222e !important;animation:pulse-red 1s ease-in-out infinite}
@@ -248,6 +260,7 @@ header h1{font-size:1.1em;color:#fff}
     <span id="class-count"></span>
   </div>
 </header>
+<div class="activity-bar" id="activity-bar"></div>
 
 <div class="layout">
 
@@ -542,6 +555,7 @@ header h1{font-size:1.1em;color:#fff}
 
       window._agents = agents;
       agents.sort(function(a,b){return (a.execution_order||99)-(b.execution_order||99)});
+      updateActivityBar();
 
       // Worker bar update
       if(activeWorker){
@@ -1195,6 +1209,81 @@ header h1{font-size:1.1em;color:#fff}
   function esc(s){return s?String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
   function str(s,n){return s?(s.length>n?s.substring(0,n)+'...':s):''}
 
+  // ─── Activity Bar ─────────────────────────────────────────
+  // Tracks what each agent is doing right now
+  var agentActivity = {}; // agent_id → { status, task, since }
+
+  function updateActivityBar() {
+    var agents = window._agents || [];
+    var bar = document.getElementById('activity-bar');
+    if (!bar || !agents.length) return;
+    var h = '';
+    agents.forEach(function(a) {
+      var act = agentActivity[a.id] || {};
+      var isWorking = act.status === 'streaming' || act.status === 'processing';
+      var cls = isWorking ? 'working' : 'idle';
+      var task = '';
+      if (isWorking && act.task) {
+        task = act.task;
+      } else if (isWorking) {
+        task = 'thinking...';
+      } else {
+        task = 'idle';
+      }
+      h += '<div class="ab-agent ' + cls + '">';
+      h += '<span class="ab-dot"></span>';
+      h += '<strong>' + esc(a.name) + '</strong>';
+      h += '<span class="ab-task">' + esc(task) + '</span>';
+      h += '</div>';
+    });
+    bar.innerHTML = h;
+  }
+
+  // Called when we see a message status change
+  function trackAgentActivity(item) {
+    if (item.class_id !== 'ai:message' || !item.agent_id) return;
+    var agentId = item.agent_id;
+
+    if (item.role === 'assistant') {
+      if (item.status === 'streaming' || item.status === 'processing') {
+        // Agent is working — extract what they're working on
+        var task = '';
+        // Find the input message they're responding to
+        if (item.references && item.references.length) {
+          var refMsg = feedItems[item.references[0]];
+          if (refMsg && refMsg.content) {
+            task = refMsg.content.substring(0, 60);
+          }
+        }
+        agentActivity[agentId] = { status: item.status, task: task || 'working...', since: Date.now() };
+      } else if (item.status === 'complete' || item.status === 'error') {
+        agentActivity[agentId] = { status: 'idle', task: '', since: Date.now() };
+      }
+      updateActivityBar();
+    }
+
+    // Also track from input messages being processed
+    if (item.role === 'user' && item.status === 'processing' && item.to_agents) {
+      item.to_agents.forEach(function(aid) {
+        var taskPreview = (item.content || '').substring(0, 60);
+        agentActivity[aid] = { status: 'processing', task: taskPreview, since: Date.now() };
+      });
+      updateActivityBar();
+    }
+  }
+
+  // Auto-clear stale activity (agent stuck for > 5 min = probably done)
+  setInterval(function() {
+    var now = Date.now();
+    Object.keys(agentActivity).forEach(function(aid) {
+      var act = agentActivity[aid];
+      if (act.status !== 'idle' && act.since && (now - act.since) > 300000) {
+        agentActivity[aid] = { status: 'idle', task: '', since: now };
+      }
+    });
+    updateActivityBar();
+  }, 30000);
+
   // ─── Data Panel ──────────────────────────────────────────
   window.switchDataTab = function(tab) {
     document.querySelectorAll('.dp-tab').forEach(function(t){t.classList.remove('active')});
@@ -1218,16 +1307,47 @@ header h1{font-size:1.1em;color:#fff}
         return (sev[a.severity]||9)-(sev[b.severity]||9);
       });
       var h='';
-      items.forEach(function(f){
-        h+='<div class="finding-item" onclick="browseDetail(\'es:finding\',\''+f.id+'\')">';
-        h+='<div><span class="f-sev '+(f.severity||'medium')+'">'+(f.severity||'?')+'</span> ';
-        h+='<span style="font-size:0.72em;color:#667781">'+(f.category||'')+'</span></div>';
-        h+='<div class="f-desc">'+esc(f.name||f.description||'unnamed')+'</div>';
-        h+='<div class="f-meta">'+(f.status||'open')+' &middot; '+esc(f.id)+'</div>';
+      items.forEach(function(f, idx){
+        var loc = '';
+        if(f.location) {
+          var locs = Array.isArray(f.location) ? f.location : [f.location];
+          loc = locs.map(function(l){return '<code>'+esc(l)+'</code>'}).join(', ');
+        }
+        h+='<div class="finding-item" onclick="toggleFinding('+idx+')">';
+        h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
+        h+='<span class="f-sev '+(f.severity||'medium')+'">'+(f.severity||'?')+'</span>';
+        if(f.category) h+='<span style="font-size:0.7em;color:#667781;background:#f0f2f5;padding:1px 5px;border-radius:3px">'+esc(f.category)+'</span>';
+        h+='<span style="font-size:0.7em;color:#667781">'+(f.status||'open')+'</span>';
+        h+='</div>';
+        h+='<div class="f-title" style="font-weight:600;font-size:0.88em;margin-top:3px">'+esc(f.name||'unnamed')+'</div>';
+
+        // Expandable detail section
+        h+='<div class="f-detail" id="finding-detail-'+idx+'" style="display:none;margin-top:6px;font-size:0.84em">';
+        if(f.description && f.description !== f.name) {
+          h+='<div style="margin-bottom:6px;color:#111b21;line-height:1.5">'+esc(f.description)+'</div>';
+        }
+        if(loc) {
+          h+='<div style="margin-bottom:4px"><span style="font-weight:600;color:#667781;font-size:0.9em">Location:</span> '+loc+'</div>';
+        }
+        if(f.fix) {
+          h+='<div style="background:#dafbe1;padding:6px 8px;border-radius:4px;margin-top:4px;font-size:0.92em">';
+          h+='<span style="font-weight:600;color:#1a7f37">Fix:</span> '+esc(f.fix)+'</div>';
+        }
+        if(f.reported_by) {
+          h+='<div style="margin-top:4px;font-size:0.82em;color:#667781">Reported by: '+esc(f.reported_by)+'</div>';
+        }
+        h+='<div style="margin-top:4px;font-size:0.78em;color:#8b949e;font-family:monospace">'+esc(f.id)+'</div>';
+        h+='</div>';
+
         h+='</div>';
       });
       el.innerHTML=h;
     }).catch(function(){});
+  };
+
+  window.toggleFinding = function(idx) {
+    var el = document.getElementById('finding-detail-'+idx);
+    if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
   };
 
   // ─── Data Browser ────────────────────────────────────────
@@ -1316,6 +1436,8 @@ header h1{font-size:1.1em;color:#fff}
     if(item.class_id==='ai:message') feedUpsert(item);
     // Store non-message items for sidebar widgets (tasks, agents, etc.)
     if(item.class_id!=='ai:message') { feedItems[item.id] = item; }
+    // Track agent activity for the activity bar
+    trackAgentActivity(item);
     // Worker changes → update running indicators immediately
     if(item.class_id==='ai:worker') {
       if(item.current_agent && item.status==='running') {
