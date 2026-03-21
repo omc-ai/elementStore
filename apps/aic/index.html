@@ -8,9 +8,9 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#f0f2f5;color:#1f2328;line-height:1.5;display:flex;flex-direction:column}
-header{background:#fff;border-bottom:1px solid #d1d9e0;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:100}
-header h1{font-size:1.1em;color:#0550ae}
-.hdr-status{display:flex;gap:10px;align-items:center;font-size:0.82em}
+header{background:#075e54;border-bottom:none;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:100}
+header h1{font-size:1.1em;color:#fff}
+.hdr-status{display:flex;gap:10px;align-items:center;font-size:0.82em;color:rgba(255,255,255,.85)}
 .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:3px}
 .dot.ok{background:#1a7f37}.dot.err{background:#cf222e}.dot.load{background:#9a6700}
 .layout{flex:1;display:grid;grid-template-columns:250px 1fr 300px;gap:8px;padding:8px;overflow:hidden}
@@ -93,67 +93,87 @@ header h1{font-size:1.1em;color:#0550ae}
 .dec .d-topic{font-weight:500}
 
 /* Channel tabs */
-.ch-tabs{display:flex;gap:0;overflow-x:auto;border-bottom:1px solid #d1d9e0;flex-shrink:0;background:#f6f8fa}
-.ch-tab{padding:5px 10px;font-size:0.78em;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;color:#59636e;font-weight:500;transition:all .15s}
-.ch-tab:hover{background:#e8e8e8}
-.ch-tab.active{color:#0550ae;border-bottom-color:#0550ae;background:#fff;font-weight:600}
+.ch-tabs{display:flex;gap:0;overflow-x:auto;flex-shrink:0;background:#085f56}
+.ch-tab{padding:6px 12px;font-size:0.78em;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;color:rgba(255,255,255,.65);font-weight:500;transition:all .15s}
+.ch-tab:hover{color:rgba(255,255,255,.9)}
+.ch-tab.active{color:#fff;border-bottom-color:#25d366;font-weight:600}
 .ch-tab .ch-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:4px}
 .ch-tab .ch-dot.running{background:#1a7f37;animation:blink-green 1.2s ease-in-out infinite}
 .ch-tab .ch-dot.idle{background:#d1d9e0}
 .ch-tab .ch-unread{background:#cf222e;color:#fff;border-radius:8px;padding:0 5px;font-size:0.8em;margin-left:4px}
 
 /* Chat feed — message-focused */
-.feed{overflow-y:auto;display:flex;flex-direction:column;gap:0;padding:0;min-height:0;justify-content:flex-end}
+.feed{overflow-y:auto;padding:0;min-height:0}
 .conv-title{padding:6px 12px;font-size:0.75em;color:#59636e;background:#f6f8fa;border-bottom:1px solid #e8e8e8;font-weight:500;position:sticky;top:0;z-index:2}
 
-/* Message bubble */
-.msg{padding:8px 12px;border-bottom:1px solid #f0f2f5;cursor:pointer;transition:background .1s}
-.msg:hover{background:#f6f8fa}
-.msg.expanded{background:#f6f8fa}
-.msg-hdr{display:flex;align-items:center;gap:6px;margin-bottom:2px}
-.msg-avatar{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.65em;font-weight:700;flex-shrink:0;color:#fff}
-.msg-avatar.user{background:#0550ae}
-.msg-avatar.assistant{background:#1a7f37}
-.msg-avatar.system{background:#8b949e}
-.msg-name{font-weight:600;font-size:0.82em}
-.msg-time{font-size:0.68em;color:#8b949e;margin-left:auto}
-.msg-status{font-size:0.62em;padding:1px 5px;border-radius:3px;font-weight:600}
-.msg-status.pending{background:#fff8c5;color:#9a6700}
-.msg-status.processing{background:#ddf4ff;color:#0550ae}
-.msg-status.streaming{background:#dafbe1;color:#1a7f37;animation:blink-green 1.2s ease-in-out infinite}
+/* Chat feed — WhatsApp-style */
+.feed{background:#eae6df;padding:10px 14px !important}
+
+/* Message bubble — shared */
+.msg{max-width:72%;padding:5px 8px 3px;margin:2px 0;border-radius:7px;cursor:pointer;position:relative;word-break:break-word;box-shadow:0 1px 0.5px rgba(0,0,0,.13);display:block}
+
+/* User messages — right side, light green, fit content width */
+.msg.user-msg{background:#d9fdd3;margin-left:auto;border-top-right-radius:0;width:fit-content;max-width:65%}
+
+/* Agent/assistant messages — left side, white */
+.msg:not(.user-msg):not(.system-msg){background:#fff;margin-right:auto;border-top-left-radius:0}
+
+/* System messages — center, pill */
+.msg.system-msg{background:rgba(255,255,255,0.92);max-width:fit-content;margin:6px auto;text-align:center;border-radius:7px;padding:4px 12px;font-size:0.75em;color:#667781;box-shadow:0 1px 0.5px rgba(0,0,0,.1)}
+.msg.system-msg .msg-hdr{display:none}
+.msg.system-msg .msg-content{font-size:1em}
+
+/* Header row */
+.msg-hdr{display:flex;align-items:center;gap:4px;margin-bottom:1px}
+.msg-avatar{display:none}
+.msg-name{font-weight:600;font-size:0.8em}
+.msg.user-msg .msg-name{display:none}
+/* Color-code agent names */
+.msg:not(.user-msg) .msg-name{color:#53bdeb}
+.msg-time{font-size:0.65em;color:#667781;margin-left:auto;white-space:nowrap;align-self:flex-end}
+.msg-status{font-size:0.58em;padding:1px 4px;border-radius:3px;font-weight:600}
+.msg-status.pending{background:#fef3cd;color:#856404}
+.msg-status.processing{background:#d1ecf1;color:#0c5460}
+.msg-status.streaming{color:#1a7f37;background:none;animation:blink-green 1.2s ease-in-out infinite}
+.msg-status.streaming::after{content:'typing...';font-style:italic}
 .msg-status.complete{display:none}
 .msg-status.answered{display:none}
-.msg-status.error{background:#ffebe9;color:#cf222e}
+.msg-status.error{background:#f8d7da;color:#721c24}
+
+/* Time + status on same line at bottom-right (WhatsApp style) */
+.msg-footer{display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:1px}
 
 /* Message content */
-.msg-content{font-size:0.85em;line-height:1.5;color:#1f2328;white-space:pre-wrap;word-break:break-word}
-.msg.collapsed .msg-content{max-height:3em;overflow:hidden;-webkit-mask-image:linear-gradient(180deg,#000 60%,transparent);mask-image:linear-gradient(180deg,#000 60%,transparent)}
-.msg.user-msg{background:#f0f4ff;border-left:2px solid #0550ae}
-.msg.streaming .msg-content{border-left:2px solid #1a7f37;padding-left:8px}
-.msg-expand{font-size:0.7em;color:#0550ae;cursor:pointer;margin-top:2px}
+.msg-content{font-size:0.87em;line-height:1.45;color:#111b21;word-break:break-word}
+.msg-content p:first-child{margin-top:0}
+.msg-content p:last-child{margin-bottom:0}
+.msg.collapsed .msg-content{max-height:140px;overflow:hidden;-webkit-mask-image:linear-gradient(180deg,#000 75%,transparent);mask-image:linear-gradient(180deg,#000 75%,transparent)}
+.msg.streaming .msg-content{opacity:0.85}
+.msg-expand{font-size:0.78em;color:#53bdeb;cursor:pointer;margin-top:3px;font-weight:500;user-select:none}
+.msg-expand:hover{text-decoration:underline}
 
 /* Rendered markdown in messages */
-.msg-content h1,.msg-content h2,.msg-content h3{margin:6px 0 3px;font-size:1em;color:#0550ae}
-.msg-content h1{font-size:1.1em}.msg-content h2{font-size:1em}.msg-content h3{font-size:0.95em}
+.msg-content h1,.msg-content h2,.msg-content h3{margin:6px 0 3px;font-size:1em;color:#111b21;font-weight:700}
+.msg-content h1{font-size:1.05em}.msg-content h2{font-size:1em}.msg-content h3{font-size:0.95em}
 .msg-content ul,.msg-content ol{margin:3px 0 3px 18px}
 .msg-content li{margin:1px 0}
-.msg-content code{background:#f0f2f5;padding:1px 4px;border-radius:3px;font-size:0.9em;font-family:'SF Mono',Monaco,Consolas,monospace}
-.msg-content pre{background:#1f2328;color:#c9d1d9;padding:8px;border-radius:4px;overflow-x:auto;margin:4px 0;font-size:0.85em}
+.msg-content code{background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px;font-size:0.88em;font-family:'SF Mono',Monaco,Consolas,monospace}
+.msg-content pre{background:#111b21;color:#e9edef;padding:8px 10px;border-radius:6px;overflow-x:auto;margin:4px 0;font-size:0.84em}
 .msg-content pre code{background:none;padding:0;color:inherit}
 .msg-content p{margin:3px 0}
-.msg-content blockquote{border-left:3px solid #d1d9e0;padding-left:8px;color:#59636e;margin:3px 0}
-.msg-content table{border-collapse:collapse;font-size:0.9em;margin:4px 0}
-.msg-content th,.msg-content td{border:1px solid #d1d9e0;padding:3px 6px}
-.msg-content th{background:#f6f8fa;font-weight:600}
+.msg-content blockquote{border-left:3px solid #d1d9e0;padding-left:8px;color:#667781;margin:3px 0}
+.msg-content table{border-collapse:collapse;font-size:0.88em;margin:4px 0;width:100%}
+.msg-content th,.msg-content td{border:1px solid #e2e8f0;padding:4px 8px;text-align:left}
+.msg-content th{background:rgba(0,0,0,.04);font-weight:600}
 .msg-content strong{font-weight:600}
-.msg-content a{color:#0550ae}
+.msg-content a{color:#027eb5}
 
-/* Expanded logs */
-.msg-logs{margin-top:6px;padding:6px 8px;background:#f6f8fa;border:1px solid #e8e8e8;border-radius:4px;font-size:0.75em;display:none}
+/* Expanded logs — click bubble to see metadata */
+.msg-logs{margin-top:6px;padding:6px 8px;background:rgba(0,0,0,.03);border-top:1px solid rgba(0,0,0,.06);font-size:0.72em;display:none}
 .msg.expanded .msg-logs{display:block}
-.msg-log-row{display:flex;gap:8px;padding:2px 0;color:#59636e}
-.msg-log-row .label{font-weight:600;min-width:70px;color:#1f2328}
-.msg-log-row a{color:#0550ae;text-decoration:none}
+.msg-log-row{display:flex;gap:8px;padding:1px 0;color:#667781}
+.msg-log-row .label{font-weight:600;min-width:60px;color:#111b21}
+.msg-log-row a{color:#027eb5;text-decoration:none}
 
 /* Question cards for owner */
 .q-card{padding:10px;border-bottom:1px solid #f0f2f5}
@@ -189,6 +209,34 @@ header h1{font-size:1.1em;color:#0550ae}
 .sess-item{padding:4px 8px;background:#f6f8fa;border-radius:4px;margin:3px 0;font-size:0.78em;display:flex;justify-content:space-between}
 .sess-item .s-status{font-weight:600}
 .sess-item .s-status.active{color:#1a7f37}.sess-item .s-status.closed{color:#59636e}
+
+/* Data panel tabs */
+.dp-tab{padding:6px 10px;font-size:0.78em;cursor:pointer;color:rgba(255,255,255,.6);font-weight:500;white-space:nowrap;border-bottom:2px solid transparent;transition:all .15s}
+.dp-tab:hover{color:rgba(255,255,255,.85)}
+.dp-tab.active{color:#fff;border-bottom-color:#25d366;font-weight:600}
+.dp-panel{display:none}
+.dp-panel.active{display:flex;flex-direction:column}
+/* Browse items */
+.browse-item{padding:6px 10px;border-bottom:1px solid #f0f2f5;cursor:pointer;font-size:0.82em;transition:background .1s}
+.browse-item:hover{background:#f6f8fa}
+.browse-item .bi-id{font-family:monospace;font-size:0.85em;color:#0550ae}
+.browse-item .bi-fields{color:#667781;font-size:0.9em;margin-top:2px}
+.browse-detail{padding:8px;background:#f6f8fa;border:1px solid #e8e8e8;margin:0 6px 6px;border-radius:4px;font-size:0.78em;white-space:pre-wrap;font-family:monospace;max-height:300px;overflow-y:auto}
+/* Findings list */
+.finding-item{padding:8px 10px;border-bottom:1px solid #f0f2f5}
+.finding-item .f-sev{font-size:0.7em;font-weight:600;padding:1px 6px;border-radius:3px;text-transform:uppercase}
+.finding-item .f-sev.critical,.finding-item .f-sev.high{background:#ffebe9;color:#cf222e}
+.finding-item .f-sev.medium{background:#fff8c5;color:#9a6700}
+.finding-item .f-sev.low{background:#f0f2f5;color:#667781}
+.finding-item .f-desc{font-size:0.85em;margin-top:3px}
+.finding-item .f-meta{font-size:0.72em;color:#667781;margin-top:2px}
+
+/* Voice controls */
+.mic-active{background:#cf222e !important;animation:pulse-red 1s ease-in-out infinite}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(207,34,46,.4)}50%{box-shadow:0 0 8px 4px rgba(207,34,46,.4)}}
+.tts-active{background:#1a7f37 !important}
+#voice-status{display:none;padding:2px 8px;font-size:0.7em;color:#9a6700;background:#fff8c5;border-radius:4px}
+#voice-status.active{display:inline-block}
 </style>
 </head>
 <body>
@@ -203,19 +251,15 @@ header h1{font-size:1.1em;color:#0550ae}
 
 <div class="layout">
 
-<!-- LEFT: Workers + Agents + Decisions -->
-<div class="col" style="overflow-y:auto">
-  <div class="card" style="flex-shrink:0;max-height:300px;display:flex;flex-direction:column">
-    <div class="card-hdr" style="flex-shrink:0">Workers <span class="count" id="worker-count">0</span> <label style="font-weight:400;font-size:0.85em;margin-left:auto;cursor:pointer"><input type="checkbox" id="wk-only-active" onchange="load()" style="margin-right:3px">active only</label></div>
-    <div class="card-body" id="workers-list" style="padding:0;overflow-y:auto;flex:1"></div>
-  </div>
+<!-- LEFT: Team sidebar -->
+<div class="col" style="overflow-y:auto;gap:6px">
   <div class="card" style="flex-shrink:0">
-    <div class="card-hdr">Agents <span class="count" id="agent-count">0</span> <label style="font-weight:400;font-size:0.85em;margin-left:auto;cursor:pointer"><input type="checkbox" id="ag-only-active" onchange="load()" style="margin-right:3px">active only</label></div>
+    <div class="card-hdr" style="background:#075e54;color:#fff;border-bottom:none">Team <span class="count" id="agent-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
     <div class="card-body" id="agents" style="padding:0"></div>
   </div>
-  <div class="card" style="flex-shrink:0">
-    <div class="card-hdr">Decisions <span class="count" id="dec-count">0</span></div>
-    <div class="card-body" id="decisions" style="padding:0;max-height:150px;overflow-y:auto"></div>
+  <div class="card" style="flex-shrink:0;max-height:200px;display:flex;flex-direction:column">
+    <div class="card-hdr" style="font-size:0.78em;color:#667781">Workers <span class="count" id="worker-count">0</span> <label style="font-weight:400;font-size:0.85em;margin-left:auto;cursor:pointer"><input type="checkbox" id="wk-only-active" onchange="load()" style="margin-right:3px">active only</label></div>
+    <div class="card-body" id="workers-list" style="padding:0;overflow-y:auto;flex:1"></div>
   </div>
 </div>
 
@@ -235,45 +279,81 @@ header h1{font-size:1.1em;color:#0550ae}
     </div>
     <div class="feed" id="feed" style="flex:1;overflow-y:auto;position:relative"></div>
     <div id="feed-ff" onclick="document.getElementById('feed').scrollTop=document.getElementById('feed').scrollHeight;this.style.display='none'" style="display:none;position:absolute;bottom:50px;left:50%;transform:translateX(-50%);background:#0550ae;color:#fff;padding:4px 12px;border-radius:12px;font-size:0.75em;cursor:pointer;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.2)">↓ new</div>
-    <div style="flex-shrink:0;padding:6px;border-top:1px solid #d1d9e0;display:flex;gap:6px;align-items:center">
-      <span id="ch-label" style="font-size:0.75em;color:#0550ae;font-weight:600;white-space:nowrap">#general</span>
-      <input id="feed-input" type="text" placeholder="Type a message..." style="flex:1;padding:6px 10px;border:1px solid #d1d9e0;border-radius:6px;font-size:0.85em;font-family:inherit" onkeydown="if(event.key==='Enter')sendFeedMessage()">
-      <button onclick="sendFeedMessage()" class="act-btn" style="background:#0550ae;padding:6px 14px">Send</button>
+    <div style="flex-shrink:0;padding:6px 8px;background:#f0f2f5;display:flex;gap:6px;align-items:center">
+      <button id="mic-btn" onclick="toggleMic()" style="background:none;border:none;cursor:pointer;font-size:1.2em;padding:4px;color:#54656f" title="Voice input">&#127908;</button>
+      <input id="feed-input" type="text" placeholder="Type a message..." style="flex:1;padding:8px 14px;border:none;border-radius:20px;font-size:0.88em;font-family:inherit;background:#fff;outline:none" onkeydown="if(event.key==='Enter')sendFeedMessage()">
+      <button id="tts-btn" onclick="toggleTTS()" style="background:none;border:none;cursor:pointer;font-size:1.1em;padding:4px;color:#54656f" title="Toggle voice responses">&#128264;</button>
+      <button onclick="sendFeedMessage()" style="background:#075e54;border:none;cursor:pointer;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1em;flex-shrink:0">&#10148;</button>
+      <span id="ch-label" style="display:none">#general</span>
     </div>
-  </div>
-
-  <div class="card" style="max-height:250px;flex-shrink:0">
-    <div class="card-hdr">Open Tasks <span class="count" id="task-count">0</span></div>
-    <div class="card-body" id="tasks" style="padding:0;overflow-y:auto"></div>
   </div>
 </div>
 
-<!-- RIGHT: Actions + Questions -->
-<div class="col">
-  <div class="card" style="flex-shrink:0">
-    <div class="card-hdr">Actions</div>
-    <div class="actions">
-      <button class="act-btn" style="background:#0550ae" onclick="openAction('question')">Ask</button>
-      <button class="act-btn" style="background:#9a6700" onclick="openAction('directive')">Task</button>
-      <button class="act-btn" style="background:#cf222e" onclick="openAction('finding')">Finding</button>
+<!-- RIGHT: Data Panel -->
+<div class="col" style="gap:0">
+  <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+    <!-- Tabs -->
+    <div style="display:flex;background:#085f56;flex-shrink:0">
+      <div class="dp-tab active" data-tab="tasks" onclick="switchDataTab('tasks')">Tasks <span class="count" id="task-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
+      <div class="dp-tab" data-tab="findings" onclick="switchDataTab('findings')">Findings <span class="count" id="finding-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
+      <div class="dp-tab" data-tab="questions" onclick="switchDataTab('questions')">Questions <span class="count" id="q-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
+      <div class="dp-tab" data-tab="browse" onclick="switchDataTab('browse')">Browse</div>
+    </div>
+
+    <!-- Tasks panel -->
+    <div class="dp-panel active" id="dp-tasks" style="flex:1;overflow-y:auto;padding:0">
+      <div id="tasks"></div>
+      <div style="padding:6px 10px;border-top:1px solid #e8e8e8">
+        <button class="act-btn" style="background:#9a6700;width:100%;padding:5px" onclick="openAction('directive')">+ New Task</button>
+      </div>
+    </div>
+
+    <!-- Findings panel -->
+    <div class="dp-panel" id="dp-findings" style="flex:1;overflow-y:auto;padding:0">
+      <div id="findings-list"></div>
+      <div style="padding:6px 10px;border-top:1px solid #e8e8e8">
+        <button class="act-btn" style="background:#cf222e;width:100%;padding:5px" onclick="openAction('finding')">+ Report Finding</button>
+      </div>
+    </div>
+
+    <!-- Questions panel -->
+    <div class="dp-panel" id="dp-questions" style="flex:1;overflow-y:auto;padding:0">
+      <div id="q-mine" style="padding:0;border-bottom:1px solid #d1d9e0;flex-shrink:0"></div>
+      <div class="card-body" id="q-others" style="padding:0;flex:1;overflow-y:auto"></div>
+      <span id="q-mine-count" style="display:none">0</span>
+      <span id="dec-count" style="display:none">0</span>
+      <div id="decisions" style="display:none"></div>
+      <div id="q-all-wrap" style="display:none"><table><thead><tr><th>From</th><th>To</th><th>Question</th><th>Status</th><th></th></tr></thead><tbody id="q-all-body"></tbody></table></div>
+    </div>
+
+    <!-- Data Browser panel -->
+    <div class="dp-panel" id="dp-browse" style="flex:1;overflow:hidden;display:none;flex-direction:column">
+      <div style="padding:6px 8px;border-bottom:1px solid #e8e8e8;display:flex;gap:4px;flex-shrink:0">
+        <select id="browse-class" onchange="browseLoad()" style="flex:1;padding:4px 6px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.82em;font-family:inherit">
+          <option value="ai:task">ai:task</option>
+          <option value="ai:message">ai:message</option>
+          <option value="ai:agent">ai:agent</option>
+          <option value="es:finding">es:finding</option>
+          <option value="ai:question">ai:question</option>
+          <option value="ai:decision">ai:decision</option>
+          <option value="ai:conversation">ai:conversation</option>
+          <option value="ai:worker">ai:worker</option>
+          <option value="ai:round">ai:round</option>
+          <option value="@class">@class</option>
+          <option value="@feature">@feature</option>
+          <option value="@app_feature">@app_feature</option>
+        </select>
+        <button onclick="browseLoad()" style="padding:4px 10px;border:1px solid #d1d9e0;border-radius:4px;background:#f6f8fa;cursor:pointer;font-size:0.82em">Load</button>
+      </div>
+      <div id="browse-results" style="flex:1;overflow-y:auto;padding:0;font-size:0.78em"></div>
     </div>
   </div>
-  <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-    <div class="card-hdr" style="cursor:pointer;flex-shrink:0" onclick="toggleQExpand()">
-      <span>Questions <span class="count" id="q-count">0</span> <span class="count" id="q-mine-count" style="background:#ffebe9;color:#cf222e">0 for you</span></span>
-      <span id="q-expand-icon" style="font-size:0.8em;color:#59636e">&#9660;</span>
-    </div>
-    <!-- Compact: cards for questions to owner (me) -->
-    <div id="q-mine" style="padding:0;border-bottom:1px solid #d1d9e0;flex-shrink:0"></div>
-    <!-- Expandable: full table of all questions -->
-    <div id="q-all-wrap" style="display:none;flex:1;overflow-y:auto">
-      <table style="font-size:0.8em;margin:0">
-        <thead><tr><th>From</th><th>To</th><th>Question</th><th>Status</th><th></th></tr></thead>
-        <tbody id="q-all-body"></tbody>
-      </table>
-    </div>
-    <!-- Compact list for other open questions -->
-    <div class="card-body" id="q-others" style="padding:0;flex:1;overflow-y:auto"></div>
+
+  <!-- Quick actions bar -->
+  <div style="padding:6px 8px;background:#f0f2f5;display:flex;gap:4px;flex-shrink:0">
+    <button class="act-btn" style="background:#075e54;flex:1;padding:4px" onclick="openAction('question')">Ask</button>
+    <button class="act-btn" style="background:#9a6700;flex:1;padding:4px" onclick="openAction('directive')">Task</button>
+    <button class="act-btn" style="background:#cf222e;flex:1;padding:4px" onclick="openAction('finding')">Finding</button>
   </div>
 </div>
 
@@ -350,10 +430,12 @@ header h1{font-size:1.1em;color:#0550ae}
   esws._onMessage = function(msg) {
     if (msg.event === 'initial' && msg.items) {
       console.log('[WS] initial:', msg.class_id, msg.items.length, 'items');
-      // Add all to feed data store — renderFeed sorts by date
+      // Store items — only messages trigger feed render
       for (var i = 0; i < msg.items.length; i++) {
         var item = msg.items[i];
-        if (item && item.id) feedItems[item.id] = item;
+        if (item && item.id) {
+          feedItems[item.id] = item;
+        }
       }
       feedDirty = true;
       renderFeed();
@@ -502,12 +584,20 @@ header h1{font-size:1.1em;color:#0550ae}
       var th='';
       openT.forEach(function(t){
         var pc=(t.priority||'').toLowerCase();
-        th+='<div class="task"><div class="t-name">'+bg(t.priority||'?',pc)+' '+t.name+'</div>';
-        th+='<div class="t-meta"><span>'+(t.project||'')+'</span>';
-        if(t.agent_id)th+='<span>'+t.agent_id+'</span>';
-        th+='<span>step:'+(t.step||'-')+'</span></div></div>';
+        var stCls = t.status === 'open' ? 'open' : (t.status === 'done' || t.status === 'verified' ? 'done' : 'progress');
+        th+='<div class="task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')" style="cursor:pointer">';
+        th+='<div class="t-name">'+bg(t.priority||'?',pc)+' '+bg(t.status||'?',stCls)+' '+esc(t.name)+'</div>';
+        th+='<div class="t-meta">';
+        if(t.agent_id)th+='<span>'+esc(agentName(t.agent_id))+'</span>';
+        if(t.step)th+='<span>step:'+t.step+'</span>';
+        th+='</div></div>';
       });
       document.getElementById('tasks').innerHTML=th||'<div style="padding:12px;color:#59636e">No open tasks</div>';
+
+      // Findings count
+      fetch(API+'/store/es:finding').then(function(r){return r.json()}).then(function(f){
+        document.getElementById('finding-count').textContent=f.length;
+      }).catch(function(){});
 
       // Questions — split into "for me" (owner/all) and "others"
       window._questions = questions;
@@ -805,7 +895,7 @@ header h1{font-size:1.1em;color:#0550ae}
     var tabs = document.getElementById('ch-tabs');
     var h = '<div class="ch-tab'+(activeChannel==='general'?' active':'')+'" data-channel="general" onclick="switchChannel(\'general\')">#general</div>';
     (window._agents||[]).forEach(function(a) {
-      if(a.id === 'agent:owner') return;
+      if(a.id === 'agent:assistant') return;
       var isRunning = !!(window._runningAgentIds||{})[a.id];
       var shortName = a.name.toLowerCase().replace(/\s+/g,'-');
       var unread = channelUnread[a.id] || 0;
@@ -854,7 +944,7 @@ header h1{font-size:1.1em;color:#0550ae}
   // Resolve agent name from ID (cached from last load)
   function agentName(id) {
     if (!id) return '?';
-    if (id === 'owner' || id === 'agent:owner') return 'You';
+    if (id === 'owner') return 'You';
     var a = (window._agents||[]).find(function(x){return x.id===id});
     return a ? a.name : id.replace('agent:','');
   }
@@ -873,7 +963,7 @@ header h1{font-size:1.1em;color:#0550ae}
     input.disabled = true;
 
     try {
-      var targetAgent = activeChannel === 'general' ? 'agent:owner' : activeChannel;
+      var targetAgent = activeChannel === 'general' ? 'agent:assistant' : activeChannel;
       var convId = null;
       if(activeChannel !== 'general') {
         convId = await getChannelConversation(activeChannel);
@@ -881,7 +971,7 @@ header h1{font-size:1.1em;color:#0550ae}
       var now = new Date().toISOString();
       var msgBody = {class_id:'ai:message', user_id:'owner', role:'user', content:text, status:'pending', created:now};
       if(activeChannel === 'general') {
-        msgBody.agent_id = 'agent:owner';
+        msgBody.to_agents = ['agent:assistant'];
       } else {
         msgBody.to_agents = [targetAgent];
         msgBody.agent_id = targetAgent;
@@ -942,9 +1032,15 @@ header h1{font-size:1.1em;color:#0550ae}
 
     var items = Object.values(feedItems);
 
-    // Messages only — the feed is a chat view
+    // Messages only — the feed is a group chat
     var messages = items.filter(function(item) {
-      return item.class_id === 'ai:message';
+      if(item.class_id !== 'ai:message') return false;
+      // Hide system health/status messages
+      if(item.role === 'system' && item.metadata && item.metadata.type === 'health') return false;
+      if(item.id === '_ws_status') return true;
+      // Hide empty/processing messages
+      if(item.role === 'assistant' && !item.content && item.status === 'streaming') return false;
+      return true;
     });
 
     // Filter by active channel
@@ -964,20 +1060,10 @@ header h1{font-size:1.1em;color:#0550ae}
     });
     if(messages.length > MAX_FEED) messages = messages.slice(-MAX_FEED);
 
-    // Group by conversation — insert title headers
+    // Flat chat — no conversation headers, just messages
     var h = '';
-    var lastConv = '';
     for(var i = 0; i < messages.length; i++) {
-      var m = messages[i];
-      var convId = m.conversation_id || '';
-      // Conversation title header
-      if(convId && convId !== lastConv) {
-        var convObj = feedItems[convId] || null;
-        var convTitle = convObj ? (convObj.title || 'Conversation') : 'Conversation';
-        h += '<div class="conv-title">' + esc(convTitle) + '</div>';
-        lastConv = convId;
-      }
-      h += messageCard(m);
+      h += messageCard(messages[i]);
     }
     feedEl.innerHTML = h || '<div style="padding:30px 12px;color:#8b949e;text-align:center;font-size:0.85em">No messages yet. Send one below.</div>';
 
@@ -1017,7 +1103,7 @@ header h1{font-size:1.1em;color:#0550ae}
     var isStreaming = status === 'streaming';
     var time = (item.created || item.created_at || item.updated_at || '').substring(11,19);
     var content = item.content || '';
-    var collapsed = content.length > 200 && !isStreaming ? ' collapsed' : '';
+    var collapsed = content.length > 300 && !isStreaming ? ' collapsed' : '';
 
     // Avatar
     var avatarCls = isUser ? 'user' : (isSystem ? 'system' : 'assistant');
@@ -1027,7 +1113,8 @@ header h1{font-size:1.1em;color:#0550ae}
     // Status badge (only show non-final states)
     var stHtml = '';
     if(status && status !== 'complete' && status !== 'answered') {
-      stHtml = '<span class="msg-status '+status+'">'+status+'</span>';
+      var stLabel = status === 'streaming' ? '' : status;
+      stHtml = '<span class="msg-status '+status+'">'+stLabel+'</span>';
     }
 
     // Build logs section (hidden until expanded)
@@ -1051,43 +1138,53 @@ header h1{font-size:1.1em;color:#0550ae}
       logs += '</div>';
     }
 
-    var extraCls = isUser ? ' user-msg' : '';
+    var extraCls = isUser ? ' user-msg' : (isSystem ? ' system-msg' : '');
     if(isStreaming) extraCls += ' streaming';
 
-    // Render content based on format: markdown for assistant, plain for user/system
+    // Render content: markdown for assistant, plain for user/system
     var renderedContent = '';
-    var fmt = (item.metadata && item.metadata.format) || '';
     if(isUser || isSystem || !content) {
-      renderedContent = esc(content);
+      // Plain text — convert \n to <br> for readability
+      renderedContent = esc(content).replace(/\n/g, '<br>');
     } else {
-      // Assistant messages — render as markdown (default for AI output)
+      // Assistant messages — render as markdown
       try {
+        // Ensure literal \n sequences are actual newlines for markdown parsing
+        var mdContent = content.replace(/\\n/g, '\n');
         if(typeof marked !== 'undefined') {
-          renderedContent = marked.parse(content);
+          renderedContent = marked.parse(mdContent);
         } else {
-          renderedContent = esc(content);
+          renderedContent = esc(mdContent).replace(/\n/g, '<br>');
         }
-      } catch(e) { renderedContent = esc(content); }
+      } catch(e) {
+        renderedContent = esc(content).replace(/\n/g, '<br>');
+      }
     }
 
     return '<div class="msg'+collapsed+extraCls+'" id="fi-'+item.id+'" onclick="toggleMsg(this)">' +
       '<div class="msg-hdr">' +
-        '<div class="msg-avatar '+avatarCls+'">'+avatarLetter+'</div>' +
         '<span class="msg-name">'+name+'</span>' +
         stHtml +
-        '<span class="msg-time">'+time+'</span>' +
       '</div>' +
       '<div class="msg-content">'+renderedContent+'</div>' +
       (collapsed ? '<div class="msg-expand">show more</div>' : '') +
+      '<div class="msg-footer"><span class="msg-time">'+time+'</span></div>' +
       logs +
     '</div>';
   }
 
   window.toggleMsg = function(el) {
+    var exp = el.querySelector('.msg-expand');
     if(el.classList.contains('collapsed')) {
+      // Expand — show full content
       el.classList.remove('collapsed');
-      var exp = el.querySelector('.msg-expand');
-      if(exp) exp.textContent = '';
+      if(exp) exp.textContent = 'show less';
+      el.classList.add('msg-full');
+    } else if(el.classList.contains('msg-full')) {
+      // Collapse back
+      el.classList.remove('msg-full');
+      el.classList.add('collapsed');
+      if(exp) exp.textContent = 'show more';
     } else if(el.classList.contains('expanded')) {
       el.classList.remove('expanded');
     } else {
@@ -1097,6 +1194,88 @@ header h1{font-size:1.1em;color:#0550ae}
 
   function esc(s){return s?String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
   function str(s,n){return s?(s.length>n?s.substring(0,n)+'...':s):''}
+
+  // ─── Data Panel ──────────────────────────────────────────
+  window.switchDataTab = function(tab) {
+    document.querySelectorAll('.dp-tab').forEach(function(t){t.classList.remove('active')});
+    document.querySelectorAll('.dp-panel').forEach(function(p){p.classList.remove('active');p.style.display='none'});
+    var tabEl = document.querySelector('.dp-tab[data-tab="'+tab+'"]');
+    var panelEl = document.getElementById('dp-'+tab);
+    if(tabEl) tabEl.classList.add('active');
+    if(panelEl) { panelEl.classList.add('active'); panelEl.style.display='flex'; }
+    if(tab === 'browse') browseLoad();
+    if(tab === 'findings') loadFindings();
+  };
+
+  // ─── Findings ────────────────────────────────────────────
+  window.loadFindings = function() {
+    fetch(API+'/store/es:finding').then(function(r){return r.json()}).then(function(items){
+      document.getElementById('finding-count').textContent = items.length;
+      var el = document.getElementById('findings-list');
+      if(!items.length) { el.innerHTML='<div style="padding:20px;text-align:center;color:#667781;font-size:0.85em">No findings yet</div>'; return; }
+      items.sort(function(a,b){
+        var sev={critical:0,high:1,medium:2,low:3};
+        return (sev[a.severity]||9)-(sev[b.severity]||9);
+      });
+      var h='';
+      items.forEach(function(f){
+        h+='<div class="finding-item" onclick="browseDetail(\'es:finding\',\''+f.id+'\')">';
+        h+='<div><span class="f-sev '+(f.severity||'medium')+'">'+(f.severity||'?')+'</span> ';
+        h+='<span style="font-size:0.72em;color:#667781">'+(f.category||'')+'</span></div>';
+        h+='<div class="f-desc">'+esc(f.name||f.description||'unnamed')+'</div>';
+        h+='<div class="f-meta">'+(f.status||'open')+' &middot; '+esc(f.id)+'</div>';
+        h+='</div>';
+      });
+      el.innerHTML=h;
+    }).catch(function(){});
+  };
+
+  // ─── Data Browser ────────────────────────────────────────
+  window.browseLoad = function() {
+    var cls = document.getElementById('browse-class').value;
+    var el = document.getElementById('browse-results');
+    el.innerHTML='<div style="padding:20px;text-align:center;color:#667781">Loading...</div>';
+    fetch(API+'/store/'+encodeURIComponent(cls)).then(function(r){return r.json()}).then(function(items){
+      if(!items || !items.length) { el.innerHTML='<div style="padding:20px;text-align:center;color:#667781">No objects</div>'; return; }
+      var h='';
+      items.forEach(function(item){
+        var preview = '';
+        if(item.name) preview += '<strong>'+esc(item.name)+'</strong> ';
+        if(item.status) preview += '<span class="badge b-'+item.status+'">'+item.status+'</span> ';
+        if(item.priority) preview += '<span class="badge b-'+item.priority.toLowerCase()+'">'+item.priority+'</span> ';
+        if(item.content) preview += esc(str(item.content,80));
+        else if(item.description) preview += esc(str(item.description,80));
+        else if(item.title) preview += esc(item.title);
+        h+='<div class="browse-item" onclick="browseDetail(\''+cls+'\',\''+item.id+'\')">';
+        h+='<div class="bi-id">'+esc(item.id)+'</div>';
+        h+='<div class="bi-fields">'+preview+'</div>';
+        h+='</div>';
+      });
+      el.innerHTML=h;
+    }).catch(function(e){el.innerHTML='<div style="padding:20px;color:#cf222e">Error: '+e.message+'</div>';});
+  };
+
+  window.browseDetail = function(cls, id) {
+    fetch(API+'/store/'+encodeURIComponent(cls)+'/'+encodeURIComponent(id)).then(function(r){return r.json()}).then(function(obj){
+      // Show in a modal-like detail view
+      var existing = document.querySelector('.browse-detail');
+      if(existing) existing.remove();
+      var detail = document.createElement('div');
+      detail.className = 'browse-detail';
+      detail.textContent = JSON.stringify(obj, null, 2);
+      detail.onclick = function(){ detail.remove(); };
+      var panel = document.getElementById('dp-browse');
+      if(!panel || !panel.classList.contains('active')) {
+        // If we're on findings/tasks tab, show inline
+        panel = document.querySelector('.dp-panel.active');
+      }
+      if(panel) {
+        var results = panel.querySelector('#browse-results, #findings-list, #tasks');
+        if(results) results.parentNode.insertBefore(detail, results.nextSibling);
+        else panel.appendChild(detail);
+      }
+    });
+  };
 
   // ─── WebSocket ──────────────────────────────────────────
   esws.on('connected',function(msg){
@@ -1133,7 +1312,10 @@ header h1{font-size:1.1em;color:#0550ae}
 
   esws.on('change',function(item){
     if(!item||!item.id) return;
-    feedUpsert(item);
+    // Only put messages into the chat feed
+    if(item.class_id==='ai:message') feedUpsert(item);
+    // Store non-message items for sidebar widgets (tasks, agents, etc.)
+    if(item.class_id!=='ai:message') { feedItems[item.id] = item; }
     // Worker changes → update running indicators immediately
     if(item.class_id==='ai:worker') {
       if(item.current_agent && item.status==='running') {
@@ -1142,11 +1324,17 @@ header h1{font-size:1.1em;color:#0550ae}
       }
     }
     // Track unread per agent channel
-    if(item.class_id==='ai:message' && item.agent_id && item.agent_id !== 'agent:owner') {
+    if(item.class_id==='ai:message' && item.agent_id && item.agent_id !== 'agent:assistant') {
       var msgChannel = item.agent_id;
       if(msgChannel !== activeChannel) {
         channelUnread[msgChannel] = (channelUnread[msgChannel]||0) + 1;
         renderChannelTabs();
+      }
+    }
+    // Auto-speak new assistant responses if TTS is enabled
+    if(item.class_id==='ai:message' && item.role==='assistant' && item.status==='complete' && item.content && window._ttsEnabled) {
+      if(activeChannel==='general' || item.agent_id===activeChannel) {
+        speakResponse(item.content);
       }
     }
     sched();
@@ -1172,6 +1360,95 @@ header h1{font-size:1.1em;color:#0550ae}
 
   load();
   setInterval(function(){if(!esws.ws||esws.ws.readyState!==1)load()},15000);
+
+  // ─── Voice Interface ─────────────────────────────────────
+  var _speechRecognition = null;
+  var _micActive = false;
+  window._ttsEnabled = false;
+
+  window.toggleMic = function() {
+    if (_micActive) { stopMic(); } else { startMic(); }
+  };
+
+  function startMic() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert('Speech recognition requires Chrome or Edge.'); return; }
+
+    _speechRecognition = new SR();
+    _speechRecognition.continuous = false;
+    _speechRecognition.interimResults = true;
+    _speechRecognition.lang = 'en-US';
+
+    _speechRecognition.onstart = function() {
+      _micActive = true;
+      document.getElementById('mic-btn').classList.add('mic-active');
+      document.getElementById('feed-input').placeholder = 'Listening...';
+    };
+
+    _speechRecognition.onresult = function(event) {
+      var transcript = '';
+      for (var i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      document.getElementById('feed-input').value = transcript;
+      // Auto-send on final result
+      if (event.results[event.results.length - 1].isFinal) {
+        setTimeout(function() {
+          if (document.getElementById('feed-input').value.trim()) {
+            sendFeedMessage();
+          }
+        }, 400);
+      }
+    };
+
+    _speechRecognition.onerror = function(e) {
+      console.warn('[Voice] error:', e.error);
+      stopMic();
+    };
+
+    _speechRecognition.onend = function() { stopMic(); };
+    _speechRecognition.start();
+  }
+
+  function stopMic() {
+    _micActive = false;
+    document.getElementById('mic-btn').classList.remove('mic-active');
+    document.getElementById('feed-input').placeholder =
+      activeChannel === 'general' ? 'Type a message...' : 'Message ' + agentName(activeChannel) + '...';
+    if (_speechRecognition) {
+      try { _speechRecognition.stop(); } catch(e) {}
+      _speechRecognition = null;
+    }
+  }
+
+  window.toggleTTS = function() {
+    window._ttsEnabled = !window._ttsEnabled;
+    document.getElementById('tts-btn').classList.toggle('tts-active', window._ttsEnabled);
+  };
+
+  window.speakResponse = function(text) {
+    if (!window._ttsEnabled || !window.speechSynthesis) return;
+    // Strip markdown for cleaner speech
+    var clean = text
+      .replace(/#{1,6}\s/g, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/`[^`]+`/g, '')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/^\s*[-*]\s/gm, '')
+      .replace(/---[\s\S]*$/m, '')  // strip summary block
+      .replace(/\n+/g, '. ')
+      .trim();
+    if (clean.length > 600) {
+      clean = clean.substring(0, 600) + '... end of response.';
+    }
+    var utter = new SpeechSynthesisUtterance(clean);
+    utter.rate = 1.05;
+    utter.pitch = 1.0;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
+  };
 })();
 </script>
 </body>

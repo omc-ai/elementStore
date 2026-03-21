@@ -711,7 +711,7 @@ es_create "ai:message" "$(jq -n \
   '{class_id:"ai:message", user_id:"system", agent_id:$wid, role:"system", content:"AIC worker started — health check", status:"complete", metadata:{type:"health"}, created:$now}'
 )" > /dev/null 2>&1 && wlog "Health message created — if feed is empty, WS or dashboard has a problem" || wlog "ERROR: could not create health message"
 
-CHECK_INTERVAL=300  # 5 minutes between checks
+CHECK_INTERVAL=3600  # 1 hour — housekeeping only (ws-dispatcher.js handles real-time dispatch)
 round_count=0
 
 while [ "$round_count" -lt "$MAX_ROUNDS" ]; do

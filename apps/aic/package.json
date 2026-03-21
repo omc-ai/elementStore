@@ -1,0 +1,14 @@
+{
+  "name": "aic-dispatcher",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Event-driven agent dispatcher for AIC",
+  "main": "ws-dispatcher.js",
+  "scripts": {
+    "start": "node ws-dispatcher.js",
+    "health": "curl -s http://127.0.0.1:3102/health | jq ."
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
