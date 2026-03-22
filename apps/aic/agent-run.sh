@@ -27,14 +27,13 @@ fi
 NOW() { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 # ES API helpers — strip auth error prefix that server prepends before actual JSON
 ESH='-H X-Disable-Ownership:true'
-es_get()    { local raw; raw=$(curl -s -H 'X-Disable-Ownership: true' "$ES_URL/query/$1?id=$(echo "$2" | sed 's/:/%3A/g')&_limit=1" 2>/dev/null); echo "$raw" | sed 's/^{"error":"[^"]*"}//g' | jq -c '.[0] // empty' 2>/dev/null; }
+es_get()    { local raw; raw=$(curl -s -H 'X-Disable-Ownership: true' "$ES_URL/query/$1?id=$(echo "$2" | sed 's/:/%3A/g')&_limit=1" 2>/dev/null || true); echo "$raw" | sed 's/^{"error":"[^"]*"}//g' | jq -c '.[0] // empty' 2>/dev/null || true; }
 es_query()  { local raw; raw=$(curl -s -H 'X-Disable-Ownership: true' "$ES_URL/query/$1?$2" 2>/dev/null); echo "$raw" | sed 's/^{"error":"[^"]*"}//g'; }
 es_create() { local raw; raw=$(curl -s -X POST -H 'Content-Type: application/json' -H 'X-Disable-Ownership: true' -H 'X-Allow-Custom-Ids: true' "$ES_URL/store/$1" -d "$2" 2>/dev/null); echo "$raw" | sed 's/^{"error":"[^"]*"}//g'; }
 es_update() { local raw; raw=$(curl -s -X PUT -H 'Content-Type: application/json' -H 'X-Disable-Ownership: true' "$ES_URL/store/$1/$2" -d "$3" 2>/dev/null); echo "$raw" | sed 's/^{"error":"[^"]*"}//g'; }
 
 # ─── Load agent ──────────────────────────────────────────
-# Use query instead of direct GET to avoid URL encoding issues with colons in IDs
-AGENT_DATA=$(curl -sf "$ES_URL/query/ai:agent?id=$AGENT_ID&_limit=1" 2>/dev/null | jq -c '.[0] // empty' 2>/dev/null)
+AGENT_DATA=$(es_get "ai:agent" "$AGENT_ID")
 if [ -z "$AGENT_DATA" ] || [ "$AGENT_DATA" = "null" ]; then
   echo "Agent not found: $AGENT_ID"
   exit 1
