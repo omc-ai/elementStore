@@ -428,6 +428,7 @@ body.dark .conv-title{background:#161b22;border-bottom-color:#21262d;color:#8b94
     <span id="class-count"></span>
     <span id="aic-env-label" style="opacity:0.7;font-size:0.75em"></span>
     <span id="aic-user" style="font-weight:600"></span>
+    <button onclick="aicLogout()" style="background:transparent;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.3);padding:4px 10px;border-radius:4px;font-size:0.78em;cursor:pointer">Logout</button>
     <button id="dark-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">🌙</button>
   </div>
 </header>
@@ -599,10 +600,135 @@ body.dark .conv-title{background:#161b22;border-bottom-color:#21262d;color:#8b94
 <script src="/elementStore/admin/js/auth.js"></script>
 <script>
 (function(){
+  var AIC_PROJECT = 'elementStore';
+  var AIC_ENVIRONMENTS = [];
+  var LS_ENV_KEY = 'aic_env';
+  var activeEnv = null;
   var API = location.origin + '/elementStore';
   window.API = API;
   var WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/elementStore/ws';
+  var _bootstrapApi = API;
   store.storage.data.url = API;
+
+  // ─── Environment / Auth ──────────────────────────────────
+  function envBaseUrl(env) {
+    var hosts = env.hostnames || [];
+    var arc3d = hosts.find(function(h){ return h.indexOf('arc3d') >= 0 });
+    var host = arc3d || hosts[0] || '';
+    if (!host) return '';
+    var proto = (env.ssl_enabled || location.protocol === 'https:') ? 'https://' : 'http://';
+    return proto + host;
+  }
+
+  async function loadEnvironments() {
+    try {
+      var res = await fetch(_bootstrapApi + '/store/@environment');
+      var envs = await res.json();
+      AIC_ENVIRONMENTS = envs
+        .filter(function(e){
+          return e.status === 'active' && envBaseUrl(e)
+            && Array.isArray(e.repositories_deployed)
+            && e.repositories_deployed.indexOf(AIC_PROJECT) >= 0;
+        })
+        .map(function(e){ e.base = envBaseUrl(e); return e });
+    } catch(e) {
+      console.warn('[AIC] Could not load environments:', e.message);
+      AIC_ENVIRONMENTS = [{ id: 'current', name: 'Current', base: location.origin, type: 'local', hostnames: [location.host] }];
+    }
+
+    var savedEnvId = localStorage.getItem(LS_ENV_KEY);
+    activeEnv = AIC_ENVIRONMENTS.find(function(e){ return e.id === savedEnvId }) || AIC_ENVIRONMENTS[0];
+    AUTH_BASE = (activeEnv.base || envBaseUrl(activeEnv)) + '/api/auth';
+    store.storage.authUrl = AUTH_BASE;
+
+    var sel = document.getElementById('aic-env');
+    if (sel) {
+      sel.innerHTML = '';
+      AIC_ENVIRONMENTS.forEach(function(env) {
+        var opt = document.createElement('option');
+        opt.value = env.id;
+        opt.textContent = env.name + ' — ' + (env.base || '').replace(/^https?:\/\//, '');
+        if (env.id === activeEnv.id) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', function() {
+        localStorage.setItem(LS_ENV_KEY, sel.value);
+      });
+    }
+  }
+
+  function applyEnv(envId) {
+    activeEnv = AIC_ENVIRONMENTS.find(function(e){ return e.id === envId }) || AIC_ENVIRONMENTS[0];
+    localStorage.setItem(LS_ENV_KEY, activeEnv.id);
+    AUTH_BASE = (activeEnv.base || envBaseUrl(activeEnv)) + '/api/auth';
+    store.storage.authUrl = AUTH_BASE;
+  }
+
+  function showAicLogin() {
+    document.getElementById('aic-login').style.display = 'flex';
+    document.querySelector('.layout').style.display = 'none';
+    document.querySelector('header').style.display = 'none';
+  }
+
+  function hideAicLogin() {
+    document.getElementById('aic-login').style.display = 'none';
+    document.querySelector('.layout').style.display = 'grid';
+    document.querySelector('header').style.display = 'flex';
+  }
+
+  window.handleAicLogin = async function(e) {
+    e.preventDefault();
+    var form = e.target;
+    var envId = form.querySelector('#aic-env').value;
+    var email = form.querySelector('#aic-email').value.trim();
+    var password = form.querySelector('#aic-password').value;
+    var errorEl = form.querySelector('#aic-login-error');
+    var btn = form.querySelector('#aic-login-btn');
+
+    errorEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+
+    applyEnv(envId);
+
+    try {
+      var res = await fetch(AUTH_BASE + '/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password })
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || 'Login failed');
+
+      store.storage.setAuth(data);
+      hideAicLogin();
+      window._aicStartApp();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  };
+
+  window.aicLogout = async function() {
+    await logout();
+    showAicLogin();
+  };
+
+  // Wrap fetch to inject auth header for elementStore calls
+  var _origFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    opts = opts || {};
+    if (typeof url === 'string' && url.indexOf('/elementStore') >= 0) {
+      var token = store.storage.getToken ? store.storage.getToken() : null;
+      if (token) {
+        opts.headers = Object.assign({}, opts.headers || {}, { 'Authorization': 'Bearer ' + token });
+      }
+    }
+    return _origFetch.call(window, url, opts);
+  };
 
   var esws = new ElementStoreWS(store, WS_URL);
 
@@ -1910,21 +2036,20 @@ body.dark .conv-title{background:#161b22;border-bottom-color:#21262d;color:#8b94
     setInterval(function(){if(!esws.ws||esws.ws.readyState!==1)load()},15000);
   }
 
-  // Connect WS and start loading
-  try {
-    console.log('[AIC] Connecting WS to:', WS_URL);
-    esws.connect({user_id:'aic-dashboard'});
-    console.log('[AIC] WS connect called');
-  } catch(e) {
-    console.error('[AIC] WS connect failed:', e);
-  }
-
-  load();
-  loadTasks();
-  loadFindings();
-  setInterval(function(){if(!esws.ws||esws.ws.readyState!==1)load()},15000);
-  // Refresh tasks and findings every 10 seconds regardless of WS
-  setInterval(function(){ loadTasks(); loadFindings(); }, 10000);
+  // ─── Startup: load environments, check auth, then start ──
+  (async function() {
+    await loadEnvironments();
+    var authed = await checkAuth();
+    if (!authed) {
+      showAicLogin();
+      return;
+    }
+    hideAicLogin();
+    startApp();
+    loadTasks();
+    loadFindings();
+    setInterval(function(){ loadTasks(); loadFindings(); }, 10000);
+  })();
 
   // ─── Voice Interface ─────────────────────────────────────
   var _speechRecognition = null;
