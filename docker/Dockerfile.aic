@@ -1,0 +1,13 @@
+FROM node:20-alpine
+
+# System tools required by agent-run.sh and shell scripts
+RUN apk add --no-cache bash curl jq git
+
+# Install Claude Code CLI (used by agent-run.sh for provider:claude-cli)
+RUN npm install -g @anthropic-ai/claude-code
+
+# Default working directory — overridden by docker-compose working_dir
+WORKDIR /var/www/elementStore/apps/aic
+
+# Entrypoint: run the event-driven agent dispatcher
+CMD ["node", "ws-dispatcher.js"]

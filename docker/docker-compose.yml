@@ -2,20 +2,29 @@
 # ElementStore Docker Compose
 #
 # Services:
-#   - php: PHP 8.3 + Phalcon 5.x (API server)
+#   - php:     PHP 8.3 + Phalcon 5.x (API server)
+#   - ws:      Node.js WebSocket server (real-time sync)
+#   - aic:     AIC agent dispatcher (ws-dispatcher.js + claude CLI)
 #   - couchdb: CouchDB 3.x (document storage)
 #
 # Usage:
 #   docker-compose up -d          # Start all services
 #   docker-compose up -d php      # Start only PHP
+#   docker-compose up -d aic      # Start only AIC dispatcher
 #   docker-compose up -d couchdb  # Start only CouchDB
 #   docker-compose logs -f        # View logs
 #   docker-compose down           # Stop all services
 #
+# Environment variables:
+#   ANTHROPIC_API_KEY  — required for claude CLI (agent runs)
+#   ES_URL             — override elementStore URL (default: internal php)
+#   WS_URL             — override WebSocket URL (default: internal ws)
+#
 # Endpoints:
-#   - API: http://localhost:8080
-#   - CouchDB: http://localhost:5984
+#   - API:       http://localhost:8080
+#   - CouchDB:   http://localhost:5984
 #   - Fauxton UI: http://localhost:5984/_utils
+#   - AIC Health: http://localhost:3102/health (container-internal)
 #
 
 version: '3.8'
@@ -80,6 +89,38 @@ services:
       - TZ=${TZ:-UTC}
     networks:
       - elementstore_network
+
+  # ==========================================================================
+  # AIC Agent Dispatcher (event-driven, ws-dispatcher.js + claude CLI)
+  # ==========================================================================
+  aic:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.aic
+    container_name: elementstore_aic
+    restart: unless-stopped
+    volumes:
+      - ../:/var/www/elementStore:ro
+      - ${HOME}/.claude:/root/.claude:ro
+    working_dir: /var/www/elementStore/apps/aic
+    environment:
+      - ES_URL=${ES_URL:-http://elementstore_php}
+      - WS_URL=${WS_URL:-ws://elementstore_ws:3100}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - TZ=${TZ:-UTC}
+    depends_on:
+      ws:
+        condition: service_started
+      php:
+        condition: service_healthy
+    networks:
+      - elementstore_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3102/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   # ==========================================================================
   # CouchDB Document Store

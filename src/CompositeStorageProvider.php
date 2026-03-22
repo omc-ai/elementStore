@@ -185,8 +185,15 @@ class CompositeStorageProvider implements IStorageProvider
      */
     public function setTenantId(?string $tenantId): void
     {
-        $all = array_unique(array_merge($this->readSources, $this->writeTargets), SORT_REGULAR);
-        foreach ($all as $provider) {
+        // Propagate to every provider in the read and write chains.
+        // Note: intentionally NOT deduplicating — read and write CouchDB instances
+        // are separate objects (even with same server config) and both need the tenant set.
+        foreach ($this->readSources as $provider) {
+            if (method_exists($provider, 'setTenantId')) {
+                $provider->setTenantId($tenantId);
+            }
+        }
+        foreach ($this->writeTargets as $provider) {
             if (method_exists($provider, 'setTenantId')) {
                 $provider->setTenantId($tenantId);
             }

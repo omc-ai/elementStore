@@ -6,6 +6,7 @@
 #   - php: PHP 8.3 + Phalcon 5.8 backend API (port 19007 -> 9000)
 #   - couchdb: CouchDB 3.3 document store (port 5984)
 #   - ws: Node.js WebSocket server for real-time sync (port 19008 -> 3100)
+#   - aic: AIC agent dispatcher (ws-dispatcher.js + claude CLI)
 
 services:
   php:
@@ -74,6 +75,30 @@ services:
           - elementstore-ws
     environment:
       - WS_PORT=3100
+
+  aic:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.aic
+    container_name: elementstore_aic
+    restart: unless-stopped
+    volumes:
+      - code:/var/www
+      - ${HOME}/.claude:/root/.claude:ro
+    working_dir: /var/www/elementStore/apps/aic
+    environment:
+      - ES_URL=${ES_URL:-http://arc3d.master.local/elementStore}
+      - WS_URL=${WS_URL:-ws://elementstore-ws:3100}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "arc3d.master.local:172.18.0.12"
+    depends_on:
+      - ws
+    networks:
+      default:
+        aliases:
+          - elementstore-aic
 
 volumes:
   code:

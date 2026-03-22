@@ -258,14 +258,42 @@ monitor_anthropic_api_stream() {
   local resp_id="$2"
   local pid="$3"
   local accumulated=""
+  local last_update=0
+
+  # Parse SSE stream from Anthropic API.
+  # Each SSE data line is: "data: <json>"
+  # We strip "data: " prefix before passing to jq.
+  _extract_text() {
+    grep '^data: ' "$1" 2>/dev/null \
+      | sed 's/^data: //' \
+      | jq -r 'select(.type=="content_block_delta" and .delta.type=="text_delta") | .delta.text // empty' 2>/dev/null \
+      | tr -d '\n' || true
+  }
+
+  _extract_tokens() {
+    local input_tokens output_tokens
+    # input tokens from message_start
+    input_tokens=$(grep '^data: ' "$1" 2>/dev/null | sed 's/^data: //' \
+      | jq -r 'select(.type=="message_start") | .message.usage.input_tokens // 0' 2>/dev/null | tail -1 || echo 0)
+    # output tokens from message_delta
+    output_tokens=$(grep '^data: ' "$1" 2>/dev/null | sed 's/^data: //' \
+      | jq -r 'select(.type=="message_delta") | .usage.output_tokens // 0' 2>/dev/null | tail -1 || echo 0)
+    echo "${input_tokens:-0} ${output_tokens:-0}"
+  }
 
   while kill -0 "$pid" 2>/dev/null; do
     sleep 1
     if [ -f "$tmpfile" ]; then
-      local new_text=$(grep 'event: content_block_delta' -A1 "$tmpfile" 2>/dev/null | grep 'data:' | jq -r '.delta.text // empty' 2>/dev/null | tr -d '\n' || true)
+      local new_text
+      new_text=$(_extract_text "$tmpfile")
       if [ -n "$new_text" ] && [ "$new_text" != "$accumulated" ]; then
         accumulated="$new_text"
-        es_update "ai:message" "$resp_id" "$(jq -n --arg c "$accumulated" '{content:$c, status:"streaming"}')" > /dev/null 2>&1
+        local now_ts
+        now_ts=$(date +%s)
+        if [ $((now_ts - last_update)) -ge 2 ]; then
+          es_update "ai:message" "$resp_id" "$(jq -n --arg c "$accumulated" '{content:$c, status:"streaming"}')" > /dev/null 2>&1
+          last_update=$now_ts
+        fi
         echo "[$(date '+%H:%M:%S')] Streaming: ${#accumulated} chars" >&2
       fi
     fi
@@ -275,8 +303,15 @@ monitor_anthropic_api_stream() {
 
   local result=""
   if [ -f "$tmpfile" ]; then
-    result=$(grep 'data:' "$tmpfile" 2>/dev/null | jq -r 'select(.type=="content_block_delta") | .delta.text // empty' 2>/dev/null | tr -d '\n' || true)
+    result=$(_extract_text "$tmpfile")
     [ -z "$result" ] && result="$accumulated"
+
+    # Extract token usage for tracking
+    local token_info
+    token_info=$(_extract_tokens "$tmpfile")
+    ANTHROPIC_INPUT_TOKENS=$(echo "$token_info" | awk '{print $1}')
+    ANTHROPIC_OUTPUT_TOKENS=$(echo "$token_info" | awk '{print $2}')
+    echo "[$(date '+%H:%M:%S')] Tokens: in=${ANTHROPIC_INPUT_TOKENS} out=${ANTHROPIC_OUTPUT_TOKENS}" >&2
   fi
   [ -z "$result" ] && result="[no response]"
 
@@ -457,6 +492,8 @@ ${conv_history}"
   # ── Execute via provider ──
   t_start=$(date +%s)
   tmpfile="/tmp/aic-run-${msg_id}-$$"
+  ANTHROPIC_INPUT_TOKENS=0
+  ANTHROPIC_OUTPUT_TOKENS=0
 
   case "$provider_type" in
     claude_cli)
@@ -489,6 +526,8 @@ ${conv_history}"
   # ── TX: Finalize response → complete ──
   tc="${tool_count:-0}"
   [ -z "$tc" ] || ! [[ "$tc" =~ ^[0-9]+$ ]] && tc=0
+  in_tok="${ANTHROPIC_INPUT_TOKENS:-0}"
+  out_tok="${ANTHROPIC_OUTPUT_TOKENS:-0}"
 
   # Write result to temp file to avoid command-line length limits
   result_file="/tmp/aic-result-$$"
@@ -496,7 +535,8 @@ ${conv_history}"
   update_json=$(jq -n \
     --rawfile content "$result_file" \
     --argjson dur "$duration" --arg mdl "$model" --arg prov "$provider_id" --argjson tc "$tc" \
-    '{content:$content, status:"complete", metadata:{duration_s:$dur, model:$mdl, provider_id:$prov, format:"markdown", tool_uses:$tc}}' 2>/dev/null)
+    --argjson in_tok "$in_tok" --argjson out_tok "$out_tok" \
+    '{content:$content, status:"complete", metadata:{duration_s:$dur, model:$mdl, provider_id:$prov, format:"markdown", tool_uses:$tc, tokens:{input:$in_tok, output:$out_tok}}}' 2>/dev/null)
 
   if [ -n "$update_json" ]; then
     curl -sf -X PUT -H 'Content-Type: application/json' -H 'X-Disable-Ownership: true' \
