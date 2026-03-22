@@ -491,9 +491,8 @@ ${conv_history}"
   [ -z "$tc" ] || ! [[ "$tc" =~ ^[0-9]+$ ]] && tc=0
 
   # Write result to temp file to avoid command-line length limits
-  local result_file="/tmp/aic-result-$$"
+  result_file="/tmp/aic-result-$$"
   echo "$result" > "$result_file"
-  local update_json
   update_json=$(jq -n \
     --rawfile content "$result_file" \
     --argjson dur "$duration" --arg mdl "$model" --arg prov "$provider_id" --argjson tc "$tc" \
