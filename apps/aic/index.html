@@ -763,17 +763,17 @@ header h1{font-size:1.1em;color:#fff}
 
       document.getElementById('ws-status').innerHTML='<span class="dot ok"></span>online';
       try {
-        var cls=await fetch(API+'/class').then(r=>r.json());
-        document.getElementById('class-count').textContent=cls.length+' classes';
+        var cls=await fetch(API+'/class').then(function(r){return r.ok?r.json():[]});
+        if(cls && cls.length) document.getElementById('class-count').textContent=cls.length+' classes';
       } catch(e2) {}
 
     }catch(e){
-      // Check if ES is reachable at all
-      try {
-        await fetch(API+'/health');
+      console.warn('[load] error:', e.message || e);
+      // Still show online if we got this far (agents/tasks loaded)
+      if(window._agents && window._agents.length) {
+        document.getElementById('ws-status').innerHTML='<span class="dot ok"></span>online';
+      } else {
         document.getElementById('ws-status').innerHTML='<span class="dot load"></span>loading';
-      } catch(e2) {
-        document.getElementById('ws-status').innerHTML='<span class="dot err"></span>offline';
       }
     }
   }
@@ -1374,11 +1374,19 @@ header h1{font-size:1.1em;color:#fff}
     });
   };
 
-  // Show stop button if agents are running
+  // Show stop button if agents ran recently
   setInterval(function() {
-    var anyWorking = Object.values(agentActivity).some(function(a){return a.status==='streaming'||a.status==='processing'});
-    document.getElementById('btn-start').style.display = anyWorking ? 'none' : 'inline-block';
-    document.getElementById('btn-stop').style.display = anyWorking ? 'inline-block' : 'none';
+    var agents = window._agents || [];
+    var now = new Date();
+    var anyRecent = agents.some(function(a) {
+      if (!a.last_run) return false;
+      var lastRun = new Date(a.last_run);
+      return (now - lastRun) < 60000; // active in last 60 seconds
+    });
+    var anyStreaming = Object.values(agentActivity).some(function(a){return a.status==='streaming'||a.status==='processing'});
+    var active = anyRecent || anyStreaming;
+    document.getElementById('btn-start').style.display = active ? 'none' : 'inline-block';
+    document.getElementById('btn-stop').style.display = active ? 'inline-block' : 'none';
   }, 3000);
 
   // ─── Activity Bar ─────────────────────────────────────────

@@ -440,13 +440,13 @@ function checkRemainingWork() {
     new Promise((resolve) => {
       client.get(tasksUrl, (res) => {
         let data = ''; res.on('data', c => data += c);
-        res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { resolve([]); } });
+        res.on('end', () => { try { const r = JSON.parse(data); resolve(Array.isArray(r) ? r : []); } catch(e) { resolve([]); } });
       }).on('error', () => resolve([]));
     }),
     new Promise((resolve) => {
       client.get(inProgressUrl, (res) => {
         let data = ''; res.on('data', c => data += c);
-        res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { resolve([]); } });
+        res.on('end', () => { try { const r = JSON.parse(data); resolve(Array.isArray(r) ? r : []); } catch(e) { resolve([]); } });
       }).on('error', () => resolve([]));
     })
   ]).then(([openTasks, inProgressTasks]) => {
@@ -650,6 +650,15 @@ async function main() {
     if (ws) ws.close();
     statusServer.close();
     process.exit(0);
+  });
+
+  // Never crash on unhandled errors — log and continue
+  process.on('uncaughtException', (err) => {
+    log(`UNCAUGHT ERROR: ${err.message}`);
+    console.error(err.stack);
+  });
+  process.on('unhandledRejection', (err) => {
+    log(`UNHANDLED REJECTION: ${err?.message || err}`);
   });
 }
 
