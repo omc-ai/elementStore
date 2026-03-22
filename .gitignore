@@ -18,3 +18,4 @@ admin/dist/
 !.es/*.genesis.json
 !.es/*.seed.json
 .es/*/
+env_override.php

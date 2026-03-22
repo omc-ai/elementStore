@@ -1129,6 +1129,7 @@ header h1{font-size:1.1em;color:#fff}
       return true;
     });
 
+
     // Filter by active channel
     if(activeChannel !== 'general') {
       messages = messages.filter(function(item) {
@@ -1146,47 +1147,47 @@ header h1{font-size:1.1em;color:#fff}
     });
     if(messages.length > MAX_FEED) messages = messages.slice(-MAX_FEED);
 
-    // Incremental DOM update — only touch messages that changed or are new
-    var existingIds = {};
-    var existingEls = feedEl.querySelectorAll('.msg[id]');
-    for(var e = 0; e < existingEls.length; e++) {
-      existingIds[existingEls[e].id] = existingEls[e];
-    }
+    // Check if we need a full rebuild or incremental update
+    var existingMsgCount = feedEl.querySelectorAll('.msg[id]').length;
 
-    var hasContent = false;
-    for(var i = 0; i < messages.length; i++) {
-      var m = messages[i];
-      var elId = 'fi-' + m.id;
-      hasContent = true;
+    if(existingMsgCount === 0 || Math.abs(messages.length - existingMsgCount) > 10) {
+      // Full render — first load or major change
+      var h = '';
+      for(var i = 0; i < messages.length; i++) {
+        h += messageCard(messages[i]);
+      }
+      feedEl.innerHTML = h || '<div style="padding:30px 12px;color:#8b949e;text-align:center;font-size:0.85em">No messages yet. Send one below.</div>';
+    } else {
+      // Incremental update — only touch changed/new messages
+      var existingIds = {};
+      var existingEls = feedEl.querySelectorAll('.msg[id]');
+      for(var e = 0; e < existingEls.length; e++) {
+        existingIds[existingEls[e].id] = existingEls[e];
+      }
 
-      var existing = existingIds[elId];
-      if(existing) {
-        // Update in place — only if content or status changed
-        var oldContent = existing.getAttribute('data-hash') || '';
-        var newHash = (m.status||'') + ':' + (m.content||'').length;
-        if(oldContent !== newHash) {
+      for(var i = 0; i < messages.length; i++) {
+        var m = messages[i];
+        var elId = 'fi-' + m.id;
+        var existing = existingIds[elId];
+        if(existing) {
+          var oldHash = existing.getAttribute('data-hash') || '';
+          var newHash = (m.status||'') + ':' + (m.content||'').length;
+          if(oldHash !== newHash) {
+            var tmp = document.createElement('div');
+            tmp.innerHTML = messageCard(m);
+            existing.replaceWith(tmp.firstChild);
+          }
+          delete existingIds[elId];
+        } else {
           var tmp = document.createElement('div');
           tmp.innerHTML = messageCard(m);
-          var newEl = tmp.firstChild;
-          existing.replaceWith(newEl);
+          feedEl.appendChild(tmp.firstChild);
         }
-        delete existingIds[elId]; // mark as still present
-      } else {
-        // New message — append
-        var tmp = document.createElement('div');
-        tmp.innerHTML = messageCard(m);
-        feedEl.appendChild(tmp.firstChild);
       }
+      Object.values(existingIds).forEach(function(el) { el.remove(); });
     }
 
-    // Remove messages that no longer match filter (rare)
-    Object.values(existingIds).forEach(function(el) { el.remove(); });
-
-    if(!hasContent && !feedEl.querySelector('.msg')) {
-      feedEl.innerHTML = '<div style="padding:30px 12px;color:#8b949e;text-align:center;font-size:0.85em">No messages yet. Send one below.</div>';
-    }
-
-    // Add data-hash to all messages for change detection
+    // Add data-hash for change detection
     feedEl.querySelectorAll('.msg[id]').forEach(function(el) {
       var mid = el.id.replace('fi-','');
       var item = feedItems[mid];
@@ -1717,6 +1718,15 @@ header h1{font-size:1.1em;color:#fff}
 
     load();
     setInterval(function(){if(!esws.ws||esws.ws.readyState!==1)load()},15000);
+  }
+
+  // Connect WS and start loading
+  try {
+    console.log('[AIC] Connecting WS to:', WS_URL);
+    esws.connect({user_id:'aic-dashboard'});
+    console.log('[AIC] WS connect called');
+  } catch(e) {
+    console.error('[AIC] WS connect failed:', e);
   }
 
   load();
