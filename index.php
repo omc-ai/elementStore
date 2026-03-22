@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . "/env_override.php";
 /**
  * ElementStore API Router
  *
@@ -159,6 +160,20 @@ if ($rateLimitMax > 0) {
 // Skipped automatically if no auth_config object exists in the store.
 $app->before(AuthService::getMiddleware($model));
 
+// Role-injection middleware — extract roles from the verified JWT and store in model.
+// Runs after the main auth middleware so we only process valid tokens.
+// Used by ClassModel::setObject() to enforce role-based guards (e.g. CLI action type).
+$app->before(function () use ($model) {
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (preg_match('/^Bearer\s+(.+)$/i', $authHeader, $matches)) {
+        $result = AuthService::verifyLocal($matches[1]);
+        if ($result['valid'] && $result['claims'] !== null) {
+            $model->setUserRoles((array)($result['claims']->roles ?? []));
+        }
+    }
+    return true;
+});
+
 // Response helpers - return data directly
 function json($data, $code = 200): Response
 {
@@ -226,6 +241,25 @@ function handleException(\Exception $e): Response
     return error($e->getMessage());
 }
 
+/**
+ * Admin access guard — call at the top of any admin route handler.
+ *
+ * Returns a 401/403/503 error Response if the request does not have admin
+ * privileges; returns null on success. Uses AuthService::requireAdmin() which
+ * ALWAYS enforces authentication even if ES_ALLOW_UNAUTHENTICATED=true.
+ *
+ * Usage:
+ *   if ($e = adminGuard()) return $e;
+ */
+function adminGuard(): ?Response
+{
+    $result = AuthService::requireAdmin();
+    if ($result !== null) {
+        return error($result['message'], $result['code']);
+    }
+    return null;
+}
+
 // =============================================================================
 // RESPONSE FILTERING — strip server_only fields from class definitions
 // =============================================================================
@@ -289,6 +323,19 @@ $app->get('/health', function () use ($app) {
 });
 
 $app->post('/init', function () use ($app) {
+    // Disabled by default — must be explicitly enabled via ENABLE_INIT_ENDPOINT=true.
+    // This endpoint wipes ALL data; it must never be reachable in production unless intended.
+    $initEnabled = strtolower((string)(getenv('ENABLE_INIT_ENDPOINT') ?: 'false')) === 'true';
+    if (!$initEnabled) {
+        return error(
+            'The /init endpoint is disabled. Set ENABLE_INIT_ENDPOINT=true to enable it.',
+            503
+        );
+    }
+
+    // Admin authentication is required regardless of global auth posture.
+    if ($e = adminGuard()) return $e;
+
     try {
         /** @var ClassModel $model */
         $model = $app->di->get('model');
@@ -400,6 +447,7 @@ $app->get('/class/{id}/props', function ($id) use ($app) {
 });
 
 $app->post('/class', function () use ($app) {
+    if ($e = adminGuard()) return $e;
     $input = $app->request->getJsonRawBody(true);
     if (empty($input[Constants::F_ID])) return error('Class id required');
     try {
@@ -413,6 +461,7 @@ $app->post('/class', function () use ($app) {
 });
 
 $app->delete('/class/{id}', function ($id) use ($app) {
+    if ($e = adminGuard()) return $e;
     /** @var ClassModel $model */
     $model = $app->di->get('model');
     return $model->deleteClass($id)
@@ -428,8 +477,15 @@ $app->delete('/class/{id}', function ($id) use ($app) {
 $app->get('/store/{class}', function ($c) use ($app) {
     /** @var ClassModel $model */
     $model = $app->di->get('model');
-    $objects = $model->query($c);
-    return json(array_map(fn($o) => $o->toApiArray(), $objects));
+    $isAdmin  = in_array('admin', $model->getUserRoles(), true);
+    $hardMax  = $isAdmin ? 10000 : 1000;
+    $limit    = min(500, $hardMax); // default: 500, never unbounded
+    $objects  = $model->query($c, [], ['limit' => $limit]);
+    $count    = count($objects);
+    return json(array_map(fn($o) => $o->toApiArray(), $objects))
+        ->setHeader('X-Pagination-Limit',    (string)$limit)
+        ->setHeader('X-Pagination-Count',    (string)$count)
+        ->setHeader('X-Pagination-Hard-Max', (string)$hardMax);
 });
 
 // Get single object by ID
@@ -491,6 +547,12 @@ $app->put('/store/{class}/{id}/{prop}', function ($c, $id, $prop) use ($app) {
     $actionDef = resolveActionForProp($model, $c, $prop, $objData);
 
     if ($actionDef !== null) {
+        // CLI-type actions require admin role even on the prop-wired route.
+        // (The direct /action/{id}/execute route already enforces adminGuard globally.)
+        if (($actionDef['type'] ?? '') === 'cli') {
+            if ($e = adminGuard()) return $e;
+        }
+
         // Execute the action — input body = action params
         try {
             $executor = createActionExecutor($model);
@@ -611,19 +673,30 @@ $app->get('/find/{id}', function ($id) use ($app) {
 $app->get('/query/{class}', function ($c) use ($app) {
     parse_str($_SERVER['QUERY_STRING'] ?? '', $q);
     $filters = $options = [];
+    /** @var ClassModel $model */
+    $model    = $app->di->get('model');
+    $isAdmin  = in_array('admin', $model->getUserRoles(), true);
+    $hardMax  = $isAdmin ? 10000 : 1000;
     foreach ($q as $k => $v) {
         match ($k) {
-            '_sort' => $options['sort'] = $v,
-            '_order' => $options['sortDir'] = $v,
-            '_limit' => $options['limit'] = (int)$v,
-            '_offset' => $options['offset'] = (int)$v,
-            default => !str_starts_with($k, '_') ? $filters[$k] = $v : null
+            '_sort'   => $options['sort']    = $v,
+            '_order'  => $options['sortDir'] = $v,
+            '_limit'  => $options['limit']   = min(max((int)$v, 1), $hardMax), // clamp [1, hardMax]
+            '_offset' => $options['offset']  = max((int)$v, 0),
+            default   => !str_starts_with($k, '_') ? $filters[$k] = $v : null
         };
     }
-    /** @var ClassModel $model */
-    $model = $app->di->get('model');
+    // Apply default limit when caller omits _limit
+    if (!isset($options['limit'])) {
+        $options['limit'] = 100;
+    }
     $results = $model->query($c, $filters, $options);
-    return json(array_map(fn($o) => $o->toApiArray(), $results));
+    $count   = count($results);
+    return json(array_map(fn($o) => $o->toApiArray(), $results))
+        ->setHeader('X-Pagination-Limit',    (string)$options['limit'])
+        ->setHeader('X-Pagination-Offset',   (string)($options['offset'] ?? 0))
+        ->setHeader('X-Pagination-Count',    (string)$count)
+        ->setHeader('X-Pagination-Hard-Max', (string)$hardMax);
 });
 
 // =============================================================================
@@ -631,9 +704,52 @@ $app->get('/query/{class}', function ($c) use ($app) {
 // =============================================================================
 
 $app->post('/reset', function () use ($app) {
+    // Disabled by default — must be explicitly enabled via ENABLE_RESET_ENDPOINT=true.
+    // This endpoint wipes ALL store data; it must never be reachable in production unless intended.
+    $resetEnabled = strtolower((string)(getenv('ENABLE_RESET_ENDPOINT') ?: 'false')) === 'true';
+    if (!$resetEnabled) {
+        error_log('[AUDIT] POST /reset blocked — endpoint disabled (ENABLE_RESET_ENDPOINT not set)');
+        return error(
+            'The /reset endpoint is disabled. Set ENABLE_RESET_ENDPOINT=true to enable it.',
+            503
+        );
+    }
+
+    // Admin authentication is required regardless of global auth posture.
+    if ($e = adminGuard()) {
+        error_log('[AUDIT] POST /reset blocked — authentication/authorization failed');
+        return $e;
+    }
+
     try {
         /** @var ClassModel $model */
         $model = $app->di->get('model');
+        $input = $app->request->getJsonRawBody(true) ?? [];
+
+        // Optional confirmation token — if RESET_CONFIRM_TOKEN env var is set,
+        // the caller must supply it in the request body as {"confirm_token": "..."}.
+        $requiredToken = getenv('RESET_CONFIRM_TOKEN') ?: null;
+        if ($requiredToken) {
+            $providedToken = $input['confirm_token'] ?? '';
+            if (!hash_equals($requiredToken, $providedToken)) {
+                error_log('[AUDIT] POST /reset blocked — invalid confirmation token provided');
+                // Log to @log before any data is touched
+                $model->getStorage()->setobj('@log', [
+                    'class_id'   => '@log',
+                    'level'      => 'warning',
+                    'message'    => 'POST /reset rejected — invalid or missing confirm_token',
+                    'source'     => 'api',
+                    'endpoint'   => '/reset',
+                    'method'     => 'POST',
+                    'created_at' => date('c'),
+                ]);
+                return error('Invalid or missing confirm_token', 403);
+            }
+        }
+
+        // Audit: log to system error_log BEFORE wipe (the @log entry will be destroyed by reset).
+        error_log('[AUDIT] POST /reset executed — all store data is being wiped');
+
         return json($model->reset());
     } catch (\Exception $e) {
         return handleException($e);
@@ -641,6 +757,7 @@ $app->post('/reset', function () use ($app) {
 });
 
 $app->post('/test', function () use ($app) {
+    if ($e = adminGuard()) return $e;
     try {
         /** @var ClassModel $model */
         $model = $app->di->get('model');
@@ -658,6 +775,7 @@ use ElementStore\Genesis\Genesis;
 
 // Initialize genesis data (skip existing by default)
 $app->post('/genesis', function () use ($app) {
+    if ($e = adminGuard()) return $e;
     try {
         $input = $app->request->getJsonRawBody(true) ?? [];
         $force = $input['force'] ?? false;
@@ -712,6 +830,7 @@ $app->get('/genesis/data', function () use ($app) {
 // Reload genesis from .es/ directory (uses GenesisLoader directly)
 // Accepts optional 'dir' param to load from an external .es/ directory
 $app->post('/genesis/reload', function () use ($app) {
+    if ($e = adminGuard()) return $e;
     try {
         /** @var ClassModel $model */
         $model = $app->di->get('model');
@@ -755,10 +874,10 @@ $app->get('/genesis/files', function () use ($app) {
 // =============================================================================
 
 $app->post('/export', function () use ($app) {
+    if ($e = adminGuard()) return $e;
     try {
         /** @var ClassModel $model */
         $model = $app->di->get('model');
-        $model->setEnforceOwnership(false);
 
         // Collect all data
         $exportData = [
@@ -859,21 +978,43 @@ $app->get('/exports', function () use ($app) {
 });
 
 $app->get('/export/{hash}', function ($hash) use ($app) {
+    if ($e = adminGuard()) return $e;
+
+    // Validate hash — must be a 32-char lowercase hex string (MD5); reject any path traversal attempts
+    if (!preg_match('/^[a-f0-9]{32}$/', $hash)) {
+        return error("Invalid export hash format", 400);
+    }
+
     $exportsDir = dirname(__DIR__) . '/data/exports';
     $filepath = "{$exportsDir}/export_{$hash}.json";
 
     if (!file_exists($filepath)) {
         return error("Export not found: {$hash}", 404);
+    }
+
+    // Defense-in-depth: verify resolved path stays within the exports directory
+    $realExportsDir = realpath($exportsDir);
+    $realFilepath   = realpath($filepath);
+    if ($realExportsDir === false || $realFilepath === false ||
+        strpos($realFilepath, $realExportsDir . DIRECTORY_SEPARATOR) !== 0) {
+        return error("Invalid export path", 400);
     }
 
     $response = new Response();
     $response->setHeader('Content-Type', 'application/json');
     $response->setHeader('Content-Disposition', "attachment; filename=\"export_{$hash}.json\"");
-    $response->setContent(file_get_contents($filepath));
+    $response->setContent(file_get_contents($realFilepath));
     return $response;
 });
 
 $app->delete('/export/{hash}', function ($hash) use ($app) {
+    if ($e = adminGuard()) return $e;
+
+    // Validate hash — must be a 32-char lowercase hex string (MD5); reject any path traversal attempts
+    if (!preg_match('/^[a-f0-9]{32}$/', $hash)) {
+        return error("Invalid export hash format", 400);
+    }
+
     $exportsDir = dirname(__DIR__) . '/data/exports';
     $filepath = "{$exportsDir}/export_{$hash}.json";
 
@@ -881,7 +1022,15 @@ $app->delete('/export/{hash}', function ($hash) use ($app) {
         return error("Export not found: {$hash}", 404);
     }
 
-    unlink($filepath);
+    // Defense-in-depth: verify resolved path stays within the exports directory
+    $realExportsDir = realpath($exportsDir);
+    $realFilepath   = realpath($filepath);
+    if ($realExportsDir === false || $realFilepath === false ||
+        strpos($realFilepath, $realExportsDir . DIRECTORY_SEPARATOR) !== 0) {
+        return error("Invalid export path", 400);
+    }
+
+    unlink($realFilepath);
     return json(['deleted' => true, 'hash' => $hash]);
 });
 
@@ -890,6 +1039,7 @@ $app->delete('/export/{hash}', function ($hash) use ($app) {
 // =============================================================================
 
 $app->post('/action/{actionId}/execute', function ($actionId) use ($app) {
+    if ($e = adminGuard()) return $e;
     /** @var ClassModel $model */
     $model = $app->di->get('model');
     $input = $app->request->getJsonRawBody(true) ?: [];
@@ -951,6 +1101,7 @@ use ElementStore\ActionExecutorException;
 
 /**
  * Create an ActionExecutor wired to the model for provider/action resolution.
+ * Injects the current user ID so CLI audit logs can identify the executor.
  */
 function createActionExecutor($model): ActionExecutor
 {
@@ -973,6 +1124,8 @@ function createActionExecutor($model): ActionExecutor
     };
 
     $executor->setModel($model);
+    // Inject executor user ID for CLI audit logging
+    $executor->setExecutorUserId($model->getUserId());
     return $executor;
 }
 

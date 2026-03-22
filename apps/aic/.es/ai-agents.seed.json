@@ -58,6 +58,64 @@
     "run_count": 0
   },
   {
+    "id": "agent:developer-2",
+    "class_id": "ai:agent",
+    "name": "Developer 2",
+    "description": "Second developer. Same capabilities as lead developer. Handles parallel tasks to speed up work.",
+    "title": "Developer",
+    "is_active": true,
+    "execution_order": 2,
+    "model": "claude-sonnet-4-6",
+    "prompt": "",
+    "tools": ["Bash", "Read", "Edit", "Write", "Glob", "Grep"],
+    "context_filter": {
+      "classes": ["ai:task"],
+      "scope": "assigned"
+    },
+    "behavior": {
+      "session_mode": "timed",
+      "session_ttl": 3600,
+      "auto_approve": false,
+      "requires_approval": [],
+      "trigger_on": ["message_pending", "task_assigned"],
+      "cooldown": 10,
+      "max_tokens_per_run": 80000,
+      "max_budget_usd": 2.00,
+      "max_rounds_per_session": 5,
+      "on_error": "notify_coordinator"
+    },
+    "run_count": 0
+  },
+  {
+    "id": "agent:developer-3",
+    "class_id": "ai:agent",
+    "name": "Developer 3",
+    "description": "Third developer. Same capabilities. More parallel capacity.",
+    "title": "Developer",
+    "is_active": true,
+    "execution_order": 2,
+    "model": "claude-sonnet-4-6",
+    "prompt": "",
+    "tools": ["Bash", "Read", "Edit", "Write", "Glob", "Grep"],
+    "context_filter": {
+      "classes": ["ai:task"],
+      "scope": "assigned"
+    },
+    "behavior": {
+      "session_mode": "timed",
+      "session_ttl": 3600,
+      "auto_approve": false,
+      "requires_approval": [],
+      "trigger_on": ["message_pending", "task_assigned"],
+      "cooldown": 10,
+      "max_tokens_per_run": 80000,
+      "max_budget_usd": 2.00,
+      "max_rounds_per_session": 5,
+      "on_error": "notify_coordinator"
+    },
+    "run_count": 0
+  },
+  {
     "id": "agent:reviewer",
     "class_id": "ai:agent",
     "name": "Reviewer",

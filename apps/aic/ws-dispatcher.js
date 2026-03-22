@@ -106,9 +106,9 @@ function createPendingMessage(agentId, content) {
 }
 
 // ─── Agent spawning ──────────────────────────────────────
-function spawnAgent(agentId, msgId) {
-  // Check if already running
-  if (runningAgents.has(agentId)) {
+function spawnAgent(agentId, msgId, force) {
+  // Check if already running — but allow parallel runs for assistant (owner messages)
+  if (runningAgents.has(agentId) && !force) {
     log(`  ⏳ ${agentId} already running, skipping`);
     return;
   }
@@ -120,13 +120,15 @@ function spawnAgent(agentId, msgId) {
     return;
   }
 
-  // Check cooldown
-  const lastRun = agentCooldowns.get(agentId) || 0;
-  const cooldown = config?.cooldown || 10000;
-  const elapsed = Date.now() - lastRun;
-  if (elapsed < cooldown) {
-    log(`  ⏳ ${agentId} cooling down (${Math.ceil((cooldown - elapsed) / 1000)}s left)`);
-    return;
+  // Check cooldown (skip for forced spawns)
+  if (!force) {
+    const lastRun = agentCooldowns.get(agentId) || 0;
+    const cooldown = config?.cooldown || 10000;
+    const elapsed = Date.now() - lastRun;
+    if (elapsed < cooldown) {
+      log(`  ⏳ ${agentId} cooling down (${Math.ceil((cooldown - elapsed) / 1000)}s left)`);
+      return;
+    }
   }
 
   const agentName = config?.name || agentId;
@@ -177,10 +179,11 @@ function handleChange(item) {
       return;
     }
 
-    // Owner message → assistant
+    // Owner message → assistant (always, even if assistant is busy)
     if (item.user_id === 'owner' && item.role === 'user') {
       const target = item.agent_id || 'agent:assistant';
-      spawnAgent(target, item.id);
+      log(`  👤 Owner message → force-spawning ${target}`);
+      spawnAgent(target, item.id, true);
       return;
     }
   }
@@ -201,6 +204,20 @@ function handleChange(item) {
     if (fromAgent === 'agent:coordinator') {
       log(`  🔄 Coordinator completed — checking for remaining work...`);
       setTimeout(() => checkRemainingWork(), 5000);
+    }
+  }
+
+  // ── Finding status changed to fixed/closed → close GitLab issue ──
+  if (item.class_id === 'es:finding' && (item.status === 'fixed' || item.status === 'closed') && item.gitlab_iid) {
+    log(`  ✅ Closing GitLab issue #${item.gitlab_iid}`);
+    closeGitLabIssue(item.gitlab_iid);
+  }
+
+  // ── Task completed → check if linked findings should be closed ──
+  if (item.class_id === 'ai:task' && (item.status === 'done' || item.status === 'verified')) {
+    // Close any findings linked to this task
+    if (item.finding_id) {
+      esPut('/store/es:finding/' + encodeURIComponent(item.finding_id), { status: 'fixed' });
     }
   }
 
@@ -238,9 +255,13 @@ function handleChange(item) {
     }
   }
 
-  // ── New finding → notify coordinator ──
+  // ── New finding → create GitLab issue + notify coordinator ──
   if (item.class_id === 'es:finding' && item.status === 'open') {
     log(`  🐛 New finding: ${item.id}`);
+    // Auto-create GitLab issue if no issue exists yet
+    if (!item.gitlab_issue) {
+      createGitLabIssue(item);
+    }
     createPendingMessage('agent:coordinator',
       `New finding reported: ${item.id} — "${item.name || item.description || 'unnamed'}". Severity: ${item.severity || 'medium'}.`);
   }
@@ -295,6 +316,113 @@ function connect() {
   });
 }
 
+// ─── GitLab Integration ──────────────────────────────────
+const GITLAB_URL = 'https://git.agura.tech';
+const GITLAB_TOKEN = process.env.GITLAB_TOKEN || 'sj_e7zLpxkS3NJA8ZwJE';
+const GITLAB_PROJECT_ID = 123;
+
+function createGitLabIssue(finding) {
+  const severity = (finding.severity || 'medium').toUpperCase();
+  const labels = ['aic-bot', finding.severity || 'medium', finding.category || 'bug'].join(',');
+
+  let description = `## ${finding.name}\n\n`;
+  if (finding.description) description += `${finding.description}\n\n`;
+  if (finding.location) {
+    const locs = Array.isArray(finding.location) ? finding.location : [finding.location];
+    description += `**Location:** ${locs.join(', ')}\n\n`;
+  }
+  if (finding.fix) description += `**Suggested fix:** ${finding.fix}\n\n`;
+  description += `---\n*Created by AIC agent from finding \`${finding.id}\`*`;
+
+  const body = JSON.stringify({
+    title: `[${severity}] ${finding.name}`,
+    description,
+    labels
+  });
+
+  const url = new URL(`${GITLAB_URL}/api/v4/projects/${GITLAB_PROJECT_ID}/issues`);
+  const client = url.protocol === 'https:' ? https : http;
+
+  const req = client.request({
+    hostname: url.hostname,
+    port: url.port || 443,
+    path: url.pathname,
+    method: 'POST',
+    rejectUnauthorized: false,
+    headers: {
+      'PRIVATE-TOKEN': GITLAB_TOKEN,
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(body)
+    }
+  }, (res) => {
+    let data = '';
+    res.on('data', c => data += c);
+    res.on('end', () => {
+      try {
+        const issue = JSON.parse(data);
+        if (issue.iid) {
+          log(`  📝 GitLab issue #${issue.iid}: ${finding.name}`);
+          // Store the issue URL back on the finding
+          esPut('/store/es:finding/' + encodeURIComponent(finding.id), {
+            gitlab_issue: issue.web_url,
+            gitlab_iid: issue.iid
+          });
+        }
+      } catch (e) {}
+    });
+  });
+  req.on('error', () => {});
+  req.write(body);
+  req.end();
+}
+
+// PUT helper for updates
+function esPut(path, body) {
+  const url = new URL(ES_URL + path);
+  const client = url.protocol === 'https:' ? https : http;
+  const bodyStr = JSON.stringify(body);
+  const req = client.request({
+    hostname: url.hostname,
+    port: url.port || 80,
+    path: url.pathname,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(bodyStr) }
+  });
+  req.on('error', () => {});
+  req.write(bodyStr);
+  req.end();
+}
+
+function closeGitLabIssue(iid) {
+  const body = JSON.stringify({ state_event: 'close', labels: 'aic-bot,fixed' });
+  const url = new URL(`${GITLAB_URL}/api/v4/projects/${GITLAB_PROJECT_ID}/issues/${iid}`);
+  const client = url.protocol === 'https:' ? https : http;
+  const req = client.request({
+    hostname: url.hostname,
+    port: url.port || 443,
+    path: url.pathname,
+    method: 'PUT',
+    rejectUnauthorized: false,
+    headers: {
+      'PRIVATE-TOKEN': GITLAB_TOKEN,
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(body)
+    }
+  }, (res) => {
+    let data = '';
+    res.on('data', c => data += c);
+    res.on('end', () => {
+      try {
+        const issue = JSON.parse(data);
+        log(`  ✅ GitLab issue #${iid} closed: ${issue.state}`);
+      } catch (e) {}
+    });
+  });
+  req.on('error', () => {});
+  req.write(body);
+  req.end();
+}
+
 // ─── Autonomous work checker ─────────────────────────────
 // Runs after coordinator completes to see if there's still work to do
 function checkRemainingWork() {
@@ -337,14 +465,16 @@ function checkRemainingWork() {
       }
     });
 
-    // Trigger developer for open tasks that aren't being worked on
+    // Trigger developers for open tasks — distribute across available devs
+    const devAgents = ['agent:developer', 'agent:developer-2', 'agent:developer-3'];
+    let devIdx = 0;
     openTasks.forEach(task => {
-      const assignedAgent = task.agent_id || 'agent:developer';
+      const assignedAgent = task.agent_id || devAgents[devIdx % devAgents.length];
       if (!runningAgents.has(assignedAgent)) {
         log(`  📌 Open task needs pickup: ${task.id} → ${assignedAgent}`);
         createPendingMessage(assignedAgent,
           `Open task assigned to you: "${task.name}" (${task.id}). Priority: ${task.priority || 'P2'}. Pick it up and work on it. ${task.description || ''}`);
-        return; // Only trigger one at a time to avoid overwhelming
+        devIdx++;
       }
     });
 

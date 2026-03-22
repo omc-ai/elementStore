@@ -69,6 +69,9 @@ class ClassModel
     /** @var mixed Current user ID (owner of objects) */
     private mixed $userId = null;
 
+    /** @var array Current user roles — used for access-control checks (e.g. CLI action guard) */
+    private array $userRoles = [];
+
     /** @var mixed Application ID for multi-tenant isolation */
     private mixed $appId = null;
 
@@ -351,6 +354,25 @@ class ClassModel
     }
 
     /**
+     * Set current user roles — called after JWT verification to enable role-based guards
+     *
+     * @param array $roles Array of role strings (e.g. ['admin', 'viewer'])
+     */
+    public function setUserRoles(array $roles): self
+    {
+        $this->userRoles = $roles;
+        return $this;
+    }
+
+    /**
+     * Get current user roles
+     */
+    public function getUserRoles(): array
+    {
+        return $this->userRoles;
+    }
+
+    /**
      * Set full security context (user, app, domain) — called from JWT parsing
      */
     public function setSecurityContext(mixed $userId, mixed $appId, mixed $domain): self
@@ -417,12 +439,17 @@ class ClassModel
      */
     private function checkSecurityAccess(array $data): bool
     {
-        if ($this->userId !== null) {
-            $objOwnerId = $data[Constants::F_OWNER_ID] ?? null;
-            if ($objOwnerId !== null && $objOwnerId !== $this->userId) {
-                return false;
-            }
+        // Fail-safe: if no security context (userId null), deny access by default.
+        // An authenticated context is required to pass ownership checks.
+        if ($this->userId === null) {
+            return false;
         }
+
+        $objOwnerId = $data[Constants::F_OWNER_ID] ?? null;
+        if ($objOwnerId !== null && $objOwnerId !== $this->userId) {
+            return false;
+        }
+
         if ($this->appId !== null) {
             $objAppId = $data[Constants::F_APP_ID] ?? null;
             if ($objAppId !== null && $objAppId !== $this->appId) {
@@ -581,6 +608,41 @@ class ClassModel
         // Step 2b: Check unique constraints
         if ($meta !== null) {
             $this->checkUniqueConstraints($class_id, $data, $meta);
+        }
+
+        // Step 2b-sys: Guard system class writes — only admins may create or modify @-prefixed classes
+        if ($this->isSystemClass($class_id)) {
+            if (!in_array('admin', $this->userRoles, true)) {
+                error_log(
+                    '[SECURITY] Blocked attempt to write system class without admin role.'
+                    . ' user_id=' . ($this->userId ?? 'anonymous')
+                    . ' class_id=' . $class_id
+                );
+                throw new StorageException(
+                    'Admin role is required to create or modify system class definitions.',
+                    'forbidden'
+                );
+            }
+        }
+
+        // Step 2c: Guard CLI-type @action objects — require admin role
+        // CLI actions execute arbitrary shell commands; only admins may create or modify them.
+        if ($class_id === Constants::K_ACTION) {
+            // Use the effective type: incoming data may only set partial fields, so fall back to oldData
+            $effectiveType = $data['type'] ?? ($oldData['type'] ?? null);
+            if ($effectiveType === 'cli') {
+                if (!in_array('admin', $this->userRoles, true)) {
+                    error_log(
+                        '[SECURITY] Blocked attempt to create/modify CLI @action without admin role.'
+                        . ' user_id=' . ($this->userId ?? 'anonymous')
+                        . ' action_id=' . ($data[Constants::F_ID] ?? 'new')
+                    );
+                    throw new StorageException(
+                        'Admin role is required to create or modify CLI-type actions.',
+                        'forbidden'
+                    );
+                }
+            }
         }
 
         // Step 3: Stamp security fields for new objects (non-system classes)

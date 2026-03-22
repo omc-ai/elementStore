@@ -21,11 +21,18 @@
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const url = require('url');
+const jwt = require('jsonwebtoken');
 
 const PORT = parseInt(process.env.WS_PORT || '3100', 10);
 // ES API URL — must go through nginx (PHP-FPM is FastCGI, not HTTP)
 // Local dev: agura_web_1, Production: arc3d_nginx
 const ES_API = process.env.ES_API_URL || 'http://agura_web_1/elementStore';
+
+// JWT secret for verifying WebSocket connection tokens
+const JWT_SECRET = process.env.JWT_SECRET || null;
+
+// Pre-shared key for protecting /broadcast HTTP endpoints
+const WS_SECRET = process.env.WS_SECRET || null;
 
 // Connection limits
 const MAX_CONNECTIONS = parseInt(process.env.WS_MAX_CONNECTIONS || '500', 10);
@@ -46,19 +53,42 @@ const userConnections = new Map();
 var connectionCounter = 0;
 
 // ─────────────────────────────────────────────────────────────
-// JWT Decode (payload only, no validation — PHP validates)
+// JWT Verification — cryptographic signature check required
 // ─────────────────────────────────────────────────────────────
 
-function decodeJwtPayload(token) {
+function verifyJwtToken(token) {
     if (!token) return null;
-    var parts = token.split('.');
-    if (parts.length !== 3) return null;
-    try {
-        var payload = Buffer.from(parts[1], 'base64url').toString('utf8');
-        return JSON.parse(payload);
-    } catch (e) {
+    if (!JWT_SECRET) {
+        console.warn('[WS] JWT_SECRET not set — rejecting all token-based connections');
         return null;
     }
+    try {
+        var payload = jwt.verify(token, JWT_SECRET);
+        return payload;
+    } catch (e) {
+        console.log('[WS] JWT verification failed: ' + e.message);
+        return null;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Broadcast Auth — validates WS_SECRET pre-shared key
+// ─────────────────────────────────────────────────────────────
+
+function checkBroadcastAuth(req, res) {
+    if (!WS_SECRET) {
+        console.warn('[WS] WS_SECRET not set — /broadcast endpoints are unauthenticated');
+        return true; // warn but allow if not configured (backwards compat during rollout)
+    }
+    var authHeader = req.headers['authorization'] || '';
+    var expected = 'Bearer ' + WS_SECRET;
+    if (authHeader !== expected) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        console.log('[WS] rejected /broadcast request — invalid or missing Authorization header');
+        return false;
+    }
+    return true;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -82,6 +112,7 @@ const server = http.createServer(function (req, res) {
 
     // Broadcast endpoint (called by PHP after save)
     if (req.method === 'POST' && req.url === '/broadcast') {
+        if (!checkBroadcastAuth(req, res)) return;
         var body = '';
         req.on('data', function (chunk) { body += chunk; });
         req.on('end', function () {
@@ -101,6 +132,7 @@ const server = http.createServer(function (req, res) {
 
     // Log broadcast endpoint (called by PHP for errors/exceptions)
     if (req.method === 'POST' && req.url === '/broadcast/log') {
+        if (!checkBroadcastAuth(req, res)) return;
         var logBody = '';
         req.on('data', function (chunk) { logBody += chunk; });
         req.on('end', function () {
@@ -150,21 +182,28 @@ wss.on('connection', function (ws, req) {
     ws._subscriptions = { classes: new Set(), objects: new Set(), scopes: new Set() };
     ws._lastActivity = Date.now();
 
-    // Extract user_id from JWT token in query string
+    // Extract user_id from JWT token — signature must be valid
     var parsed = url.parse(req.url, true);
     var token = parsed.query.token || null;
     var userId = null;
 
     if (token) {
-        var payload = decodeJwtPayload(token);
+        var payload = verifyJwtToken(token);
         if (payload) {
             userId = payload.sub || payload.user_id || null;
+        } else {
+            // Invalid or expired token — reject connection
+            wsSend(ws, { event: 'error', message: 'Invalid or expired token.' });
+            ws.terminate();
+            console.log('[WS] rejected connection ' + connId + ' — invalid JWT');
+            return;
         }
-    }
-
-    // Fallback: user_id query param (dev mode, no JWT)
-    if (!userId) {
-        userId = parsed.query.user_id || null;
+    } else {
+        // No token provided — reject connection
+        wsSend(ws, { event: 'error', message: 'Authentication required.' });
+        ws.terminate();
+        console.log('[WS] rejected connection ' + connId + ' — no token');
+        return;
     }
 
     ws._userId = userId;

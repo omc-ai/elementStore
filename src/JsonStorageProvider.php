@@ -108,6 +108,35 @@ class JsonStorageProvider implements IStorageProvider
         return false;
     }
 
+    /**
+     * Validate and sanitize a user-supplied $regex filter value.
+     *
+     * Security guards:
+     *  - Rejects patterns longer than 200 characters (limits ReDoS backtracking surface).
+     *  - Escapes the '/' delimiter so user input cannot close/reopen the regex prematurely.
+     *  - Validates syntax via @preg_match() — returns null for any invalid pattern.
+     *
+     * @param string $pattern Raw user-supplied regex pattern.
+     * @return string|null  Ready-to-use regex string (e.g. '/pattern/'), or null if unsafe/invalid.
+     */
+    private function buildSafeRegex(string $pattern): ?string
+    {
+        // Hard limit: long patterns dramatically increase catastrophic-backtracking risk
+        if (strlen($pattern) > 200) {
+            return null;
+        }
+
+        // Escape only the delimiter we use; keep all other PCRE metacharacters intact
+        $escaped = str_replace('/', '\/', $pattern);
+
+        // Verify the pattern compiles; preg_match returns false on compile error
+        if (@preg_match('/' . $escaped . '/', '') === false) {
+            return null;
+        }
+
+        return '/' . $escaped . '/';
+    }
+
     private function load(string $class): array
     {
         $file = $this->getFile($class);
@@ -260,6 +289,12 @@ class JsonStorageProvider implements IStorageProvider
 
         // Apply filters (supports Mango-style operators for compatibility)
         if (!empty($filters)) {
+            // Tighten PCRE limits to bound runaway $regex patterns (ReDoS mitigation)
+            $prevBacktrack = ini_get('pcre.backtrack_limit');
+            $prevRecursion = ini_get('pcre.recursion_limit');
+            ini_set('pcre.backtrack_limit', '10000');
+            ini_set('pcre.recursion_limit', '1000');
+
             $results = array_filter($results, function ($obj) use ($filters) {
                 foreach ($filters as $key => $value) {
                     if (!isset($obj[$key])) {
@@ -268,7 +303,8 @@ class JsonStorageProvider implements IStorageProvider
                     if (is_array($value) && $this->isMangoOperator($value)) {
                         $fieldVal = $obj[$key];
                         if (isset($value['$regex'])) {
-                            if (!preg_match('/' . str_replace('/', '\/', $value['$regex']) . '/', (string)$fieldVal)) {
+                            $pattern = $this->buildSafeRegex($value['$regex']);
+                            if ($pattern === null || !preg_match($pattern, (string)$fieldVal)) {
                                 return false;
                             }
                         } elseif (isset($value['$gt'])) {
@@ -294,6 +330,11 @@ class JsonStorageProvider implements IStorageProvider
                 }
                 return true;
             });
+
+            // Restore previous PCRE limits
+            ini_set('pcre.backtrack_limit', $prevBacktrack);
+            ini_set('pcre.recursion_limit', $prevRecursion);
+
             $results = array_values($results);
         }
 

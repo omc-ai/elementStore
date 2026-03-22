@@ -35,6 +35,9 @@ class ActionExecutor
     /** @var callable|null Provider resolver: fn(string $providerId): ?array — returns provider object */
     private $providerResolver;
 
+    /** @var mixed User ID of the executor — used in audit logs */
+    private mixed $executorUserId = null;
+
     /**
      * @param callable|null $functionRegistry  fn(string $key, array $params): mixed
      * @param callable|null $eventBus          fn(string $event, array $payload): void
@@ -45,6 +48,17 @@ class ActionExecutor
         $this->functionRegistry = $functionRegistry;
         $this->eventBus         = $eventBus;
         $this->providerResolver = $providerResolver;
+    }
+
+    /**
+     * Set the user ID of the executor — injected from the request context for audit logging.
+     *
+     * @param mixed $userId
+     */
+    public function setExecutorUserId(mixed $userId): self
+    {
+        $this->executorUserId = $userId;
+        return $this;
     }
 
     // =========================================================================
@@ -147,16 +161,49 @@ class ActionExecutor
     /**
      * Execute a cli-type action — shell command with {field} placeholders.
      *
-     * Substitutes {field} placeholders from params, then context object fields.
-     * Runs the command via shell_exec in the specified working directory.
+     * Security controls (all must pass before execution):
+     *   1. CLI_ACTIONS_ENABLED env var must be "true" (default: false/disabled).
+     *   2. ES_ENV must be "development" — CLI actions are blocked in production.
+     *   3. Command prefix must match an entry in CLI_COMMAND_ALLOWLIST (comma-separated env var).
+     *   4. working_dir (if set) must resolve inside CLI_WORKDIR_ALLOWLIST (comma-separated env var).
+     *   5. Every execution (and every blocked attempt) is written to the error log for audit.
      *
      * @param array  $action
      * @param array  $params
      * @param mixed  $context
      * @return array ['exit_code' => int, 'output' => string]
+     *
+     * @throws ActionExecutorException on security violation or execution failure
      */
     private function executeCli(array $action, array $params, mixed $context): array
     {
+        $actionId   = $action['id'] ?? 'unknown';
+        $executorId = (string)($this->executorUserId ?? 'anonymous');
+
+        // ------------------------------------------------------------------
+        // Guard 1: CLI actions are disabled by default; must be explicitly enabled
+        // ------------------------------------------------------------------
+        $cliEnabled = strtolower((string)(getenv('CLI_ACTIONS_ENABLED') ?: 'false')) === 'true';
+        if (!$cliEnabled) {
+            error_log("[AUDIT][CLI] Blocked — CLI_ACTIONS_ENABLED is not set to true. action_id={$actionId} user_id={$executorId}");
+            throw new ActionExecutorException(
+                'CLI action type is disabled. Set CLI_ACTIONS_ENABLED=true in a development environment to enable.',
+                403
+            );
+        }
+
+        // ------------------------------------------------------------------
+        // Guard 2: CLI actions are only permitted in development
+        // ------------------------------------------------------------------
+        $esEnv = getenv('ES_ENV') ?: (getenv('PHP_ENV') ?: 'production');
+        if ($esEnv !== 'development') {
+            error_log("[AUDIT][CLI] Blocked — ES_ENV is not 'development' (env={$esEnv}). action_id={$actionId} user_id={$executorId}");
+            throw new ActionExecutorException(
+                "CLI action type is only available in the development environment (ES_ENV=development). Current env: {$esEnv}.",
+                403
+            );
+        }
+
         $command    = $action['command'] ?? '';
         $workingDir = $action['working_dir'] ?? null;
 
@@ -164,13 +211,67 @@ class ActionExecutor
             throw new ActionExecutorException("action.command is required for cli-type actions");
         }
 
-        // Merge context fields into available values for placeholder resolution
+        // ------------------------------------------------------------------
+        // Guard 3: Validate command against server-side allowlist
+        // The allowlist lives in a server env var — never in the DB.
+        // ------------------------------------------------------------------
+        $allowlistRaw = getenv('CLI_COMMAND_ALLOWLIST') ?: '';
+        $allowlist    = array_values(array_filter(array_map('trim', explode(',', $allowlistRaw))));
+
+        if (empty($allowlist)) {
+            error_log("[AUDIT][CLI] Blocked — CLI_COMMAND_ALLOWLIST is not configured. action_id={$actionId} user_id={$executorId}");
+            throw new ActionExecutorException(
+                'CLI_COMMAND_ALLOWLIST env var is not configured. All CLI actions are blocked until an explicit allowlist is set.',
+                403
+            );
+        }
+
+        $commandAllowed = false;
+        foreach ($allowlist as $prefix) {
+            if ($prefix !== '' && strncmp($command, $prefix, strlen($prefix)) === 0) {
+                $commandAllowed = true;
+                break;
+            }
+        }
+
+        if (!$commandAllowed) {
+            error_log("[AUDIT][CLI] Blocked — command not in allowlist. action_id={$actionId} user_id={$executorId} command=" . substr($command, 0, 200));
+            throw new ActionExecutorException(
+                "CLI command is not permitted by the server allowlist. Action: {$actionId}.",
+                403
+            );
+        }
+
+        // ------------------------------------------------------------------
+        // Guard 3.5: Reject shell metacharacters in the command template itself.
+        //
+        // Strip valid {placeholder} tokens first, then scan the static parts
+        // of the template for characters that could enable shell injection:
+        //   ; & | $ ` < > ( ) \ newline carriage-return
+        //
+        // This prevents an attacker (even an admin with a compromised account)
+        // from storing a command like  php -r 'system("id");'  that would pass
+        // the prefix-allowlist but still execute arbitrary shell code.
+        // ------------------------------------------------------------------
+        $staticParts = preg_replace('/\{\w+\}/', '', $command);
+        if (preg_match('/[;&|$`<>()\\\\\r\n]/', $staticParts)) {
+            error_log("[AUDIT][CLI] Blocked — shell metacharacters detected in command template. action_id={$actionId} user_id={$executorId} command=" . substr($command, 0, 200));
+            throw new ActionExecutorException(
+                "CLI command template contains disallowed shell metacharacters (;, &, |, \$, \`, <, >, (, ), \\). "
+                . "Use {placeholder} syntax for all variable parts. Action: {$actionId}.",
+                403
+            );
+        }
+
+        // ------------------------------------------------------------------
+        // Merge context fields for {placeholder} resolution
+        // ------------------------------------------------------------------
         $values = $params;
         if (is_array($context)) {
             $values = array_merge($context, $values); // params override context
         }
 
-        // Substitute {field} placeholders
+        // Substitute {field} placeholders — each value is shell-escaped
         $resolved = preg_replace_callback('/\{(\w+)\}/', function ($m) use ($values) {
             $key = $m[1];
             if (isset($values[$key])) {
@@ -179,16 +280,65 @@ class ActionExecutor
             return $m[0]; // Leave unreplaced
         }, $command);
 
-        // Resolve working_dir placeholders too
-        if ($workingDir) {
+        // ------------------------------------------------------------------
+        // Guard 4: Validate and resolve working_dir against allowlist
+        // ------------------------------------------------------------------
+        if ($workingDir !== null) {
+            // Resolve placeholders in working_dir
             $workingDir = preg_replace_callback('/\{(\w+)\}/', function ($m) use ($values) {
                 $key = $m[1];
                 return isset($values[$key]) ? (string) $values[$key] : $m[0];
             }, $workingDir);
+
+            $allowedDirsRaw = getenv('CLI_WORKDIR_ALLOWLIST') ?: '';
+            $allowedDirs    = array_values(array_filter(array_map('trim', explode(',', $allowedDirsRaw))));
+
+            if (empty($allowedDirs)) {
+                error_log("[AUDIT][CLI] Blocked — CLI_WORKDIR_ALLOWLIST not configured. action_id={$actionId} user_id={$executorId} working_dir={$workingDir}");
+                throw new ActionExecutorException(
+                    'CLI_WORKDIR_ALLOWLIST env var is not configured. Cannot use working_dir without an explicit allowlist.',
+                    403
+                );
+            }
+
+            $resolvedDir = realpath($workingDir);
+            if ($resolvedDir === false) {
+                error_log("[AUDIT][CLI] Blocked — working_dir does not exist. action_id={$actionId} user_id={$executorId} working_dir={$workingDir}");
+                throw new ActionExecutorException("working_dir does not exist or is inaccessible: {$workingDir}", 400);
+            }
+
+            $dirAllowed = false;
+            foreach ($allowedDirs as $allowedDir) {
+                $resolvedAllowed = realpath($allowedDir);
+                if ($resolvedAllowed === false) {
+                    continue;
+                }
+                // Accept exact match or subdirectory (prevent path traversal)
+                $prefix = rtrim($resolvedAllowed, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+                if ($resolvedDir === $resolvedAllowed || strncmp($resolvedDir . DIRECTORY_SEPARATOR, $prefix, strlen($prefix)) === 0) {
+                    $dirAllowed = true;
+                    break;
+                }
+            }
+
+            if (!$dirAllowed) {
+                error_log("[AUDIT][CLI] Blocked — working_dir outside allowlist. action_id={$actionId} user_id={$executorId} resolved_dir={$resolvedDir}");
+                throw new ActionExecutorException(
+                    "working_dir '{$resolvedDir}' is not within the permitted directories (CLI_WORKDIR_ALLOWLIST).",
+                    403
+                );
+            }
+
+            // Use the realpath'd, verified directory
+            $workingDir = $resolvedDir;
         }
 
-        // Build full command with cd prefix if working_dir specified
-        $fullCommand = $workingDir ? "cd " . escapeshellarg($workingDir) . " && " . $resolved : $resolved;
+        // ------------------------------------------------------------------
+        // Execute
+        // ------------------------------------------------------------------
+        $fullCommand = $workingDir !== null
+            ? 'cd ' . escapeshellarg($workingDir) . ' && ' . $resolved
+            : $resolved;
         $fullCommand .= ' 2>&1';
 
         $output   = [];
@@ -196,6 +346,16 @@ class ActionExecutor
         exec($fullCommand, $output, $exitCode);
 
         $outputStr = implode("\n", $output);
+
+        // ------------------------------------------------------------------
+        // Audit log every CLI execution
+        // ------------------------------------------------------------------
+        error_log(
+            "[AUDIT][CLI] Executed. action_id={$actionId} user_id={$executorId}"
+            . " exit_code={$exitCode}"
+            . " working_dir=" . ($workingDir ?? 'none')
+            . " command=" . substr($command, 0, 200)
+        );
 
         if ($exitCode !== 0) {
             throw new ActionExecutorException("CLI command failed (exit {$exitCode}): {$outputStr}", $exitCode);
@@ -350,8 +510,86 @@ class ActionExecutor
      * @return array|null Decoded JSON response or null on empty/204
      * @throws ActionExecutorException on HTTP or network errors
      */
+    /**
+     * Validate a URL against SSRF risks before making an outbound HTTP request.
+     *
+     * Only http:// and https:// are permitted. Requests to private/reserved IP
+     * ranges are blocked unless the host appears in the API_SSRF_ALLOWLIST env var
+     * (comma-separated host substrings, e.g. "billing.internal,crm.corp").
+     *
+     * @param string $url Full URL to validate
+     * @throws ActionExecutorException on SSRF risk or bad scheme
+     */
+    private function validateUrlForSsrf(string $url): void
+    {
+        $parsed = parse_url($url);
+        $scheme = strtolower($parsed['scheme'] ?? '');
+
+        if (!in_array($scheme, ['http', 'https'], true)) {
+            throw new ActionExecutorException(
+                "API action URL must use http or https scheme (got: {$scheme}).",
+                400
+            );
+        }
+
+        $host = $parsed['host'] ?? '';
+        if ($host === '') {
+            throw new ActionExecutorException("API action URL has no host.", 400);
+        }
+
+        // Explicit per-deployment allowlist (e.g. trusted internal services)
+        $allowlistRaw = getenv('API_SSRF_ALLOWLIST') ?: '';
+        if ($allowlistRaw !== '') {
+            $allowed = array_filter(array_map('trim', explode(',', $allowlistRaw)));
+            foreach ($allowed as $entry) {
+                if ($entry !== '' && (strcasecmp($host, $entry) === 0 || str_ends_with($host, '.' . $entry))) {
+                    return; // Explicitly permitted
+                }
+            }
+        }
+
+        // Resolve hostname — block on DNS failure to prevent DNS rebinding attacks
+        $ip = gethostbyname($host);
+        if ($ip === $host && !filter_var($host, FILTER_VALIDATE_IP)) {
+            throw new ActionExecutorException(
+                "API action host '{$host}' could not be resolved. Request blocked (SSRF guard).",
+                400
+            );
+        }
+
+        $long = ip2long($ip);
+        if ($long === false) {
+            return; // IPv6 — skip range check (IPv6 SSRF is a separate concern)
+        }
+
+        $blocked = [
+            ['0.0.0.0',      '0.255.255.255'],
+            ['10.0.0.0',     '10.255.255.255'],
+            ['100.64.0.0',   '100.127.255.255'],
+            ['127.0.0.0',    '127.255.255.255'],
+            ['169.254.0.0',  '169.254.255.255'],
+            ['172.16.0.0',   '172.31.255.255'],
+            ['192.168.0.0',  '192.168.255.255'],
+            ['198.18.0.0',   '198.19.255.255'],
+            ['240.0.0.0',    '255.255.255.255'],
+        ];
+
+        foreach ($blocked as [$start, $end]) {
+            if ($long >= ip2long($start) && $long <= ip2long($end)) {
+                throw new ActionExecutorException(
+                    "API action URL '{$url}' resolves to a private/reserved IP ({$ip}). "
+                    . "SSRF blocked. Add the host to API_SSRF_ALLOWLIST to permit it.",
+                    403
+                );
+            }
+        }
+    }
+
     private function httpRequest(string $method, string $url, array $headers = [], ?array $body = null): ?array
     {
+        // SSRF guard — must pass before any outbound request
+        $this->validateUrlForSsrf($url);
+
         $ch = curl_init($url);
 
         $curlHeaders = ['Content-Type: application/json', 'Accept: application/json'];

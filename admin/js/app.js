@@ -196,13 +196,13 @@ function _wsLogEntry(item, type) {
         // Error/warning/info log from PHP
         var traceHtml = '';
         if (item.context?.trace) {
-            traceHtml = '<span class="ws-trace">' + item.context.trace.join(' → ') + '</span>';
+            traceHtml = '<span class="ws-trace">' + item.context.trace.map(esc).join(' → ') + '</span>';
         }
-        var fileInfo = item.context?.file ? ' <span style="color:#585b70">' + item.context.file + '</span>' : '';
+        var fileInfo = item.context?.file ? ' <span style="color:#585b70">' + esc(item.context.file) + '</span>' : '';
         entry.innerHTML = '<span class="ws-time">' + time + '</span>' +
             '<span style="color:' + (type === 'log-error' ? '#f38ba8' : type === 'log-warn' ? '#f9e2af' : '#89b4fa') + ';font-weight:600;">' +
-            (item.level || 'info').toUpperCase() + '</span> ' +
-            '<span class="ws-msg">' + (item.message || '') + '</span>' +
+            esc((item.level || 'info').toUpperCase()) + '</span> ' +
+            '<span class="ws-msg">' + esc(item.message || '') + '</span>' +
             fileInfo + traceHtml;
     } else {
         // Data change/delete — show class name, changed fields, clickable link
@@ -218,9 +218,9 @@ function _wsLogEntry(item, type) {
                 var newVal = JSON.stringify(item[k]);
                 if (oldVal.length > 30) oldVal = oldVal.slice(0, 30) + '…';
                 if (newVal.length > 30) newVal = newVal.slice(0, 30) + '…';
-                return '<span style="color:#89b4fa">' + k + '</span>: ' +
-                    '<span style="color:#f38ba8;text-decoration:line-through">' + oldVal + '</span>' +
-                    ' → <span style="color:#a6e3a1">' + newVal + '</span>';
+                return '<span style="color:#89b4fa">' + esc(k) + '</span>: ' +
+                    '<span style="color:#f38ba8;text-decoration:line-through">' + esc(oldVal) + '</span>' +
+                    ' → <span style="color:#a6e3a1">' + esc(newVal) + '</span>';
             });
             if (changes.length > 0) {
                 changedHtml = '<div style="margin-top:2px;padding-left:12px;font-size:11px">' + changes.join('<br>') + '</div>';
@@ -229,8 +229,8 @@ function _wsLogEntry(item, type) {
 
         entry.innerHTML = '<span class="ws-time">' + time + '</span>' +
             (type === 'delete' ? '<span style="color:#f38ba8;font-weight:600">DEL </span>' : '') +
-            '<a href="#" class="ws-class" onclick="viewObject(\'' + cid + '\',\'' + oid + '\');return false;" title="Open in editor">' +
-            '<span style="color:#6c7086">' + cid + '</span> / <span class="ws-id">' + displayName + '</span></a>' +
+            '<a href="#" class="ws-class" onclick="viewObject(\'' + escapeHtml(cid) + '\',\'' + escapeHtml(oid) + '\');return false;" title="Open in editor">' +
+            '<span style="color:#6c7086">' + esc(cid) + '</span> / <span class="ws-id">' + esc(displayName) + '</span></a>' +
             changedHtml;
     }
     log.insertBefore(entry, log.firstChild);

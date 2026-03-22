@@ -45,16 +45,16 @@ async function showExportHistory() {
             const size = formatBytes(exp.size);
             html += `
                 <li class="export-item">
-                    <span class="export-hash">${exp.hash}</span>
+                    <span class="export-hash">${esc(exp.hash)}</span>
                     <div class="export-info">
                         <div class="export-date">${date}</div>
-                        <div class="export-stats">${exp.stats.classes} classes, ${exp.stats.total_objects} objects</div>
+                        <div class="export-stats">${esc(String(exp.stats.classes))} classes, ${esc(String(exp.stats.total_objects))} objects</div>
                     </div>
-                    <span class="export-size">${size}</span>
+                    <span class="export-size">${esc(size)}</span>
                     <div class="export-actions">
-                        <a href="${API_BASE}${exp.url}" class="btn btn-primary btn-xs" download>Download</a>
-                        <button class="btn btn-ghost btn-xs" onclick="copyExportLink('${exp.hash}')">Copy Link</button>
-                        <button class="btn btn-danger btn-xs" onclick="deleteExport('${exp.hash}')">Delete</button>
+                        <a href="${API_BASE}${esc(exp.url)}" class="btn btn-primary btn-xs" download>Download</a>
+                        <button class="btn btn-ghost btn-xs" onclick="copyExportLink('${escapeHtml(exp.hash)}')">Copy Link</button>
+                        <button class="btn btn-danger btn-xs" onclick="deleteExport('${escapeHtml(exp.hash)}')">Delete</button>
                     </div>
                 </li>
             `;
@@ -62,7 +62,7 @@ async function showExportHistory() {
         html += '</ul>';
         document.getElementById('historyBody').innerHTML = html;
     } catch (err) {
-        document.getElementById('historyBody').innerHTML = `<div class="export-empty"><p style="color:#ef4444">${err.message}</p></div>`;
+        document.getElementById('historyBody').innerHTML = `<div class="export-empty"><p style="color:#ef4444">${esc(err.message)}</p></div>`;
     }
 }
 

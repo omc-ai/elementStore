@@ -5,6 +5,10 @@ node_modules/
 .env
 .env.local
 
+# @init.json is environment-specific and may contain secrets.
+# Copy @init.json.example to @init.json and set COUCHDB_USER / COUCHDB_PASSWORD env vars.
+@init.json
+
 # es-client build outputs
 packages/es-client/dist/
 admin/dist/

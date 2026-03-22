@@ -441,6 +441,7 @@ header h1{font-size:1.1em;color:#fff}
 <script>
 (function(){
   var API = location.origin + '/elementStore';
+  window.API = API;
   var WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/elementStore/ws';
   store.storage.data.url = API;
 
@@ -1012,9 +1013,17 @@ header h1{font-size:1.1em;color:#fff}
         convId = await getChannelConversation(activeChannel);
       }
       var now = new Date().toISOString();
+      // Smart routing: team commands go to coordinator, questions go to assistant
+      var isTeamCommand = /\b(fix|build|implement|refactor|scan|audit|work on|start|create|deploy|update|improve|upgrade)\b/i.test(text);
+
       var msgBody = {class_id:'ai:message', user_id:'owner', role:'user', content:text, status:'pending', created:now};
       if(activeChannel === 'general') {
-        msgBody.to_agents = ['agent:assistant'];
+        if(isTeamCommand) {
+          // Work commands → both coordinator AND assistant (coordinator acts, assistant confirms)
+          msgBody.to_agents = ['agent:coordinator', 'agent:assistant'];
+        } else {
+          msgBody.to_agents = ['agent:assistant'];
+        }
       } else {
         msgBody.to_agents = [targetAgent];
         msgBody.agent_id = targetAgent;
@@ -1035,6 +1044,8 @@ header h1{font-size:1.1em;color:#fff}
 
       // Replace temp with real
       delete feedItems[tempId];
+      var tempEl = document.getElementById('fi-' + tempId);
+      if(tempEl) tempEl.remove();
       if(created.id) {
         feedUpsert(Object.assign({}, msgBody, created));
       }
@@ -1107,12 +1118,52 @@ header h1{font-size:1.1em;color:#fff}
     });
     if(messages.length > MAX_FEED) messages = messages.slice(-MAX_FEED);
 
-    // Flat chat — no conversation headers, just messages
-    var h = '';
-    for(var i = 0; i < messages.length; i++) {
-      h += messageCard(messages[i]);
+    // Incremental DOM update — only touch messages that changed or are new
+    var existingIds = {};
+    var existingEls = feedEl.querySelectorAll('.msg[id]');
+    for(var e = 0; e < existingEls.length; e++) {
+      existingIds[existingEls[e].id] = existingEls[e];
     }
-    feedEl.innerHTML = h || '<div style="padding:30px 12px;color:#8b949e;text-align:center;font-size:0.85em">No messages yet. Send one below.</div>';
+
+    var hasContent = false;
+    for(var i = 0; i < messages.length; i++) {
+      var m = messages[i];
+      var elId = 'fi-' + m.id;
+      hasContent = true;
+
+      var existing = existingIds[elId];
+      if(existing) {
+        // Update in place — only if content or status changed
+        var oldContent = existing.getAttribute('data-hash') || '';
+        var newHash = (m.status||'') + ':' + (m.content||'').length;
+        if(oldContent !== newHash) {
+          var tmp = document.createElement('div');
+          tmp.innerHTML = messageCard(m);
+          var newEl = tmp.firstChild;
+          existing.replaceWith(newEl);
+        }
+        delete existingIds[elId]; // mark as still present
+      } else {
+        // New message — append
+        var tmp = document.createElement('div');
+        tmp.innerHTML = messageCard(m);
+        feedEl.appendChild(tmp.firstChild);
+      }
+    }
+
+    // Remove messages that no longer match filter (rare)
+    Object.values(existingIds).forEach(function(el) { el.remove(); });
+
+    if(!hasContent && !feedEl.querySelector('.msg')) {
+      feedEl.innerHTML = '<div style="padding:30px 12px;color:#8b949e;text-align:center;font-size:0.85em">No messages yet. Send one below.</div>';
+    }
+
+    // Add data-hash to all messages for change detection
+    feedEl.querySelectorAll('.msg[id]').forEach(function(el) {
+      var mid = el.id.replace('fi-','');
+      var item = feedItems[mid];
+      if(item) el.setAttribute('data-hash', (item.status||'') + ':' + (item.content||'').length);
+    });
 
     if(wasAtBottom) {
       feedEl.scrollTop = feedEl.scrollHeight;
@@ -1392,15 +1443,17 @@ header h1{font-size:1.1em;color:#fff}
   // Live task loading for the Tasks tab
   window.loadTasks = function() {
     fetch(API+'/store/ai:task').then(function(r){return r.json()}).then(function(items){
-      var openT = items.filter(function(t){return t.status !== 'done'});
+      var openT = items.filter(function(t){return t.status !== 'done' && t.status !== 'verified'});
+      var doneT = items.filter(function(t){return t.status === 'done' || t.status === 'verified'});
       document.getElementById('task-count').textContent = openT.length;
       var el = document.getElementById('tasks');
-      if(!openT.length) { el.innerHTML='<div style="padding:12px;color:#667781;font-size:0.85em;text-align:center">No open tasks</div>'; return; }
+
+      var h = '';
+      // Open/in-progress tasks
       openT.sort(function(a,b){return (a.step||99)-(b.step||99)});
-      var h='';
       openT.forEach(function(t){
         var pc=(t.priority||'').toLowerCase();
-        var stCls = t.status==='open'?'open':(t.status==='done'||t.status==='verified'?'done':'progress');
+        var stCls = t.status==='open'?'open':(t.status==='in_progress'?'progress':'open');
         h+='<div class="task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')" style="cursor:pointer">';
         h+='<div class="t-name">'+bg(t.priority||'?',pc)+' '+bg(t.status||'?',stCls)+' '+esc(t.name)+'</div>';
         h+='<div class="t-meta">';
@@ -1408,6 +1461,24 @@ header h1{font-size:1.1em;color:#fff}
         if(t.step)h+='<span>step:'+t.step+'</span>';
         h+='</div></div>';
       });
+
+      if(!openT.length) h += '<div style="padding:8px 10px;color:#667781;font-size:0.82em">No open tasks</div>';
+
+      // Completed tasks section
+      if(doneT.length) {
+        h += '<div style="border-top:1px solid #e8e8e8;padding:6px 10px;font-size:0.75em;font-weight:600;color:#1a7f37;background:#f0fff4">Completed ('+doneT.length+')</div>';
+        h += '<div id="done-tasks" style="opacity:0.7">';
+        doneT.forEach(function(t){
+          h+='<div class="task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')" style="cursor:pointer">';
+          h+='<div class="t-name">'+bg('done','done')+' '+esc(t.name)+'</div>';
+          h+='<div class="t-meta">';
+          if(t.agent_id)h+='<span>'+esc(agentName(t.agent_id))+'</span>';
+          if(t.completed_at)h+='<span>'+t.completed_at.substring(11,19)+'</span>';
+          h+='</div></div>';
+        });
+        h += '</div>';
+      }
+
       el.innerHTML=h;
     }).catch(function(){});
   };
@@ -1448,6 +1519,9 @@ header h1{font-size:1.1em;color:#fff}
         if(f.fix) {
           h+='<div style="background:#dafbe1;padding:6px 8px;border-radius:4px;margin-top:4px;font-size:0.92em">';
           h+='<span style="font-weight:600;color:#1a7f37">Fix:</span> '+esc(f.fix)+'</div>';
+        }
+        if(f.gitlab_issue) {
+          h+='<div style="margin-top:4px"><a href="'+esc(f.gitlab_issue)+'" target="_blank" style="color:#027eb5;font-size:0.85em;text-decoration:none">GitLab Issue #'+(f.gitlab_iid||'')+'  ↗</a></div>';
         }
         if(f.reported_by) {
           h+='<div style="margin-top:4px;font-size:0.82em;color:#667781">Reported by: '+esc(f.reported_by)+'</div>';

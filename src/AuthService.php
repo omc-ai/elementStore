@@ -83,7 +83,21 @@ class AuthService
         // Load auth_config from store
         $configs = $model->query(Constants::K_AUTH_CONFIG, ['is_enabled' => true]);
         if (empty($configs)) {
-            // Not configured — auth enforcement disabled
+            // No auth_config found — authentication cannot be enforced
+            $allowUnauth = strtolower((string)(getenv('ES_ALLOW_UNAUTHENTICATED') ?: $_ENV['ES_ALLOW_UNAUTHENTICATED'] ?? $_SERVER['ES_ALLOW_UNAUTHENTICATED'] ?? '')) === 'true';
+            if ($allowUnauth) {
+                error_log(
+                    '[AuthService] WARNING: No auth_config found. Running in UNAUTHENTICATED mode ' .
+                    '(ES_ALLOW_UNAUTHENTICATED=true). ALL REQUESTS ARE PERMITTED WITHOUT AUTHENTICATION. ' .
+                    'DO NOT USE IN PRODUCTION.'
+                );
+            } else {
+                error_log(
+                    '[AuthService] CRITICAL: No auth_config found. Authentication is REQUIRED by default. ' .
+                    'All requests will be denied with HTTP 401. ' .
+                    'Set ES_ALLOW_UNAUTHENTICATED=true to permit unauthenticated access (NOT recommended for production).'
+                );
+            }
             self::$bootstrapped = true;
             return;
         }
@@ -122,21 +136,43 @@ class AuthService
     public static function getMiddleware(ClassModel $model): \Closure
     {
         return function () use ($model) {
-            // Passthrough when auth not configured or disabled
-            if (self::$cachedConfig === null || !(self::$cachedConfig['is_enabled'] ?? true)) {
+            // Fail-closed: deny all requests when no auth_config is present,
+            // unless the operator has explicitly opted out via ES_ALLOW_UNAUTHENTICATED=true.
+            if (self::$cachedConfig === null) {
+                $allowUnauth = strtolower((string)(getenv('ES_ALLOW_UNAUTHENTICATED') ?: $_ENV['ES_ALLOW_UNAUTHENTICATED'] ?? $_SERVER['ES_ALLOW_UNAUTHENTICATED'] ?? '')) === 'true';
+                if ($allowUnauth) {
+                    return true;
+                }
+                http_response_code(401);
+                echo json_encode([
+                    'error' => 'Authentication required. No auth_config is configured. ' .
+                               'Set ES_ALLOW_UNAUTHENTICATED=true to allow unauthenticated access.',
+                ]);
+                return false;
+            }
+
+            // Passthrough when auth is explicitly disabled via config flag
+            if (!(self::$cachedConfig['is_enabled'] ?? true)) {
                 return true;
             }
 
             $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
 
-            // Dev fallback: X-User-Id header (deprecated — only works in development)
+            // Dev fallback: X-User-Id header (deprecated).
+            // Only permitted when ES_ENV=development AND REMOTE_ADDR is in ES_DEV_TRUSTED_IPS.
             if (empty($authHeader)) {
-                $esEnv = getenv('ES_ENV') ?: (getenv('PHP_ENV') ?: 'production');
+                $esEnv   = getenv('ES_ENV') ?: (getenv('PHP_ENV') ?: 'production');
                 $xUserId = $_SERVER['HTTP_X_USER_ID'] ?? null;
                 if ($xUserId !== null && $esEnv === 'development') {
-                    error_log('[AuthService] DEPRECATED: X-User-Id header used in dev mode — migrate to JWT.');
-                    $model->setSecurityContext($xUserId, null, null);
-                    return true;
+                    $remoteAddr  = $_SERVER['REMOTE_ADDR'] ?? '';
+                    $trustedRaw  = getenv('ES_DEV_TRUSTED_IPS') ?: '127.0.0.1,::1';
+                    $trustedIps  = array_filter(array_map('trim', explode(',', $trustedRaw)));
+                    if (in_array($remoteAddr, $trustedIps, true)) {
+                        error_log('[AuthService] DEPRECATED: X-User-Id header accepted in dev mode from ' . $remoteAddr . ' — migrate to JWT.');
+                        $model->setSecurityContext($xUserId, null, null);
+                        return true;
+                    }
+                    error_log('[AuthService] WARNING: X-User-Id header rejected — REMOTE_ADDR ' . $remoteAddr . ' is not in ES_DEV_TRUSTED_IPS.');
                 }
                 http_response_code(401);
                 echo json_encode(['error' => 'Authorization header with Bearer token is required']);
@@ -360,6 +396,66 @@ class AuthService
     // =========================================================================
     // PERMISSION HELPERS
     // =========================================================================
+
+    /**
+     * Enforce admin authentication for the current request.
+     *
+     * ALWAYS enforces — returns a 503 error descriptor even if auth is globally
+     * disabled (ES_ALLOW_UNAUTHENTICATED=true). This prevents admin bypass in
+     * permissive mode. Calling this method is a hard requirement regardless of
+     * the server's general auth posture.
+     *
+     * Usage in Phalcon Micro route handlers (index.php):
+     *   if ($e = AuthService::requireAdmin()) return error($e['message'], $e['code']);
+     *
+     * @return array|null  null on success; ['code' => int, 'message' => string] on failure
+     */
+    public static function requireAdmin(): ?array
+    {
+        // Admin endpoints always require a properly configured and enabled auth system.
+        // If auth_config is missing, we cannot verify identity → 503 (not 401/403).
+        if (self::$cachedConfig === null) {
+            return [
+                'code'    => 503,
+                'message' => 'Admin operations require authentication. No auth_config is configured. '
+                           . 'Cannot safely execute admin operations without authentication.',
+            ];
+        }
+
+        // If auth is explicitly disabled in config, admin endpoints are still locked.
+        if (!(self::$cachedConfig['is_enabled'] ?? false)) {
+            return [
+                'code'    => 503,
+                'message' => 'Admin operations require authentication. Auth is currently disabled '
+                           . '(auth_config.is_enabled=false). Cannot safely execute admin operations.',
+            ];
+        }
+
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        if (!preg_match('/^Bearer\s+(.+)$/i', $authHeader, $matches)) {
+            return [
+                'code'    => 401,
+                'message' => 'Admin access requires a valid Bearer token.',
+            ];
+        }
+
+        $result = self::verifyLocal($matches[1]);
+        if (!$result['valid']) {
+            return [
+                'code'    => 401,
+                'message' => $result['error'] ?? 'Invalid or expired token.',
+            ];
+        }
+
+        if (!self::hasRole($result['claims'], 'admin')) {
+            return [
+                'code'    => 403,
+                'message' => 'Admin role required for this operation.',
+            ];
+        }
+
+        return null; // Access granted
+    }
 
     /**
      * Check if JWT claims contain a specific role.

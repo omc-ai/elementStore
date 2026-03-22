@@ -136,10 +136,31 @@ Each `@class` can set a `storage_id` pointing to a `@storage` object. When `save
 ```bash
 cd docker
 cp .env.example .env
+# Edit .env — set COUCHDB_USER and COUCHDB_PASSWORD before first run
 docker-compose up -d
 ```
 
 API available at `http://localhost:8080`.
+
+### Required Environment Variables
+
+Before running ElementStore you **must** set CouchDB credentials via environment variables. Do **not** hardcode them in `@init.json`.
+
+| Variable | Description | Example |
+|---|---|---|
+| `COUCHDB_USER` | CouchDB admin username | `admin` |
+| `COUCHDB_PASSWORD` | CouchDB admin password | `changeme` |
+| `COUCHDB_SERVER` | CouchDB server URL (optional override) | `http://localhost:5984` |
+
+**Docker**: set in `docker/.env` (copy from `docker/.env.example`).
+**Non-Docker**: export before starting PHP:
+
+```bash
+export COUCHDB_USER=admin
+export COUCHDB_PASSWORD=your_strong_password
+```
+
+`@init.json` is environment-specific and is excluded from version control (see `.gitignore`). Copy `@init.json.example` to `@init.json` and customize the server URL — credentials come from env vars only.
 
 ### Agura Platform Integration
 

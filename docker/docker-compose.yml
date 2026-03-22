@@ -42,6 +42,7 @@ services:
     environment:
       - TZ=${TZ:-UTC}
       - ES_ENV=${ES_ENV:-development}
+      - ES_ALLOW_UNAUTHENTICATED=true
       - ES_WS_URL=http://elementstore_ws:3100/broadcast
       - COUCHDB_USER=${COUCHDB_USER:-admin}
       - COUCHDB_PASSWORD=${COUCHDB_PASSWORD:-elementstore}

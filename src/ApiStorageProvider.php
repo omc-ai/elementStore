@@ -167,8 +167,88 @@ class ApiStorageProvider implements IStorageProvider
         return $mapped;
     }
 
+    /**
+     * Validate a URL against SSRF risks before making an outbound HTTP request.
+     *
+     * Blocks requests to private/reserved IP ranges unless the host is
+     * explicitly listed in the API_SSRF_ALLOWLIST env var (comma-separated
+     * hostnames or CIDRs). Only http:// and https:// schemes are permitted.
+     *
+     * @param string $url Full URL to validate
+     * @throws \InvalidArgumentException on scheme violation or blocked IP
+     */
+    private function validateUrlForSsrf(string $url): void
+    {
+        $parsed = parse_url($url);
+        $scheme = strtolower($parsed['scheme'] ?? '');
+
+        if (!in_array($scheme, ['http', 'https'], true)) {
+            throw new \InvalidArgumentException(
+                "API provider URL must use http or https scheme. Got: {$scheme}"
+            );
+        }
+
+        $host = $parsed['host'] ?? '';
+        if ($host === '') {
+            throw new \InvalidArgumentException("API provider URL has no host.");
+        }
+
+        // Check explicit allowlist first (env var: comma-separated host substrings)
+        $allowlistRaw = getenv('API_SSRF_ALLOWLIST') ?: '';
+        if ($allowlistRaw !== '') {
+            $allowed = array_filter(array_map('trim', explode(',', $allowlistRaw)));
+            foreach ($allowed as $entry) {
+                if ($entry !== '' && (strcasecmp($host, $entry) === 0 || str_ends_with($host, '.' . $entry))) {
+                    return; // Explicitly allowed
+                }
+            }
+        }
+
+        // Resolve hostname to IPv4 and block private/reserved ranges
+        $ip = gethostbyname($host);
+        if ($ip === $host && !filter_var($host, FILTER_VALIDATE_IP)) {
+            // DNS resolution failed — block to prevent DNS rebinding fallback
+            throw new \InvalidArgumentException(
+                "API provider host '{$host}' could not be resolved. Request blocked."
+            );
+        }
+
+        $long = ip2long($ip);
+        if ($long === false) {
+            // IPv6 or unparseable — allow but log (IPv6 SSRF is a separate concern)
+            return;
+        }
+
+        // Private and reserved IPv4 ranges
+        $blocked = [
+            ['0.0.0.0',         '0.255.255.255'],   // this-network
+            ['10.0.0.0',        '10.255.255.255'],   // RFC 1918 private
+            ['100.64.0.0',      '100.127.255.255'],  // RFC 6598 shared
+            ['127.0.0.0',       '127.255.255.255'],  // loopback
+            ['169.254.0.0',     '169.254.255.255'],  // link-local / AWS metadata
+            ['172.16.0.0',      '172.31.255.255'],   // RFC 1918 private
+            ['192.168.0.0',     '192.168.255.255'],  // RFC 1918 private
+            ['198.18.0.0',      '198.19.255.255'],   // RFC 2544 benchmark
+            ['198.51.100.0',    '198.51.100.255'],   // TEST-NET-2
+            ['203.0.113.0',     '203.0.113.255'],    // TEST-NET-3
+            ['240.0.0.0',       '255.255.255.255'],  // reserved / broadcast
+        ];
+
+        foreach ($blocked as [$start, $end]) {
+            if ($long >= ip2long($start) && $long <= ip2long($end)) {
+                throw new \InvalidArgumentException(
+                    "API provider URL '{$url}' resolves to a private or reserved IP address ({$ip}). "
+                    . "SSRF blocked. Add the host to API_SSRF_ALLOWLIST env var to permit internal endpoints."
+                );
+            }
+        }
+    }
+
     private function request(string $method, string $url, ?array $body = null): array
     {
+        // SSRF guard: reject private/internal URLs from stored provider definitions
+        $this->validateUrlForSsrf($url);
+
         $ch = curl_init($url);
         $headers = array_merge(['Content-Type: application/json'], $this->headers);
 
