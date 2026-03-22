@@ -53,6 +53,9 @@ class AtomObj implements \JsonSerializable
     /** @var mixed Domain for multi-tenant isolation */
     public mixed $domain = null;
 
+    /** @var mixed Tenant ID for tenant-scoped data isolation */
+    public mixed $tenant_id = null;
+
     /** @var array Storage for extra/dynamic properties */
     protected array $extraData = [];
 
@@ -287,7 +290,7 @@ class AtomObj implements \JsonSerializable
     }
 
     /** @var array Security fields stripped from API responses */
-    protected static array $securityFields = ['owner_id', 'app_id', 'domain'];
+    protected static array $securityFields = ['owner_id', 'app_id', 'domain', 'tenant_id'];
 
     /**
      * Convert to array (full — includes security fields, used for storage)

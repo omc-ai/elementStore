@@ -78,6 +78,9 @@ class ClassModel
     /** @var mixed Domain for multi-tenant isolation */
     private mixed $domain = null;
 
+    /** @var mixed Tenant ID for tenant-scoped data routing and isolation */
+    private mixed $tenantId = null;
+
     /** @var bool Enforce owner_id filtering on getObject */
     private bool $enforceOwnership = true;
 
@@ -384,6 +387,30 @@ class ClassModel
     }
 
     /**
+     * Set tenant ID for tenant-scoped routing
+     *
+     * When set, all reads filter by tenant_id and all new objects are stamped with tenant_id.
+     * System classes (@class, @prop, etc.) are excluded from tenant filtering.
+     */
+    public function setTenantId(mixed $tenantId): self
+    {
+        $this->tenantId = $tenantId;
+        // Propagate to storage provider if it supports tenant-scoped routing
+        if (method_exists($this->storage, 'setTenantId')) {
+            $this->storage->setTenantId($tenantId);
+        }
+        return $this;
+    }
+
+    /**
+     * Get current tenant ID
+     */
+    public function getTenantId(): mixed
+    {
+        return $this->tenantId;
+    }
+
+    /**
      * Get current app ID
      */
     public function getAppId(): mixed
@@ -462,6 +489,12 @@ class ClassModel
                 return false;
             }
         }
+        if ($this->tenantId !== null) {
+            $objTenantId = $data[Constants::F_TENANT_ID] ?? null;
+            if ($objTenantId !== null && $objTenantId !== $this->tenantId) {
+                return false;
+            }
+        }
         return true;
     }
 
@@ -480,6 +513,9 @@ class ClassModel
         }
         if ($this->domain !== null) {
             $filters[Constants::F_DOMAIN] = $this->domain;
+        }
+        if ($this->tenantId !== null) {
+            $filters[Constants::F_TENANT_ID] = $this->tenantId;
         }
     }
 
@@ -574,6 +610,22 @@ class ClassModel
                 );
             }
 
+            // Immutability guard: prevent modification of system/seed class definitions
+            if ($class_id === Constants::K_CLASS && $oldData !== null) {
+                if (!empty($oldData['is_system'])) {
+                    throw new StorageException(
+                        "Cannot modify system class: {$id}",
+                        'forbidden'
+                    );
+                }
+                if (!empty($oldData['is_seed']) && $this->isSystemClass((string)$id)) {
+                    throw new StorageException(
+                        "Cannot modify seed system class: {$id}",
+                        'forbidden'
+                    );
+                }
+            }
+
             // Verify security access on update
             if ($oldData !== null && $this->enforceOwnership && !$this->isSystemClass($class_id)) {
                 if (!$this->checkSecurityAccess($oldData)) {
@@ -655,6 +707,9 @@ class ClassModel
             }
             if ($this->domain !== null) {
                 $data[Constants::F_DOMAIN] = $this->domain;
+            }
+            if ($this->tenantId !== null) {
+                $data[Constants::F_TENANT_ID] = $this->tenantId;
             }
         }
 
@@ -993,6 +1048,24 @@ class ClassModel
     public function deleteClass(string $class_id): bool
     {
         $this->ensureBootstrap();
+
+        // Immutability guard: system classes (@ prefix) can never be deleted
+        if ($this->isSystemClass($class_id)) {
+            throw new StorageException(
+                "Cannot delete system class: {$class_id}",
+                'forbidden'
+            );
+        }
+
+        // Immutability guard: seed classes (is_seed or is_system flag) are protected
+        $classData = $this->storage->getobj(Constants::K_CLASS, $class_id);
+        if ($classData && (!empty($classData['is_seed']) || !empty($classData['is_system']))) {
+            throw new StorageException(
+                "Cannot delete seed/system class: {$class_id}",
+                'forbidden'
+            );
+        }
+
         unset($this->objectCache[Constants::K_CLASS][$class_id]);
         return $this->deleteObject(Constants::K_CLASS, $class_id);
     }
@@ -2019,6 +2092,15 @@ class ClassModel
                 $this->genesisConfig['url'] ?? null,
                 $this->genesisConfig['mode'] ?? 'local'
             );
+
+            // Set apps directory for auto-discovery (apps/*/.es/)
+            $appsDir = $this->genesisConfig['apps_dir'] ?? 'apps';
+            if (!str_starts_with($appsDir, '/')) {
+                $appsDir = $this->basePath . '/' . $appsDir;
+            }
+            if (is_dir($appsDir)) {
+                $this->genesisLoader->setAppsDir($appsDir);
+            }
         }
 
         // Check if @class exists - if not, bootstrap from genesis or SystemClasses

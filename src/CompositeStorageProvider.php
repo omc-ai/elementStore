@@ -171,4 +171,25 @@ class CompositeStorageProvider implements IStorageProvider
         }
         return $count;
     }
+
+    // ─── Tenant Routing ──────────────────────────────────────────
+
+    /**
+     * Propagate tenant ID to all child storage providers that support it.
+     *
+     * Called by ClassModel when a tenant is set for the request.
+     * Each provider in the read and write chain that implements setTenantId()
+     * will route to tenant-scoped storage (e.g. per-tenant CouchDB databases).
+     *
+     * @param string|null $tenantId Tenant identifier
+     */
+    public function setTenantId(?string $tenantId): void
+    {
+        $all = array_unique(array_merge($this->readSources, $this->writeTargets), SORT_REGULAR);
+        foreach ($all as $provider) {
+            if (method_exists($provider, 'setTenantId')) {
+                $provider->setTenantId($tenantId);
+            }
+        }
+    }
 }

@@ -184,6 +184,10 @@ ElementStoreWS.prototype._onMessage = function (msg) {
                 this._emit('unsubscribed', msg);
                 break;
 
+            case 'ping':
+                this._send({ action: 'ping' });
+                break;
+
             case 'pong':
                 break;
 

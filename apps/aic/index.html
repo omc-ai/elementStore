@@ -271,6 +271,30 @@ header h1{font-size:1.1em;color:#fff}
 </head>
 <body>
 
+<!-- Login Screen -->
+<div id="aic-login" style="display:none;position:fixed;inset:0;background:#075e54;z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:8px;padding:32px;width:360px;box-shadow:0 4px 24px rgba(0,0,0,.3)">
+    <h2 style="margin-bottom:4px;font-size:1.3em">AI Company</h2>
+    <p style="color:#59636e;font-size:0.85em;margin-bottom:20px">Select environment and sign in</p>
+    <form onsubmit="handleAicLogin(event)">
+      <div id="aic-login-error" style="display:none;background:#ffebe9;color:#cf222e;padding:8px;border-radius:4px;font-size:0.85em;margin-bottom:12px"></div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-env">Environment</label>
+        <select id="aic-env" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em;background:#fff"></select>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-email">Email</label>
+        <input type="email" id="aic-email" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em" required autocomplete="username">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-password">Password</label>
+        <input type="password" id="aic-password" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em" required autocomplete="current-password">
+      </div>
+      <button type="submit" id="aic-login-btn" style="width:100%;padding:10px;background:#075e54;color:#fff;border:none;border-radius:4px;font-size:0.95em;font-weight:600;cursor:pointer">Sign In</button>
+    </form>
+  </div>
+</div>
+
 <header>
   <h1>AI Company</h1>
   <div class="hdr-status">
@@ -279,6 +303,9 @@ header h1{font-size:1.1em;color:#fff}
     <button id="btn-clear" onclick="aicClear()" style="background:transparent;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.3);padding:4px 10px;border-radius:4px;font-size:0.78em;cursor:pointer" title="Clear all messages">Clear</button>
     <span id="ws-status"><span class="dot load"></span>connecting</span>
     <span id="class-count"></span>
+    <span id="aic-env-label" style="opacity:0.7;font-size:0.75em"></span>
+    <span id="aic-user" style="font-weight:600"></span>
+    <button onclick="aicLogout()" style="background:none;border:1px solid rgba(255,255,255,.4);color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8em;cursor:pointer">Logout</button>
   </div>
 </header>
 <div class="activity-bar" id="activity-bar"></div>
@@ -438,6 +465,7 @@ header h1{font-size:1.1em;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="/elementStore/admin/dist/element-store.js"></script>
 <script src="/elementStore/admin/ws-client.js"></script>
+<script src="/elementStore/admin/js/auth.js"></script>
 <script>
 (function(){
   var API = location.origin + '/elementStore';
@@ -905,7 +933,7 @@ header h1{font-size:1.1em;color:#fff}
       res.textContent='Task created';
     }else if(type==='finding'){
       var sev=document.getElementById('a-pri').value==='P1'?'critical':document.getElementById('a-pri').value==='P2'?'high':'medium';
-      await fetch(API+'/store/es:finding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({class_id:'es:finding',name:text.substring(0,60),description:text,severity:sev,category:'missing',status:'open',project:'arc3d',discovered_at:now})});
+      await fetch(API+'/store/es:finding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({class_id:'es:finding',name:text.substring(0,60),description:text,severity:sev,category:'missing',status:'open',project:AIC_PROJECT_LABEL,discovered_at:now})});
       res.textContent='Finding reported';
     }
     setTimeout(function(){document.getElementById('action-modal').classList.remove('open');load();},800);
@@ -1665,12 +1693,30 @@ header h1{font-size:1.1em;color:#fff}
     document.getElementById('ws-status').innerHTML='<span class="dot err"></span>reconnecting';
     feedUpsert({id:'_ws_status', class_id:'ai:message', role:'system', content:'Disconnected — reconnecting...', updated_at:new Date().toISOString()});
   });
-  try {
-    console.log('[AIC] Connecting WS to:', WS_URL);
-    esws.connect({user_id:'aic-dashboard'});
-    console.log('[AIC] WS connect called');
-  } catch(e) {
-    console.error('[AIC] WS connect failed:', e);
+  window._aicStartApp = startApp;
+  function startApp() {
+    try {
+      // Update WS URL in case env changed at login
+      esws.wsUrl = WS_URL;
+      var token = store.storage.getToken ? store.storage.getToken() : null;
+      console.log('[AIC] Connecting WS to:', WS_URL, token ? '(authenticated)' : '(no token)');
+      esws.connect(token ? { token: token } : { user_id: 'aic-dashboard' });
+      console.log('[AIC] WS connect called');
+    } catch(e) {
+      console.error('[AIC] WS connect failed:', e);
+    }
+
+    // Show user + env in header
+    var user = store.storage.auth ? store.storage.auth.user : null;
+    if (user) {
+      var userEl = document.getElementById('aic-user');
+      if (userEl) userEl.textContent = user.name || user.email || '';
+    }
+    var envLabel = document.getElementById('aic-env-label');
+    if (envLabel) envLabel.textContent = activeEnv.name;
+
+    load();
+    setInterval(function(){if(!esws.ws||esws.ws.readyState!==1)load()},15000);
   }
 
   load();

@@ -36,6 +36,7 @@ const WS_SECRET = process.env.WS_SECRET || null;
 
 // Connection limits
 const MAX_CONNECTIONS = parseInt(process.env.WS_MAX_CONNECTIONS || '500', 10);
+const MAX_CONNECTIONS_PER_USER = parseInt(process.env.WS_MAX_CONNECTIONS_PER_USER || '10', 10);
 const HEARTBEAT_INTERVAL_MS = parseInt(process.env.WS_HEARTBEAT_MS || '30000', 10);
 const IDLE_TIMEOUT_MS = parseInt(process.env.WS_IDLE_TIMEOUT_MS || '60000', 10);
 
@@ -102,6 +103,8 @@ const server = http.createServer(function (req, res) {
         res.end(JSON.stringify({
             status: 'ok',
             connections: connections.size,
+            maxConnections: MAX_CONNECTIONS,
+            maxConnectionsPerUser: MAX_CONNECTIONS_PER_USER,
             users: userConnections.size,
             classSubscriptions: classSubs.size,
             objectSubscriptions: objectSubs.size,
@@ -168,12 +171,32 @@ const server = http.createServer(function (req, res) {
 const wss = new WebSocketServer({ server: server });
 
 wss.on('connection', function (ws, req) {
-    // Reject if at connection limit
+    // Reject if at global connection limit
     if (connections.size >= MAX_CONNECTIONS) {
         wsSend(ws, { event: 'error', message: 'Server at capacity. Try again later.' });
         ws.terminate();
-        console.log('[WS] rejected connection — at limit (' + MAX_CONNECTIONS + ')');
+        console.log('[WS] rejected connection — at global limit (' + MAX_CONNECTIONS + ')');
         return;
+    }
+
+    // Pre-parse user_id to enforce per-user limit before registering
+    var parsed = url.parse(req.url, true);
+    var earlyToken = parsed.query.token || null;
+    var earlyUserId = null;
+    if (earlyToken) {
+        var earlyPayload = decodeJwtPayload(earlyToken);
+        if (earlyPayload) earlyUserId = earlyPayload.sub || earlyPayload.user_id || null;
+    }
+    if (!earlyUserId) earlyUserId = parsed.query.user_id || null;
+
+    if (earlyUserId) {
+        var existingUserConns = userConnections.get(earlyUserId);
+        if (existingUserConns && existingUserConns.size >= MAX_CONNECTIONS_PER_USER) {
+            wsSend(ws, { event: 'error', message: 'Too many connections for this user.' });
+            ws.terminate();
+            console.log('[WS] rejected connection — per-user limit (' + MAX_CONNECTIONS_PER_USER + ') for user=' + earlyUserId);
+            return;
+        }
     }
 
     connectionCounter++;

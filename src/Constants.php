@@ -99,6 +99,9 @@ class Constants
     /** @var string Domain for multi-tenant isolation */
     const F_DOMAIN = 'domain';
 
+    /** @var string Tenant ID for multi-tenant data isolation */
+    const F_TENANT_ID = 'tenant_id';
+
     // =========================================================================
     // DATA TYPES (DT_*) — CLOSED SET: 8 canonical types
     // Types for property values - used for validation, storage, and editor resolution

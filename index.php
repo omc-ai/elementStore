@@ -85,6 +85,15 @@ if ($isDev && isset($_SERVER['HTTP_X_DISABLE_OWNERSHIP']) && $_SERVER['HTTP_X_DI
     $model->setEnforceOwnership(false);
 }
 
+// Tenant routing: X-Tenant-Id header is accepted from internal/trusted sources.
+// In production, this header is set by nginx after resolving {tenant}.arc3d.ai subdomain.
+// In dev mode, the header can also be set directly by clients.
+// When auth is enabled, tenant_id from the JWT claim takes precedence (set in AuthService middleware).
+$xTenantId = $_SERVER['HTTP_X_TENANT_ID'] ?? null;
+if ($xTenantId !== null && $xTenantId !== '') {
+    $model->setTenantId($xTenantId);
+}
+
 // Bootstrap auth-service: reads auth_config from store, registers app+machine, warms JWKS cache.
 // NOOP if no auth_config object exists in the store (auth enforcement disabled).
 AuthService::bootstrap($model);
@@ -118,7 +127,7 @@ $app->before(function () use ($app, $isDev) {
         }
     }
     $app->response->setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    $allowHeaders = 'Content-Type, Authorization';
+    $allowHeaders = 'Content-Type, Authorization, X-Tenant-Id';
     if ($isDev) {
         $allowHeaders .= ', X-User-Id, X-Disable-Ownership, X-Allow-Custom-Ids';
     }
@@ -464,9 +473,13 @@ $app->delete('/class/{id}', function ($id) use ($app) {
     if ($e = adminGuard()) return $e;
     /** @var ClassModel $model */
     $model = $app->di->get('model');
-    return $model->deleteClass($id)
-        ? json(['deleted' => true, 'id' => $id])
-        : error("Class not found: {$id}", 404);
+    try {
+        return $model->deleteClass($id)
+            ? json(['deleted' => true, 'id' => $id])
+            : error("Class not found: {$id}", 404);
+    } catch (\Exception $e) {
+        return handleException($e);
+    }
 });
 
 // =============================================================================
