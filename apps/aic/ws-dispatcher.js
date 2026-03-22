@@ -208,7 +208,7 @@ function handleChange(item) {
   }
 
   // ── Finding status changed to fixed/closed → close GitLab issue ──
-  if (item.class_id === 'es:finding' && (item.status === 'fixed' || item.status === 'closed') && item.gitlab_iid) {
+  if (item.class_id === 'es:finding' && (item.status === 'fixed' || item.status === 'closed' || item.status === 'resolved') && item.gitlab_iid) {
     log(`  ✅ Closing GitLab issue #${item.gitlab_iid}`);
     closeGitLabIssue(item.gitlab_iid);
   }
@@ -489,6 +489,123 @@ function checkRemainingWork() {
 // Periodic check every 2 minutes for stuck work
 setInterval(checkRemainingWork, 120000);
 
+// ─── Scheduled task runner ───────────────────────────────
+
+// Match a single cron field ("*", "5", "*/5", "1-5", "1,2,3")
+function cronFieldMatches(field, value) {
+  if (field === '*') return true;
+  if (field.includes('/')) {
+    const [range, step] = field.split('/');
+    const s = parseInt(step);
+    if (range === '*') return value % s === 0;
+    const start = parseInt(range.split('-')[0]);
+    return value >= start && (value - start) % s === 0;
+  }
+  if (field.includes('-')) {
+    const [start, end] = field.split('-').map(Number);
+    return value >= start && value <= end;
+  }
+  if (field.includes(',')) {
+    return field.split(',').map(Number).includes(value);
+  }
+  return parseInt(field) === value;
+}
+
+// Check if a 5-field cron expression matches a given Date
+function cronMatches(expr, date) {
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length !== 5) return false;
+  const [min, hour, dom, month, dow] = parts;
+  return cronFieldMatches(min, date.getMinutes()) &&
+         cronFieldMatches(hour, date.getHours()) &&
+         cronFieldMatches(dom, date.getDate()) &&
+         cronFieldMatches(month, date.getMonth() + 1) &&
+         cronFieldMatches(dow, date.getDay());
+}
+
+// Parse interval expressions: "30m", "2h", "1d"
+function parseIntervalMs(expr) {
+  const m = (expr || '').match(/^(\d+)(m|h|d)$/);
+  if (!m) return null;
+  const n = parseInt(m[1]);
+  const unit = m[2];
+  if (unit === 'm') return n * 60000;
+  if (unit === 'h') return n * 3600000;
+  if (unit === 'd') return n * 86400000;
+  return null;
+}
+
+// Query tasks with schedule_enabled set and fire any that are due
+function checkScheduledTasks() {
+  // Fetch all tasks and filter client-side (boolean queries are unreliable in the store)
+  const url = new URL(ES_URL + '/query/ai:task?_limit=200');
+  const client = url.protocol === 'https:' ? https : http;
+
+  client.get(url, (res) => {
+    let data = '';
+    res.on('data', c => data += c);
+    res.on('end', () => {
+      let allTasks;
+      try { allTasks = JSON.parse(data); } catch (e) { return; }
+      if (!Array.isArray(allTasks)) return;
+
+      // Filter to only enabled scheduled tasks
+      const tasks = allTasks.filter(t => t.schedule_enabled && t.schedule);
+      if (tasks.length === 0) return;
+
+      const now = new Date();
+
+      tasks.forEach(task => {
+        if (!task.schedule) return;
+
+        const schedule = task.schedule.trim();
+        const lastRun = task.schedule_last_run ? new Date(task.schedule_last_run) : null;
+        let isDue = false;
+
+        const intervalMs = parseIntervalMs(schedule);
+        if (intervalMs !== null) {
+          // Interval format: "30m", "2h", "1d"
+          if (!lastRun || (now - lastRun) >= intervalMs) {
+            isDue = true;
+          }
+        } else {
+          // Standard 5-field cron
+          isDue = cronMatches(schedule, now);
+          // Prevent double-firing within the same minute
+          if (isDue && lastRun) {
+            const sameMinute =
+              lastRun.getFullYear() === now.getFullYear() &&
+              lastRun.getMonth()    === now.getMonth()    &&
+              lastRun.getDate()     === now.getDate()     &&
+              lastRun.getHours()    === now.getHours()    &&
+              lastRun.getMinutes()  === now.getMinutes();
+            if (sameMinute) isDue = false;
+          }
+        }
+
+        if (!isDue) return;
+
+        log(`⏰ Scheduled: ${task.id} — "${task.name}" (${schedule})`);
+
+        // Record last run timestamp immediately to prevent double-fire
+        esPut('/store/ai:task/' + encodeURIComponent(task.id), {
+          schedule_last_run: now.toISOString()
+        });
+
+        // Notify the assigned agent (or coordinator as fallback)
+        const agentId = task.agent_id || 'agent:coordinator';
+        createPendingMessage(agentId,
+          `Scheduled task triggered: "${task.name}" (${task.id}). Schedule: ${schedule}. Execute this task now.`);
+      });
+    });
+  }).on('error', (e) => {
+    log(`Schedule check error: ${e.message}`);
+  });
+}
+
+// Check schedules every minute
+setInterval(checkScheduledTasks, 60000);
+
 // ─── Status & stream endpoints ───────────────────────────
 const fs = require('fs');
 
@@ -630,6 +747,9 @@ async function main() {
 
   // Periodic config reload (every 5 minutes)
   setInterval(loadAgentConfigs, 300000);
+
+  // Run schedule check at startup (pick up any tasks that fired while offline)
+  setTimeout(checkScheduledTasks, 3000);
 
   // Graceful shutdown
   process.on('SIGTERM', () => {

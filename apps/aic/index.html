@@ -267,6 +267,129 @@ header h1{font-size:1.1em;color:#fff}
 .tts-active{background:#1a7f37 !important}
 #voice-status{display:none;padding:2px 8px;font-size:0.7em;color:#9a6700;background:#fff8c5;border-radius:4px}
 #voice-status.active{display:inline-block}
+
+/* Dark mode toggle button */
+#dark-toggle{background:none;border:1px solid rgba(255,255,255,.35);color:rgba(255,255,255,.85);padding:3px 8px;border-radius:4px;font-size:0.82em;cursor:pointer;transition:all .15s;line-height:1}
+#dark-toggle:hover{background:rgba(255,255,255,.12)}
+
+/* ====== DARK MODE ====== */
+body.dark{background:#0d1117;color:#e6edf3}
+body.dark .card{background:#161b22;border-color:#30363d}
+body.dark .card-hdr{border-bottom-color:#30363d;color:#e6edf3}
+body.dark .card-hdr .count{background:#1f3a5f;color:#79c0ff}
+body.dark .card-body{background:#161b22}
+
+/* Agents sidebar */
+body.dark .agent{border-bottom-color:#21262d}
+body.dark .agent:hover{background:#1c2128}
+body.dark .agent.active{background:#0a2516;border-left-color:#3fb950}
+body.dark .agent .meta{color:#8b949e}
+body.dark .agent .ord{background:#1f3a5f;color:#79c0ff}
+
+/* Worker/wk list */
+body.dark .wk{border-bottom-color:#21262d}
+body.dark .wk .wk-meta{color:#8b949e}
+
+/* Task items */
+body.dark .task{border-bottom-color:#21262d;color:#e6edf3}
+body.dark .task .t-meta{color:#8b949e}
+body.dark .b-p3{background:#21262d;color:#8b949e}
+body.dark .b-open{background:#1f3a5f;color:#79c0ff}
+body.dark .b-done{background:#0a2516;color:#3fb950}
+body.dark .b-progress{background:#2d2000;color:#d29922}
+
+/* Feed / chat area */
+body.dark .feed{background:#0d1117}
+body.dark .msg:not(.user-msg):not(.system-msg){background:#1c2128}
+body.dark .msg.user-msg{background:#0a2516}
+body.dark .msg-content{color:#e6edf3}
+body.dark .msg-content h1,body.dark .msg-content h2,body.dark .msg-content h3{color:#e6edf3}
+body.dark .msg-content code{background:rgba(255,255,255,.08);color:#e6edf3}
+body.dark .msg-content blockquote{border-left-color:#30363d;color:#8b949e}
+body.dark .msg-content th{background:rgba(255,255,255,.06)}
+body.dark .msg-content th,body.dark .msg-content td{border-color:#30363d}
+body.dark .msg-content a{color:#58a6ff}
+body.dark .msg.system-msg{background:rgba(30,36,44,.92);color:#8b949e}
+body.dark .msg-logs{background:rgba(255,255,255,.04);border-top-color:rgba(255,255,255,.08)}
+body.dark .msg-log-row{color:#8b949e}
+body.dark .msg-log-row .label{color:#e6edf3}
+body.dark .msg-expand{color:#58a6ff}
+
+/* Channel tabs bar */
+body.dark .ch-tabs{background:#0d1117}
+body.dark .ch-tab{color:rgba(255,255,255,.5)}
+body.dark .ch-tab:hover{color:rgba(255,255,255,.85)}
+body.dark .ch-tab.active{color:#fff}
+
+/* Data panel tabs */
+body.dark .dp-tab{color:rgba(255,255,255,.5)}
+body.dark .dp-tab:hover{color:rgba(255,255,255,.85)}
+body.dark .dp-tab.active{color:#fff}
+
+/* Message input bar */
+body.dark #feed-input{background:#1c2128;color:#e6edf3}
+body.dark #feed-input::placeholder{color:#8b949e}
+
+/* Questions */
+body.dark .question{border-bottom-color:#21262d}
+body.dark .question .q-to{color:#8b949e}
+body.dark .q-card{border-bottom-color:#21262d}
+body.dark .q-card .q-text{color:#e6edf3}
+body.dark .q-card .q-actions button{background:#161b22;border-color:#30363d;color:#e6edf3}
+body.dark .q-card .q-answer-box textarea{background:#0d1117;border-color:#30363d;color:#e6edf3}
+body.dark .q-card.answered{background:#0a2516}
+body.dark .q-card-agent:hover{background:#1c2128}
+body.dark .q-card-agent{border-bottom-color:#21262d}
+body.dark .q-card-agent .q-body{color:#e6edf3}
+
+/* Modal */
+body.dark .modal-bg{background:rgba(0,0,0,.6)}
+body.dark .modal{background:#161b22;color:#e6edf3}
+body.dark .modal pre{background:#0d1117;border-color:#30363d;color:#e6edf3}
+body.dark .modal .meta-row span{background:#21262d;color:#8b949e}
+body.dark .modal textarea,body.dark .modal select{background:#0d1117;border-color:#30363d;color:#e6edf3}
+body.dark .modal h2{color:#e6edf3}
+body.dark .modal .close{color:#8b949e}
+
+/* m-tab (agent modal tabs) */
+body.dark .m-tab{color:#8b949e}
+body.dark .m-tab-bar{border-bottom-color:#30363d}
+body.dark .m-tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+body.dark .m-tab:hover{color:#58a6ff}
+body.dark .sess-item{background:#21262d;color:#e6edf3}
+
+/* Browse panel */
+body.dark .browse-item{border-bottom-color:#21262d}
+body.dark .browse-item:hover{background:#1c2128}
+body.dark .browse-item .bi-id{color:#58a6ff}
+body.dark .browse-item .bi-fields{color:#8b949e}
+body.dark .browse-detail{background:#0d1117;border-color:#21262d;color:#e6edf3}
+body.dark #browse-class,body.dark #browse-class option{background:#161b22;border-color:#30363d;color:#e6edf3}
+body.dark select,body.dark input[type=text],body.dark textarea{background:#161b22;border-color:#30363d;color:#e6edf3}
+
+/* Findings */
+body.dark .finding-item{border-bottom-color:#21262d}
+body.dark .finding-item:hover{background:#1c2128}
+body.dark .finding-item code{background:#21262d}
+
+/* Decisions */
+body.dark .dec{border-bottom-color:#21262d;color:#e6edf3}
+
+/* Worker bar area at top of feed */
+body.dark .worker-bar{background:transparent}
+body.dark .w-info{color:#8b949e}
+
+/* Bottom input bar */
+body.dark #feed + div,body.dark [style*="background:#f0f2f5"]{background:#161b22 !important}
+
+/* Activity bar */
+body.dark .activity-bar{background:#0d1117;border-bottom-color:#21262d}
+
+/* Separator lines */
+body.dark hr{border-color:#21262d}
+
+/* Convtitle */
+body.dark .conv-title{background:#161b22;border-bottom-color:#21262d;color:#8b949e}
 </style>
 </head>
 <body>
@@ -305,7 +428,7 @@ header h1{font-size:1.1em;color:#fff}
     <span id="class-count"></span>
     <span id="aic-env-label" style="opacity:0.7;font-size:0.75em"></span>
     <span id="aic-user" style="font-weight:600"></span>
-    <button onclick="aicLogout()" style="background:none;border:1px solid rgba(255,255,255,.4);color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8em;cursor:pointer">Logout</button>
+    <button id="dark-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">🌙</button>
   </div>
 </header>
 <div class="activity-bar" id="activity-bar"></div>
@@ -358,6 +481,7 @@ header h1{font-size:1.1em;color:#fff}
       <div class="dp-tab active" data-tab="tasks" onclick="switchDataTab('tasks')">Tasks <span class="count" id="task-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
       <div class="dp-tab" data-tab="findings" onclick="switchDataTab('findings')">Findings <span class="count" id="finding-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
       <div class="dp-tab" data-tab="questions" onclick="switchDataTab('questions')">Questions <span class="count" id="q-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
+      <div class="dp-tab" data-tab="usage" onclick="switchDataTab('usage')">Usage</div>
       <div class="dp-tab" data-tab="browse" onclick="switchDataTab('browse')">Browse</div>
     </div>
 
@@ -385,6 +509,11 @@ header h1{font-size:1.1em;color:#fff}
       <span id="dec-count" style="display:none">0</span>
       <div id="decisions" style="display:none"></div>
       <div id="q-all-wrap" style="display:none"><table><thead><tr><th>From</th><th>To</th><th>Question</th><th>Status</th><th></th></tr></thead><tbody id="q-all-body"></tbody></table></div>
+    </div>
+
+    <!-- Usage panel -->
+    <div class="dp-panel" id="dp-usage" style="flex:1;overflow-y:auto;padding:0">
+      <div id="usage-list"></div>
     </div>
 
     <!-- Data Browser panel -->
@@ -506,15 +635,12 @@ header h1{font-size:1.1em;color:#fff}
     }
     origOnMessage(msg);
   };
-  function bg(t,c){return '<span class="badge b-'+c+'">'+t+'</span>'}
+  function bg(t,c){return '<span class="badge b-'+esc(c)+'">'+esc(t)+'</span>'}
 
   // ─── Render ──────────────────────────────────────────────
   async function load(){
     try {
       var agents = await fetch(API+'/store/ai:agent').then(r=>r.json());
-      var assistants = []; try{assistants=await fetch(API+'/store/ai:assistant').then(r=>r.ok?r.json():[]);}catch(e){}
-      // Merge assistants into agents list (they extend ai:agent)
-      assistants.forEach(function(a){ if(!agents.find(function(ag){return ag.id===a.id})) agents.push(a); });
       var tasks = await fetch(API+'/store/ai:task').then(r=>r.json());
       var questions = await fetch(API+'/store/ai:question').then(r=>r.json());
       var decisions = await fetch(API+'/store/ai:decision').then(r=>r.json());
@@ -591,12 +717,12 @@ header h1{font-size:1.1em;color:#fff}
         var isSel = activeChannel === a.id;
         wkh += '<div class="wk" style="cursor:pointer;'+(isSel?'background:#f0f4ff;border-left:2px solid #0550ae;':'')+'" onclick="switchChannel(\''+a.id+'\')">';
         wkh += '<span class="wk-dot '+agSt+'"></span><div class="wk-info">';
-        wkh += '<div class="wk-name">'+a.name+'</div>';
+        wkh += '<div class="wk-name">'+esc(a.name)+'</div>';
         var ap = [isRunning ? 'RUNNING' : 'IDLE'];
         if(a.run_count) ap.push(a.run_count+' runs');
-        if(a.last_run) ap.push(a.last_run.substring(11,19));
+        if(a.last_run) ap.push(esc(a.last_run.substring(11,19)));
         var wkTask = agentLastTask[a.id];
-        if(wkTask) ap.push('Task: '+(wkTask.name||'?').substring(0,22)+(wkTask.name&&wkTask.name.length>22?'…':''));
+        if(wkTask) ap.push('Task: '+esc((wkTask.name||'?').substring(0,22))+(wkTask.name&&wkTask.name.length>22?'…':''));
         wkh += '<div class="wk-meta">'+ap.join(' &middot; ')+'</div>';
         wkh += '</div></div>';
       });
@@ -632,10 +758,10 @@ header h1{font-size:1.1em;color:#fff}
         ah+='<div class="agent'+(isAct?' active':'')+'" onclick="switchChannel(\''+a.id+'\')" ondblclick="showAgent('+i+')">';
         ah+='<span class="agent-dot '+(isAct?'running':'idle')+'"></span>';
         ah+='<div class="ord">'+(a.execution_order||'?')+'</div>';
-        ah+='<div class="info"><div class="name">'+a.name+'</div>';
-        ah+='<div class="meta">'+(a.title||'')+(a.run_count?' &middot; '+a.run_count+' runs':'')+'</div>';
+        ah+='<div class="info"><div class="name">'+esc(a.name)+'</div>';
+        ah+='<div class="meta">'+esc(a.title||'')+(a.run_count?' &middot; '+a.run_count+' runs':'')+'</div>';
         var agTask = agentLastTask[a.id];
-        if(agTask) ah+='<div class="prompt-len" style="color:'+(agTask.status==='in_progress'?'#9a6700':'#59636e')+'">'+agTask.name.substring(0,28)+(agTask.name.length>28?'…':'')+'</div>';
+        if(agTask) ah+='<div class="prompt-len" style="color:'+(agTask.status==='in_progress'?'#9a6700':'#59636e')+'">'+esc(agTask.name.substring(0,28))+(agTask.name.length>28?'…':'')+'</div>';
         ah+='</div></div>';
       });
       document.getElementById('agent-count').textContent=agVisibleCount+'/'+agents.length;
@@ -684,7 +810,7 @@ header h1{font-size:1.1em;color:#fff}
       var mh = '';
       qForMe.forEach(function(q) {
         mh += '<div class="q-card for-me" id="qc-'+q.id+'">';
-        mh += '<div class="q-from">'+agentName(q.from_agent)+' asks you:</div>';
+        mh += '<div class="q-from">'+esc(agentName(q.from_agent))+' asks you:</div>';
         mh += '<div class="q-text">'+esc(q.question)+'</div>';
         mh += '<div class="q-actions">';
         mh += '<button class="approve" onclick="answerQ(\''+q.id+'\',\'approved\')">Approve</button>';
@@ -734,8 +860,8 @@ header h1{font-size:1.1em;color:#fff}
         var to = q.to_agents?q.to_agents.map(agentName).join(','):(q.to_title||'all');
         var stCls = q.status==='open'?'open':(q.status==='answered'?'done':'p3');
         th += '<tr'+(q.to_title==='owner'||q.to_title==='all'?' style="font-weight:500"':'')+'>';
-        th += '<td>'+agentName(q.from_agent)+'</td>';
-        th += '<td>'+to+'</td>';
+        th += '<td>'+esc(agentName(q.from_agent))+'</td>';
+        th += '<td>'+esc(to)+'</td>';
         th += '<td>'+esc(str(q.question,60))+'</td>';
         th += '<td>'+bg(q.status||'open',stCls)+'</td>';
         th += '<td><a href="'+objLink('ai:question',q.id)+'" target="_blank" style="color:#0550ae;text-decoration:none">&#x2197;</a></td>';
@@ -747,7 +873,7 @@ header h1{font-size:1.1em;color:#fff}
       document.getElementById('dec-count').textContent=decisions.length;
       var dh='';
       decisions.slice(-8).reverse().forEach(function(d){
-        dh+='<div class="dec"><div class="d-topic">'+bg(d.priority||'?',(d.priority||'').toLowerCase())+' '+(d.topic||d.name||'?').substring(0,50)+'</div></div>';
+        dh+='<div class="dec"><div class="d-topic">'+bg(d.priority||'?',(d.priority||'').toLowerCase())+' '+esc((d.topic||d.name||'?').substring(0,50))+'</div></div>';
       });
       document.getElementById('decisions').innerHTML=dh||'<div style="padding:8px;color:#59636e">None</div>';
 
@@ -843,12 +969,12 @@ header h1{font-size:1.1em;color:#fff}
     var m='';
     m+='<span>#'+(a.execution_order||'?')+'</span>';
     m+='<span>'+((a.run_count||0))+' runs</span>';
-    if(a.model)m+='<span>'+a.model+'</span>';
+    if(a.model)m+='<span>'+esc(a.model)+'</span>';
     var beh=a.behavior||{};
-    if(beh.session_mode)m+='<span>session: '+beh.session_mode+'</span>';
+    if(beh.session_mode)m+='<span>session: '+esc(beh.session_mode)+'</span>';
     if(beh.auto_approve)m+='<span style="color:#1a7f37">auto-approve</span>';
-    if(beh.trigger_on&&beh.trigger_on.length)m+='<span>triggers: '+beh.trigger_on.join(', ')+'</span>';
-    if(beh.cooldown)m+='<span>cooldown: '+beh.cooldown+'s</span>';
+    if(beh.trigger_on&&beh.trigger_on.length)m+='<span>triggers: '+beh.trigger_on.map(esc).join(', ')+'</span>';
+    if(beh.cooldown)m+='<span>cooldown: '+esc(String(beh.cooldown))+'s</span>';
     document.getElementById('m-meta').innerHTML=m;
 
     // Sessions for this agent
@@ -858,8 +984,8 @@ header h1{font-size:1.1em;color:#fff}
       sh+='<h3>Sessions ('+agentSessions.length+')</h3>';
       agentSessions.forEach(function(s){
         var sCls=s.status==='active'?'active':'closed';
-        sh+='<div class="sess-item"><span><span class="s-status '+sCls+'">'+s.status+'</span> '+(s.type||'?')+' &middot; '+(s.rounds||0)+' rounds &middot; '+(s.tokens_used||0)+' tokens</span>';
-        sh+='<span style="color:#59636e">'+(s.started?s.started.substring(0,10):'')+'</span></div>';
+        sh+='<div class="sess-item"><span><span class="s-status '+sCls+'">'+esc(s.status)+'</span> '+esc(s.type||'?')+' &middot; '+(s.rounds||0)+' rounds &middot; '+(s.tokens_used||0)+' tokens</span>';
+        sh+='<span style="color:#59636e">'+esc(s.started?s.started.substring(0,10):'')+'</span></div>';
       });
     } else {
       sh='<h3>Sessions</h3><div style="font-size:0.78em;color:#59636e">No sessions</div>';
@@ -1240,27 +1366,27 @@ header h1{font-size:1.1em;color:#fff}
     // Status badge (only show non-final states)
     var stHtml = '';
     if(status && status !== 'complete' && status !== 'answered') {
-      var stLabel = status === 'streaming' ? '' : status;
-      stHtml = '<span class="msg-status '+status+'">'+stLabel+'</span>';
+      var stLabel = status === 'streaming' ? '' : esc(status);
+      stHtml = '<span class="msg-status '+esc(status)+'">'+stLabel+'</span>';
     }
 
     // Build logs section (hidden until expanded)
     var logs = '';
     if(!isSystem) {
       logs += '<div class="msg-logs">';
-      logs += '<div class="msg-log-row"><span class="label">ID</span><span>'+item.id+'</span></div>';
-      if(item.conversation_id) logs += '<div class="msg-log-row"><span class="label">Conv</span><span>'+item.conversation_id+'</span></div>';
-      if(status) logs += '<div class="msg-log-row"><span class="label">Status</span><span>'+status+'</span></div>';
+      logs += '<div class="msg-log-row"><span class="label">ID</span><span>'+esc(item.id)+'</span></div>';
+      if(item.conversation_id) logs += '<div class="msg-log-row"><span class="label">Conv</span><span>'+esc(item.conversation_id)+'</span></div>';
+      if(status) logs += '<div class="msg-log-row"><span class="label">Status</span><span>'+esc(status)+'</span></div>';
       if(item.metadata) {
         var md = item.metadata;
-        if(md.provider_id) logs += '<div class="msg-log-row"><span class="label">Provider</span><span>'+md.provider_id+'</span></div>';
-        if(md.model) logs += '<div class="msg-log-row"><span class="label">Model</span><span>'+md.model+'</span></div>';
-        if(md.duration_s) logs += '<div class="msg-log-row"><span class="label">Duration</span><span>'+md.duration_s+'s</span></div>';
-        if(md.input_tokens) logs += '<div class="msg-log-row"><span class="label">Tokens in</span><span>'+md.input_tokens+'</span></div>';
-        if(md.output_tokens) logs += '<div class="msg-log-row"><span class="label">Tokens out</span><span>'+md.output_tokens+'</span></div>';
+        if(md.provider_id) logs += '<div class="msg-log-row"><span class="label">Provider</span><span>'+esc(md.provider_id)+'</span></div>';
+        if(md.model) logs += '<div class="msg-log-row"><span class="label">Model</span><span>'+esc(md.model)+'</span></div>';
+        if(md.duration_s) logs += '<div class="msg-log-row"><span class="label">Duration</span><span>'+esc(String(md.duration_s))+'s</span></div>';
+        if(md.input_tokens) logs += '<div class="msg-log-row"><span class="label">Tokens in</span><span>'+esc(String(md.input_tokens))+'</span></div>';
+        if(md.output_tokens) logs += '<div class="msg-log-row"><span class="label">Tokens out</span><span>'+esc(String(md.output_tokens))+'</span></div>';
       }
-      if(item.references && item.references.length) logs += '<div class="msg-log-row"><span class="label">Refs</span><span>'+item.references.join(', ')+'</span></div>';
-      if(item.to_agents && item.to_agents.length) logs += '<div class="msg-log-row"><span class="label">To</span><span>'+item.to_agents.map(agentName).join(', ')+'</span></div>';
+      if(item.references && item.references.length) logs += '<div class="msg-log-row"><span class="label">Refs</span><span>'+item.references.map(esc).join(', ')+'</span></div>';
+      if(item.to_agents && item.to_agents.length) logs += '<div class="msg-log-row"><span class="label">To</span><span>'+item.to_agents.map(agentName).map(esc).join(', ')+'</span></div>';
       logs += '<div class="msg-log-row"><a href="'+objLink('ai:message',item.id)+'" target="_blank">Open in admin ↗</a></div>';
       logs += '</div>';
     }
@@ -1290,7 +1416,7 @@ header h1{font-size:1.1em;color:#fff}
 
     return '<div class="msg'+collapsed+extraCls+'" id="fi-'+item.id+'" onclick="toggleMsg(this)">' +
       '<div class="msg-hdr">' +
-        '<span class="msg-name">'+name+'</span>' +
+        '<span class="msg-name">'+esc(name)+'</span>' +
         stHtml +
       '</div>' +
       '<div class="msg-content">'+renderedContent+'</div>' +
@@ -1475,6 +1601,7 @@ header h1{font-size:1.1em;color:#fff}
     if(tab === 'browse') browseLoad();
     if(tab === 'findings') loadFindings();
     if(tab === 'tasks') loadTasks();
+    if(tab === 'usage') loadUsage();
   };
 
   // Live task loading for the Tasks tab
@@ -1518,6 +1645,51 @@ header h1{font-size:1.1em;color:#fff}
 
       el.innerHTML=h;
     }).catch(function(){});
+  };
+
+  // ─── Usage ───────────────────────────────────────────────
+  function fmtDur(s) {
+    s = Math.round(s || 0);
+    if (!s) return '—';
+    if (s < 60) return s + 's';
+    var m = Math.floor(s / 60), sec = s % 60;
+    if (m < 60) return m + 'm ' + (sec ? sec + 's' : '');
+    return Math.floor(m / 60) + 'h ' + (m % 60) + 'm';
+  }
+
+  window.loadUsage = function() {
+    fetch(API + '/store/ai:agent').then(function(r) { return r.json(); }).then(function(agents) {
+      var h = '';
+      // Sort by total runs desc
+      agents.sort(function(a, b) {
+        var ar = (a.stats && a.stats.total_runs) || a.run_count || 0;
+        var br = (b.stats && b.stats.total_runs) || b.run_count || 0;
+        return br - ar;
+      });
+      agents.forEach(function(a) {
+        var s = a.stats || {};
+        var totalRuns = s.total_runs || a.run_count || 0;
+        var totalDur = s.total_duration_s || 0;
+        var avgDur = s.avg_duration_s || 0;
+        var lastDur = s.last_duration_s || 0;
+        var lastRun = s.last_run || a.last_run || '';
+        h += '<div style="padding:10px;border-bottom:1px solid #f0f2f5">';
+        h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">';
+        h += '<span style="font-weight:600;font-size:0.88em">'+esc(a.name||a.id)+'</span>';
+        if (!a.is_active) h += '<span style="font-size:0.68em;background:#f0f2f5;color:#59636e;padding:1px 5px;border-radius:3px">inactive</span>';
+        h += '</div>';
+        h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:0.78em">';
+        h += '<div style="background:#f6f8fa;border-radius:4px;padding:4px 6px;text-align:center"><div style="color:#59636e;font-size:0.85em">Runs</div><div style="font-weight:700;color:#0550ae">'+totalRuns+'</div></div>';
+        h += '<div style="background:#f6f8fa;border-radius:4px;padding:4px 6px;text-align:center"><div style="color:#59636e;font-size:0.85em">Total</div><div style="font-weight:700">'+fmtDur(totalDur)+'</div></div>';
+        h += '<div style="background:#f6f8fa;border-radius:4px;padding:4px 6px;text-align:center"><div style="color:#59636e;font-size:0.85em">Avg</div><div style="font-weight:700">'+fmtDur(avgDur)+'</div></div>';
+        h += '<div style="background:#f6f8fa;border-radius:4px;padding:4px 6px;text-align:center"><div style="color:#59636e;font-size:0.85em">Last</div><div style="font-weight:700">'+fmtDur(lastDur)+'</div></div>';
+        h += '</div>';
+        if (lastRun) h += '<div style="margin-top:4px;font-size:0.72em;color:#59636e">Last run: '+esc(lastRun.substring(0,19).replace('T',' '))+'</div>';
+        h += '</div>';
+      });
+      if (!agents.length) h = '<div style="padding:20px;text-align:center;color:#667781;font-size:0.85em">No agents found</div>';
+      document.getElementById('usage-list').innerHTML = h;
+    }).catch(function() {});
   };
 
   // ─── Findings ────────────────────────────────────────────
@@ -1588,8 +1760,8 @@ header h1{font-size:1.1em;color:#fff}
       items.forEach(function(item){
         var preview = '';
         if(item.name) preview += '<strong>'+esc(item.name)+'</strong> ';
-        if(item.status) preview += '<span class="badge b-'+item.status+'">'+item.status+'</span> ';
-        if(item.priority) preview += '<span class="badge b-'+item.priority.toLowerCase()+'">'+item.priority+'</span> ';
+        if(item.status) preview += '<span class="badge b-'+esc(item.status)+'">'+esc(item.status)+'</span> ';
+        if(item.priority) preview += '<span class="badge b-'+esc(item.priority.toLowerCase())+'">'+esc(item.priority)+'</span> ';
         if(item.content) preview += esc(str(item.content,80));
         else if(item.description) preview += esc(str(item.description,80));
         else if(item.title) preview += esc(item.title);
@@ -1599,7 +1771,7 @@ header h1{font-size:1.1em;color:#fff}
         h+='</div>';
       });
       el.innerHTML=h;
-    }).catch(function(e){el.innerHTML='<div style="padding:20px;color:#cf222e">Error: '+e.message+'</div>';});
+    }).catch(function(e){el.innerHTML='<div style="padding:20px;color:#cf222e">Error: '+esc(e.message)+'</div>';});
   };
 
   window.browseDetail = function(cls, id) {
@@ -1946,6 +2118,21 @@ setInterval(function() {
     })
     .catch(function() {});
 }, 3000);
+
+// Dark mode
+function toggleDarkMode() {
+  var isDark = document.body.classList.toggle('dark');
+  localStorage.setItem('aic-dark-mode', isDark ? '1' : '0');
+  document.getElementById('dark-toggle').textContent = isDark ? '☀️' : '🌙';
+}
+// Restore preference on load
+(function() {
+  if (localStorage.getItem('aic-dark-mode') === '1') {
+    document.body.classList.add('dark');
+    var btn = document.getElementById('dark-toggle');
+    if (btn) btn.textContent = '☀️';
+  }
+})();
 </script>
 </body>
 </html>

@@ -563,7 +563,22 @@ ${conv_history}"
 
   # ── Update agent stats ──
   run_count=$(echo "$AGENT_DATA" | jq -r '.run_count // 0')
-  es_update "ai:agent" "$AGENT_ID" "{\"run_count\":$((run_count+1)),\"last_run\":\"$(NOW)\"}" > /dev/null 2>&1
+  old_total_runs=$(echo "$AGENT_DATA" | jq -r '.stats.total_runs // 0')
+  old_total_dur=$(echo "$AGENT_DATA" | jq -r '.stats.total_duration_s // 0')
+  new_total_runs=$((old_total_runs + 1))
+  new_total_dur=$((old_total_dur + duration))
+  if [ "$new_total_runs" -gt 0 ]; then
+    new_avg=$(awk "BEGIN{printf \"%.1f\", $new_total_dur / $new_total_runs}")
+  else
+    new_avg="0.0"
+  fi
+  stats_json=$(jq -n \
+    --argjson tr "$new_total_runs" --argjson td "$new_total_dur" \
+    --argjson avg "$new_avg" --argjson dur "$duration" --arg now "$(NOW)" \
+    '{total_runs:$tr,total_duration_s:$td,avg_duration_s:$avg,last_run:$now,last_duration_s:$dur}')
+  es_update "ai:agent" "$AGENT_ID" "$(jq -n \
+    --argjson rc "$((run_count+1))" --arg lr "$(NOW)" --argjson st "$stats_json" \
+    '{run_count:$rc,last_run:$lr,stats:$st}')" > /dev/null 2>&1
 
   echo "[$(date '+%H:%M:%S')] Done"
 done
