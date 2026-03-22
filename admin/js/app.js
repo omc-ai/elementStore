@@ -77,6 +77,9 @@ async function initDashboard() {
     // Start health check polling
     startHealthPolling(30000);
 
+    // Start agent status polling (30s interval)
+    startAgentStatusPolling(30000);
+
     // Initialize global search
     initGlobalSearch();
 
@@ -348,6 +351,9 @@ async function init() {
     // Wire up auth config
     store.storage.authUrl = '/api/auth';
     store.storage.onAuthRequired = showLoginScreen;
+
+    // Load auth environments (populates selector, restores saved env)
+    await loadAuthEnvironments();
 
     var authed = await checkAuth();
     if (!authed) {

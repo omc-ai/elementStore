@@ -1093,6 +1093,42 @@
         .health-text { color: rgba(255,255,255,0.9); }
 
         /* =====================================================
+           AGENT STATUS INDICATORS
+           ===================================================== */
+        #agentStatusBar {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.12);
+            font-size: 11px;
+            cursor: default;
+        }
+        #agentStatusBar .agent-dots {
+            display: inline-flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .agent-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+        .agent-dot:hover { transform: scale(1.4); }
+        .agent-dot.agent-running  { background: #10b981; box-shadow: 0 0 6px #10b981; animation: agentPulse 1s ease-in-out infinite; }
+        .agent-dot.agent-recent   { background: #10b981; box-shadow: 0 0 4px #10b981; }
+        .agent-dot.agent-idle     { background: #f59e0b; }
+        .agent-dot.agent-inactive { background: #6b7280; }
+        @keyframes agentPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        #agentStatusLabel { color: rgba(255,255,255,0.7); margin-right: 2px; }
+
+        /* =====================================================
            GLOBAL SEARCH
            ===================================================== */
         #globalSearchWrap {
@@ -1440,6 +1476,10 @@
             <form onsubmit="handleLoginSubmit(event)">
                 <div id="loginError" class="login-error"></div>
                 <div class="form-group">
+                    <label class="form-label" for="loginEnv">Auth Provider</label>
+                    <select id="loginEnv" class="form-input" style="cursor:pointer;"></select>
+                </div>
+                <div class="form-group">
                     <label class="form-label" for="loginEmail">Email</label>
                     <input type="email" id="loginEmail" class="form-input" placeholder="admin@example.com" required autocomplete="username">
                 </div>
@@ -1459,6 +1499,10 @@
             <span id="healthIndicator" class="health-indicator" onclick="showHealthDetails()" title="Checking...">
                 <span class="health-dot"></span>
                 <span class="health-text">...</span>
+            </span>
+            <span id="agentStatusBar" title="Agent status" style="display:none;">
+                <span id="agentStatusLabel">agents</span>
+                <span class="agent-dots" id="agentDots"></span>
             </span>
         </div>
         <div class="actions">
@@ -1606,8 +1650,8 @@
     <script src="js/grid.js"></script>
     <script src="js/editor/generic-editor.js"></script>
     <script src="js/editor/fields.js"></script>
-    <script src="js/panels/class-list.js"></script>
     <script src="js/panels/object-list.js"></script>
+    <script src="js/panels/class-list.js"></script>
     <script src="js/health.js"></script>
     <script src="js/search.js"></script>
     <script src="js/actions.js"></script>
