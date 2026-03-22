@@ -452,9 +452,6 @@ body.dark .conv-title{background:#161b22;border-bottom-color:#21262d;color:#8b94
   <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
     <div class="card-hdr" style="flex-shrink:0;padding:0">
       <div style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:0 10px 0 0">
-        <div class="ch-tabs" id="ch-tabs">
-          <div class="ch-tab active" data-channel="general" onclick="switchChannel('general')">#general</div>
-        </div>
         <div class="worker-bar" style="flex-shrink:0">
           <span class="w-st stopped" id="w-st">STOPPED</span>
           <span class="w-info" id="w-info"></span>
@@ -463,12 +460,17 @@ body.dark .conv-title{background:#161b22;border-bottom-color:#21262d;color:#8b94
     </div>
     <div class="feed" id="feed" style="flex:1;overflow-y:auto;position:relative"></div>
     <div id="feed-ff" onclick="document.getElementById('feed').scrollTop=document.getElementById('feed').scrollHeight;this.style.display='none'" style="display:none;position:absolute;bottom:50px;left:50%;transform:translateX(-50%);background:#0550ae;color:#fff;padding:4px 12px;border-radius:12px;font-size:0.75em;cursor:pointer;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.2)">↓ new</div>
-    <div style="flex-shrink:0;padding:6px 8px;background:#f0f2f5;display:flex;gap:6px;align-items:center">
-      <button id="mic-btn" onclick="toggleMic()" style="background:none;border:none;cursor:pointer;font-size:1.2em;padding:4px;color:#54656f" title="Voice input">&#127908;</button>
-      <input id="feed-input" type="text" placeholder="Type a message..." style="flex:1;padding:8px 14px;border:none;border-radius:20px;font-size:0.88em;font-family:inherit;background:#fff;outline:none" onkeydown="if(event.key==='Enter')sendFeedMessage()">
-      <button id="tts-btn" onclick="toggleTTS()" style="background:none;border:none;cursor:pointer;font-size:1.1em;padding:4px;color:#54656f" title="Toggle voice responses">&#128264;</button>
-      <button onclick="sendFeedMessage()" style="background:#075e54;border:none;cursor:pointer;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1em;flex-shrink:0">&#10148;</button>
-      <span id="ch-label" style="display:none">#general</span>
+    <div style="flex-shrink:0;border-top:1px solid #e1e4e8">
+      <div class="ch-tabs" id="ch-tabs" style="padding:0 8px;border-bottom:1px solid #e9ecef">
+        <div class="ch-tab active" data-channel="general" onclick="switchChannel('general')">#general</div>
+      </div>
+      <div style="padding:6px 8px;background:#f0f2f5;display:flex;gap:6px;align-items:flex-end">
+        <button id="mic-btn" onclick="toggleMic()" style="background:none;border:none;cursor:pointer;font-size:1.2em;padding:4px;color:#54656f;flex-shrink:0" title="Voice input">&#127908;</button>
+        <textarea id="feed-input" placeholder="Type a message... (Ctrl+Enter to send)" rows="3" style="flex:1;padding:8px 14px;border:none;border-radius:12px;font-size:0.88em;font-family:inherit;background:#fff;outline:none;resize:none;line-height:1.4" onkeydown="handleFeedKeydown(event)"></textarea>
+        <button id="tts-btn" onclick="toggleTTS()" style="background:none;border:none;cursor:pointer;font-size:1.1em;padding:4px;color:#54656f;flex-shrink:0" title="Toggle voice responses">&#128264;</button>
+        <button onclick="sendFeedMessage()" style="background:#075e54;border:none;cursor:pointer;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1em;flex-shrink:0">&#10148;</button>
+        <span id="ch-label" style="display:none">#general</span>
+      </div>
     </div>
   </div>
 </div>
@@ -1151,6 +1153,14 @@ body.dark .conv-title{background:#161b22;border-bottom-color:#21262d;color:#8b94
   function objLink(classId, id) {
     return '/elementStore/admin/?class='+encodeURIComponent(classId)+'&id='+encodeURIComponent(id)+'&action=edit';
   }
+
+  // Handle keyboard in feed textarea: Ctrl+Enter to send, Enter for newline
+  window.handleFeedKeydown = function(event) {
+    if(event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      sendFeedMessage();
+    }
+  };
 
   // Send message from feed input
   window.sendFeedMessage = async function() {
