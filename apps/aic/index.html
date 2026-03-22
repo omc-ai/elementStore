@@ -1594,7 +1594,7 @@ header h1{font-size:1.1em;color:#fff}
   };
 
   window.browseDetail = function(cls, id) {
-    fetch(API+'/store/'+encodeURIComponent(cls)+'/'+encodeURIComponent(id)).then(function(r){return r.json()}).then(function(obj){
+    fetch(API+'/query/'+encodeURIComponent(cls)+'?id='+encodeURIComponent(id)+'&_limit=1').then(function(r){return r.json()}).then(function(arr){ var obj = arr[0] || {error:'not found'};
       // Show in a modal-like detail view
       var existing = document.querySelector('.browse-detail');
       if(existing) existing.remove();
