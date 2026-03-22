@@ -141,7 +141,7 @@ async function geField(prop, value, path, lvl) {
 
         if (obj === null) {
             // NULL STATE: select from existing instances, child classes, or create new
-            const storeObjects = await _geLoadClassObjects(cls, prop);
+            const storeObjects = await _geLoadClassObjects(cls, prop, path);
             const childClasses = await _geGetChildClasses(cls);
             // Build available class options: explicit classes + discovered children
             const allClasses = [...classes];
@@ -535,7 +535,7 @@ async function geRelation(prop, value, path) {
         return `<input type="text" data-path="${path}" data-type="relation" value="${esc(v)}" placeholder="ID" ${ro}>`;
     }
 
-    const objects = await _geLoadClassObjects(cls, prop);
+    const objects = await _geLoadClassObjects(cls, prop, path);
     const opts = _geBuildOptions(objects, v);
 
     return `<select data-path="${path}" data-type="relation" data-class="${cls}" class="ge-class-select" ${ro}>
@@ -1243,15 +1243,38 @@ function geReindexItems(table) {
 /**
  * Load objects of a class, with filter_by support from prop.options.
  * Used by both typed-object selects and relation fields.
+ *
+ * @param cls   - Class ID to load objects from
+ * @param prop  - Prop definition (may have options.filter_by)
+ * @param path  - Current field path (e.g. "props[0].editor") — used to resolve
+ *                filter_by.source relative to the current object context.
+ *                Falls back to absolute DOM query if path is not provided.
  */
-async function _geLoadClassObjects(cls, prop) {
+async function _geLoadClassObjects(cls, prop, path) {
     try {
         if (cls === '@class') return allClassesList || [];
         const objects = await api('GET', `/store/${cls}`) || [];
         const filterBy = prop?.options?.filter_by;
         if (!filterBy || !filterBy.field || !filterBy.source) return objects;
-        const sourceEl = document.querySelector(`[data-path="${filterBy.source}"]`);
-        const sourceVal = sourceEl ? (sourceEl.value || '') : '';
+
+        // Resolve source value: prefer context-relative path over absolute DOM query.
+        // If path = "props[0].editor", base = "props[0]", source path = "props[0].data_type"
+        let sourceVal = '';
+        if (path) {
+            const lastDot = path.lastIndexOf('.');
+            const lastBracket = path.lastIndexOf('[');
+            const lastSep = Math.max(lastDot, lastBracket > -1 ? path.lastIndexOf(']') + 1 : -1);
+            const basePath = lastSep > 0 ? path.slice(0, lastDot > -1 ? lastDot : lastSep) : '';
+            const sourcePath = basePath ? `${basePath}.${filterBy.source}` : filterBy.source;
+            // Try context-relative first, then absolute
+            const sourceEl = document.querySelector(`[data-path="${sourcePath}"]`)
+                          || document.querySelector(`[data-path="${filterBy.source}"]`);
+            sourceVal = sourceEl ? (sourceEl.value || '') : '';
+        } else {
+            const sourceEl = document.querySelector(`[data-path="${filterBy.source}"]`);
+            sourceVal = sourceEl ? (sourceEl.value || '') : '';
+        }
+
         if (!sourceVal) return objects;
         return objects.filter(o => {
             const fieldVal = o[filterBy.field];

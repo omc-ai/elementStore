@@ -36,6 +36,9 @@ class GenesisLoader
     /** @var array<string, array{file: string, dir: string}> classId → seed file mapping */
     private array $seedFileMap = [];
 
+    /** @var string|null Absolute path to apps/ directory for auto-discovery */
+    private ?string $appsDir = null;
+
     /**
      * @param IStorageProvider $storage    Storage backend to write into
      * @param string          $esDir      Absolute path to .es/ directory
@@ -93,6 +96,17 @@ class GenesisLoader
             }
             $genesisResult = $this->loadGenesisFile($genesisFile, $force);
             $results = $this->mergeResults($results, $genesisResult);
+        }
+
+        // Step 4: Auto-discover and load app genesis/seed files from apps/*/.es/
+        $results['apps_loaded'] = [];
+        if ($this->appsDir !== null && is_dir($this->appsDir)) {
+            $apps = $this->discoverApps();
+            foreach ($apps as $appName => $appEsDir) {
+                $appResult = $this->loadApp($appName, $appEsDir, $force);
+                $results = $this->mergeResults($results, $appResult);
+                $results['apps_loaded'][] = $appName;
+            }
         }
 
         $results['completed_at'] = date('c');
@@ -648,6 +662,185 @@ class GenesisLoader
 
         return $result;
     }
+
+    // =========================================================================
+    // APP AUTO-DISCOVERY
+    // =========================================================================
+
+    /**
+     * Set the apps directory for auto-discovery.
+     * On load(), apps/{name}/.es/ directories will be scanned and loaded.
+     *
+     * @param string $appsDir Absolute path to apps/ directory
+     */
+    public function setAppsDir(string $appsDir): void
+    {
+        $this->appsDir = rtrim($appsDir, '/');
+    }
+
+    /**
+     * Discover app directories that contain .es/ subdirectories.
+     *
+     * @return array<string, string> appName => absolute path to app's .es/ dir
+     */
+    public function discoverApps(): array
+    {
+        if ($this->appsDir === null || !is_dir($this->appsDir)) {
+            return [];
+        }
+
+        $apps = [];
+        $dirs = scandir($this->appsDir);
+        foreach ($dirs as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $esDir = $this->appsDir . '/' . $entry . '/' . Constants::ES_DIR;
+            if (is_dir($esDir)) {
+                $apps[$entry] = $esDir;
+            }
+        }
+
+        ksort($apps);
+        return $apps;
+    }
+
+    /**
+     * Load a single app's genesis and seed data.
+     *
+     * Handles the hybrid genesis format where the root JSON is both an @app
+     * instance (has class_id, name, etc.) AND a genesis envelope (has classes[], seed[]).
+     * The @app object is stored, then classes and seed are processed normally.
+     *
+     * Standard genesis/seed files in the app's .es/ directory are also loaded.
+     *
+     * @param string $appName  App directory name (e.g., "aic")
+     * @param string $appEsDir Absolute path to the app's .es/ directory
+     * @param bool   $force    Overwrite existing data
+     * @return array Load results
+     */
+    public function loadApp(string $appName, string $appEsDir, bool $force = false): array
+    {
+        $results = ['classes' => [], 'seed' => [], 'errors' => [], 'skipped' => []];
+
+        if (!is_dir($appEsDir)) {
+            $results['errors'][] = "App .es/ directory not found: {$appEsDir}";
+            return $results;
+        }
+
+        $files = scandir($appEsDir);
+        $genesisFiles = [];
+        $seedFiles = [];
+
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
+            if (str_ends_with($file, Constants::GENESIS_SUFFIX)) {
+                $genesisFiles[] = $file;
+            } elseif (str_ends_with($file, Constants::SEED_SUFFIX)) {
+                $seedFiles[] = $file;
+            }
+        }
+
+        // Process genesis files (may be hybrid format)
+        foreach ($genesisFiles as $genesisFile) {
+            $content = $this->readFileFrom($genesisFile, $appEsDir);
+            if ($content === null) {
+                $results['errors'][] = "Could not read app genesis: {$appEsDir}/{$genesisFile}";
+                continue;
+            }
+
+            $data = json_decode($content, true);
+            if ($data === null) {
+                $results['errors'][] = "Invalid JSON in app genesis: {$appEsDir}/{$genesisFile}";
+                continue;
+            }
+
+            // Hybrid format: root JSON has class_id (it's an @app instance + genesis envelope)
+            if (isset($data[Constants::F_CLASS_ID]) && isset($data[Constants::F_ID])) {
+                // Extract the @app object (all keys except classes/seed)
+                $appObj = [];
+                foreach ($data as $k => $v) {
+                    if ($k !== 'classes' && $k !== 'seed') {
+                        $appObj[$k] = $v;
+                    }
+                }
+                $appClassId = $appObj[Constants::F_CLASS_ID];
+                $appObjId = $appObj[Constants::F_ID];
+
+                if (!$force) {
+                    $existing = $this->storage->getobj($appClassId, $appObjId);
+                    if ($existing !== null) {
+                        $results['skipped'][] = "{$appClassId}:{$appObjId}";
+                    } else {
+                        $this->storage->setobj($appClassId, $appObj);
+                        $results['seed']["{$appClassId}:{$appObjId}"] = 'loaded';
+                    }
+                } else {
+                    $this->storage->setobj($appClassId, $appObj);
+                    $results['seed']["{$appClassId}:{$appObjId}"] = 'loaded';
+                }
+
+                // Process classes[] from hybrid genesis (if any)
+                if (!empty($data['classes'])) {
+                    foreach ($data['classes'] as $classDef) {
+                        $classId = $classDef[Constants::F_ID] ?? null;
+                        if (!$classId) {
+                            continue;
+                        }
+                        $classDef['genesis_file'] = $genesisFile;
+                        $classDef['genesis_dir'] = $appEsDir;
+                        if (!isset($classDef[Constants::F_CLASS_ID])) {
+                            $classDef[Constants::F_CLASS_ID] = Constants::K_CLASS;
+                        }
+
+                        if (!$force) {
+                            $existing = $this->storage->getobj(Constants::K_CLASS, $classId);
+                            if ($existing !== null) {
+                                $results['skipped'][] = "class:{$classId}";
+                                continue;
+                            }
+                        }
+                        $this->storage->setobj(Constants::K_CLASS, $classDef);
+                        $results['classes'][$classId] = 'loaded';
+                    }
+                }
+
+                // Process seed[] references from hybrid genesis
+                if (!empty($data['seed'])) {
+                    foreach ($data['seed'] as $seedRef) {
+                        $seedStorage = $seedRef['storage'] ?? null;
+                        if ($seedStorage === null) {
+                            continue;
+                        }
+                        // Resolve relative path
+                        $seedFilename = ltrim($seedStorage, './');
+                        $classId = $this->classIdFromSeedFile($seedFilename);
+                        $seedResult = $this->loadSeedFile($seedFilename, $classId, $force, $appEsDir);
+                        $results = $this->mergeResults($results, $seedResult);
+                    }
+                }
+            } else {
+                // Standard genesis file — delegate to existing loader
+                $genesisResult = $this->loadGenesisFile($genesisFile, $force, $appEsDir);
+                $results = $this->mergeResults($results, $genesisResult);
+            }
+        }
+
+        // Process standalone seed files (not referenced by genesis)
+        foreach ($seedFiles as $seedFile) {
+            $classId = $this->classIdFromSeedFile($seedFile);
+            $seedResult = $this->loadSeedFile($seedFile, $classId, $force, $appEsDir);
+            $results = $this->mergeResults($results, $seedResult);
+        }
+
+        return $results;
+    }
+
+    // =========================================================================
+    // UTILITIES
+    // =========================================================================
 
     /**
      * Derive class ID from seed filename.

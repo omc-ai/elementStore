@@ -49,6 +49,9 @@ class CouchDbStorageProvider implements IStorageProvider
     /** @var array Cache of database existence checks */
     private array $dbCache = [];
 
+    /** @var string|null Tenant ID for per-tenant database routing */
+    private ?string $tenantId = null;
+
     /**
      * Create CouchDB storage provider
      *
@@ -79,11 +82,20 @@ class CouchDbStorageProvider implements IStorageProvider
         // CouchDB database names: lowercase, start with letter, allow [a-z0-9_$()+-/]
         // Replace @ prefix with 'es_' (elementstore system classes)
         // Replace ':' with '_' (namespace separator — e.g. demo:server → demo_server)
+        $isSystemClass = str_starts_with($class, '@');
         $name = strtolower($class);
-        if (str_starts_with($name, '@')) {
+        if ($isSystemClass) {
             $name = 'es_' . substr($name, 1);
         }
         $name = str_replace(':', '_', $name);
+
+        // Apply tenant prefix for non-system classes when tenant is set.
+        // System classes (@ prefix) are shared across all tenants.
+        if ($this->tenantId !== null && !$isSystemClass) {
+            $tenantSlug = preg_replace('/[^a-z0-9]/', '_', strtolower($this->tenantId));
+            $name = $tenantSlug . '_' . $name;
+        }
+
         return $name;
     }
 
@@ -110,6 +122,22 @@ class CouchDbStorageProvider implements IStorageProvider
         }
 
         $this->dbCache[$dbName] = true;
+    }
+
+    /**
+     * Set tenant ID for per-tenant database routing.
+     *
+     * When set, all non-system classes (classes without @ prefix) will use
+     * databases prefixed with the tenant slug: {tenant}_{class} instead of {class}.
+     * System classes (@class, @prop, etc.) are always shared across tenants.
+     *
+     * @param string|null $tenantId Tenant identifier (e.g. 'acme', 'demo')
+     */
+    public function setTenantId(?string $tenantId): void
+    {
+        $this->tenantId = $tenantId;
+        // Clear cache when tenant changes — DB names have changed
+        $this->dbCache = [];
     }
 
     /**

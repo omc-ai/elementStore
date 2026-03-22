@@ -70,12 +70,12 @@ services:
     working_dir: /app
     command: node server.js
     ports:
-      - "${WS_PORT:-3101}:${WS_PORT:-3101}"
+      - "${WS_PORT:-3100}:${WS_PORT:-3100}"
     volumes:
       - ../ws:/app:ro
       - ../ws/node_modules:/app/node_modules
     environment:
-      - WS_PORT=${WS_PORT:-3101}
+      - WS_PORT=${WS_PORT:-3100}
       - TZ=${TZ:-UTC}
     networks:
       - elementstore_network

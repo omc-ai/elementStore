@@ -255,7 +255,11 @@ function connect() {
         msg.items.forEach(handleChange);
       }
 
-      // Also handle direct change format: { type: "changes", items: [...] }
+      // Respond to server heartbeat pings
+      if (msg.event === 'ping') {
+        ws.send(JSON.stringify({ action: 'ping' }));
+      }
+
       if (msg.event === 'subscribed') {
         // Subscription confirmed
       }

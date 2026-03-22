@@ -163,6 +163,12 @@ class AuthService
                 $claims->domain ?? null
             );
 
+            // Set tenant_id from JWT claims if present
+            $tenantId = $claims->tenant_id ?? null;
+            if ($tenantId !== null) {
+                $model->setTenantId($tenantId);
+            }
+
             return true;
         };
     }

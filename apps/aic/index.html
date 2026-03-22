@@ -241,11 +241,38 @@ header h1{font-size:1.1em;color:#fff}
 </head>
 <body>
 
+<!-- Login Screen -->
+<div id="aic-login" style="display:none;position:fixed;inset:0;background:#075e54;z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:8px;padding:32px;width:360px;box-shadow:0 4px 24px rgba(0,0,0,.3)">
+    <h2 style="margin-bottom:4px;font-size:1.3em">AI Company</h2>
+    <p style="color:#59636e;font-size:0.85em;margin-bottom:20px">Select environment and sign in</p>
+    <form onsubmit="handleAicLogin(event)">
+      <div id="aic-login-error" style="display:none;background:#ffebe9;color:#cf222e;padding:8px;border-radius:4px;font-size:0.85em;margin-bottom:12px"></div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-env">Environment</label>
+        <select id="aic-env" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em;background:#fff"></select>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-email">Email</label>
+        <input type="email" id="aic-email" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em" required autocomplete="username">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-password">Password</label>
+        <input type="password" id="aic-password" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em" required autocomplete="current-password">
+      </div>
+      <button type="submit" id="aic-login-btn" style="width:100%;padding:10px;background:#075e54;color:#fff;border:none;border-radius:4px;font-size:0.95em;font-weight:600;cursor:pointer">Sign In</button>
+    </form>
+  </div>
+</div>
+
 <header>
   <h1>AI Company</h1>
   <div class="hdr-status">
     <span id="ws-status"><span class="dot load"></span>connecting</span>
     <span id="class-count"></span>
+    <span id="aic-env-label" style="opacity:0.7;font-size:0.75em"></span>
+    <span id="aic-user" style="font-weight:600"></span>
+    <button onclick="aicLogout()" style="background:none;border:1px solid rgba(255,255,255,.4);color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8em;cursor:pointer">Logout</button>
   </div>
 </header>
 
@@ -404,11 +431,164 @@ header h1{font-size:1.1em;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="/elementStore/admin/dist/element-store.js"></script>
 <script src="/elementStore/admin/ws-client.js"></script>
+<script src="/elementStore/admin/js/auth.js"></script>
 <script>
 (function(){
-  var API = location.origin + '/elementStore';
-  var WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/elementStore/ws';
-  store.storage.data.url = API;
+  // ─── Project configuration ──────────────────────────────────────
+  var AIC_PROJECT = 'elementStore';   // repository name used to filter @environment objects
+  var AIC_PROJECT_LABEL = 'arc3d';    // project label for UI, findings, tasks
+
+  // ─── Environment configuration (loaded from @environment objects) ──
+  var AIC_ENVIRONMENTS = [];
+  var LS_ENV_KEY = 'aic_env';
+  var activeEnv = null;
+  var API, AUTH_BASE, WS_URL;
+
+  // Derive base URL from hostname — pick the arc3d-related host, prefer https
+  function envBaseUrl(env) {
+    var hosts = env.hostnames || [];
+    // Prefer arc3d.* hostname
+    var arc3d = hosts.find(function(h){ return h.indexOf('arc3d') >= 0 });
+    var host = arc3d || hosts[0] || '';
+    if (!host) return '';
+    // If current page is HTTPS, always use HTTPS to avoid mixed-content blocks
+    var proto = (env.ssl_enabled || location.protocol === 'https:') ? 'https://' : 'http://';
+    return proto + host;
+  }
+
+  function getEnvUrls(env) {
+    var base = env.base || envBaseUrl(env);
+    return {
+      api:  base + '/elementStore',
+      auth: base + '/api/auth',
+      ws:   base.replace(/^http/, 'ws') + '/elementStore/ws'
+    };
+  }
+
+  // Load environments from the current-origin store (bootstrap)
+  var _bootstrapApi = location.origin + '/elementStore';
+  async function loadEnvironments() {
+    try {
+      var res = await fetch(_bootstrapApi + '/store/@environment');
+      var envs = await res.json();
+      AIC_ENVIRONMENTS = envs
+        .filter(function(e){
+          return e.status === 'active' && envBaseUrl(e)
+            && Array.isArray(e.repositories_deployed)
+            && e.repositories_deployed.indexOf(AIC_PROJECT) >= 0;
+        })
+        .map(function(e){ e.base = envBaseUrl(e); return e });
+    } catch(e) {
+      console.warn('[AIC] Could not load environments:', e.message);
+      // Fallback to current origin
+      AIC_ENVIRONMENTS = [{ id: 'current', name: 'Current', base: location.origin, type: 'local', hostnames: [location.host] }];
+    }
+
+    // Restore saved selection
+    var savedEnvId = localStorage.getItem(LS_ENV_KEY);
+    activeEnv = AIC_ENVIRONMENTS.find(function(e){ return e.id === savedEnvId }) || AIC_ENVIRONMENTS[0];
+
+    // API and WS always use current origin — env selector only affects auth
+    API = _bootstrapApi;
+    WS_URL = location.origin.replace(/^http/, 'ws') + '/elementStore/ws';
+    AUTH_BASE = (activeEnv.base || envBaseUrl(activeEnv)) + '/api/auth';
+    store.storage.data.url = API;
+    store.storage.authUrl = AUTH_BASE;
+
+    // Populate selector
+    var sel = document.getElementById('aic-env');
+    if (sel) {
+      sel.innerHTML = '';
+      AIC_ENVIRONMENTS.forEach(function(env) {
+        var opt = document.createElement('option');
+        opt.value = env.id;
+        opt.textContent = env.name + ' — ' + (env.base || '').replace(/^https?:\/\//, '');
+        if (env.id === activeEnv.id) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', function() {
+        localStorage.setItem(LS_ENV_KEY, sel.value);
+      });
+    }
+  }
+
+  // ─── Auth helpers ──────────────────────────────────────────
+  function authHeaders() {
+    var token = store.storage.getToken ? store.storage.getToken() : null;
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
+  }
+
+  // Wrap fetch to inject auth header
+  var _origFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    opts = opts || {};
+    if (typeof url === 'string' && url.indexOf('/elementStore') >= 0) {
+      opts.headers = Object.assign({}, opts.headers || {}, authHeaders());
+    }
+    return _origFetch.call(window, url, opts);
+  };
+
+  function showAicLogin() {
+    document.getElementById('aic-login').style.display = 'flex';
+    document.querySelector('.layout').style.display = 'none';
+    document.querySelector('header').style.display = 'none';
+  }
+
+  function hideAicLogin() {
+    document.getElementById('aic-login').style.display = 'none';
+    document.querySelector('.layout').style.display = 'grid';
+    document.querySelector('header').style.display = 'flex';
+  }
+
+  function applyEnv(envId) {
+    activeEnv = AIC_ENVIRONMENTS.find(function(e){ return e.id === envId }) || AIC_ENVIRONMENTS[0];
+    localStorage.setItem(LS_ENV_KEY, activeEnv.id);
+    // Only auth changes per environment — API and WS stay on current origin
+    AUTH_BASE = (activeEnv.base || envBaseUrl(activeEnv)) + '/api/auth';
+    store.storage.authUrl = AUTH_BASE;
+  }
+
+  window.handleAicLogin = async function(e) {
+    e.preventDefault();
+    var form = e.target;
+    var envId = form.querySelector('#aic-env').value;
+    var email = form.querySelector('#aic-email').value.trim();
+    var password = form.querySelector('#aic-password').value;
+    var errorEl = form.querySelector('#aic-login-error');
+    var btn = form.querySelector('#aic-login-btn');
+
+    errorEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+
+    // Apply selected environment
+    applyEnv(envId);
+
+    try {
+      var res = await _origFetch(AUTH_BASE + '/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password })
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || 'Login failed');
+
+      store.storage.setAuth(data);
+      hideAicLogin();
+      window._aicStartApp();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  };
+
+  window.aicLogout = async function() {
+    await logout();
+    showAicLogin();
+  };
 
   var esws = new ElementStoreWS(store, WS_URL);
 
@@ -861,7 +1041,7 @@ header h1{font-size:1.1em;color:#fff}
       res.textContent='Task created';
     }else if(type==='finding'){
       var sev=document.getElementById('a-pri').value==='P1'?'critical':document.getElementById('a-pri').value==='P2'?'high':'medium';
-      await fetch(API+'/store/es:finding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({class_id:'es:finding',name:text.substring(0,60),description:text,severity:sev,category:'missing',status:'open',project:'arc3d',discovered_at:now})});
+      await fetch(API+'/store/es:finding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({class_id:'es:finding',name:text.substring(0,60),description:text,severity:sev,category:'missing',status:'open',project:AIC_PROJECT_LABEL,discovered_at:now})});
       res.textContent='Finding reported';
     }
     setTimeout(function(){document.getElementById('action-modal').classList.remove('open');load();},800);
@@ -1350,16 +1530,43 @@ header h1{font-size:1.1em;color:#fff}
     document.getElementById('ws-status').innerHTML='<span class="dot err"></span>reconnecting';
     feedUpsert({id:'_ws_status', class_id:'ai:message', role:'system', content:'Disconnected — reconnecting...', updated_at:new Date().toISOString()});
   });
-  try {
-    console.log('[AIC] Connecting WS to:', WS_URL);
-    esws.connect({user_id:'aic-dashboard'});
-    console.log('[AIC] WS connect called');
-  } catch(e) {
-    console.error('[AIC] WS connect failed:', e);
+  window._aicStartApp = startApp;
+  function startApp() {
+    try {
+      // Update WS URL in case env changed at login
+      esws.wsUrl = WS_URL;
+      var token = store.storage.getToken ? store.storage.getToken() : null;
+      console.log('[AIC] Connecting WS to:', WS_URL, token ? '(authenticated)' : '(no token)');
+      esws.connect(token ? { token: token } : { user_id: 'aic-dashboard' });
+      console.log('[AIC] WS connect called');
+    } catch(e) {
+      console.error('[AIC] WS connect failed:', e);
+    }
+
+    // Show user + env in header
+    var user = store.storage.auth ? store.storage.auth.user : null;
+    if (user) {
+      var userEl = document.getElementById('aic-user');
+      if (userEl) userEl.textContent = user.name || user.email || '';
+    }
+    var envLabel = document.getElementById('aic-env-label');
+    if (envLabel) envLabel.textContent = activeEnv.name;
+
+    load();
+    setInterval(function(){if(!esws.ws||esws.ws.readyState!==1)load()},15000);
   }
 
-  load();
-  setInterval(function(){if(!esws.ws||esws.ws.readyState!==1)load()},15000);
+  // ─── Auth gate ──────────────────────────────────────────
+  (async function() {
+    await loadEnvironments();
+    store.storage.onAuthRequired = showAicLogin;
+    var authed = await checkAuth();
+    if (!authed) {
+      showAicLogin();
+    } else {
+      startApp();
+    }
+  })();
 
   // ─── Voice Interface ─────────────────────────────────────
   var _speechRecognition = null;

@@ -21,6 +21,61 @@ This means:
 - **Composable** — actions, events, validators, and UI editors are objects that reference each other
 - **Portable** — export your entire data model + data as JSON, seed it anywhere
 
+## Data Flow
+
+Every operation in ElementStore follows a single pipeline:
+
+```
+Input → Mapping → Execution → Mapping → Output
+```
+
+Whether it's an API call, a CLI command, an event handler, or a composite action — the shape is the same. Data enters, gets mapped to internal form, something executes, the result gets mapped back, and data leaves. Actions, endpoints, methods, services, providers, and storage all implement this same interface.
+
+## Canonical Objects
+
+An object can live in multiple stores (JSON file, CouchDB, MySQL, external API, browser memory). But it should have **one canonical identity** — a single `id` that is the source of truth. Other storage locations are links, caches, or projections of that canonical object.
+
+This applies to everything, because everything is an object:
+- **Classes** are objects (`@class`) — they exist in every store that loads them
+- **Properties** are objects (`@prop`) — they travel with their class
+- **Actions, editors, providers** — all objects, all portable across stores
+
+When an object exists in multiple stores, the canonical store owns the authoritative version. Other stores hold references or synchronized copies.
+
+## Editors: Objects Interact Through Properties
+
+Every property has an **editor** — an `@editor` object that defines how the property presents itself on any user interface. This is not a UI concern bolted on after the fact; it is part of the property's identity.
+
+When an object appears on screen, each property knows how to render itself: as a text field, a dropdown, a date picker, a code editor, a relation selector, a grid. The editor is the default interaction surface. Custom UIs can override, but every object is immediately usable through its property editors alone.
+
+## Documentation Index
+
+Detailed documentation lives in [`docs/`](docs/). The README covers philosophy and quick-start; the docs cover depth.
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/ARCHITECTURE.md) | System architecture, layers, and component interaction |
+| [Client Feature Registry](docs/CLIENT_FEATURE_REGISTRY.md) | Feature implementation status across all clients |
+| [Element-Provider Binding](docs/ELEMENT_PROVIDER_BINDING.md) | How objects bind to external providers and APIs |
+| [ES Directory Convention](docs/ES_DIRECTORY_CONVENTION.md) | `.es/` directory structure, file naming, namespacing |
+| [Migration Procedure](docs/MIGRATION_PROCEDURE.md) | Procedures for schema and data migration |
+
+## Integration Rules: Creating Classes and Properties
+
+When integrating with ElementStore — whether building a new domain, adding a feature, or connecting an external system — follow this procedure:
+
+1. **Define the class** — Create a `@class` object with `id`, `name`, `description`, and optionally `extends_id` for inheritance and `storage_id` for persistence
+2. **Define properties** — Create `@prop` objects for each field. Each prop specifies `key`, `data_type`, validation (`required`, `validators[]`), UI behavior (`editor`, `display_order`, `group_name`), and security (`server_only`, `readonly`, `create_only`)
+3. **Assign editors** — Every property should reference an `@editor`. Use built-in editors (text, textarea, select, date, code, relation, grid) or define custom ones
+4. **Define actions** — If the class has operations, create `@action` objects and bind them as `data_type: function` props on the class
+5. **Wire providers** — For external data sources, create `@provider` or `crud_provider` objects with field mappings
+6. **Seed data** — Write a `.genesis.json` (nested, with inline props) or `.seed.json` (flat array) and load via `POST /genesis`
+7. **Register as feature** — Track the work as `@feature` and `@app_feature` objects
+
+**Rule**: If it can be declared as an object, declare it. Only write code when the schema cannot express what you need.
+
+**Rule**: When a class requires functionality that doesn't exist yet, always search for a way to integrate it as a **generic mechanism** within the elementStore object model — not as a one-off solution. If the capability is missing and you don't have access to the elementStore core code to implement it generically, **notify the owner** to create the generic mechanism. The goal: every new capability becomes reusable infrastructure, not isolated custom code.
+
 ## Core Concepts
 
 ### System Classes (Meta-Objects)
@@ -681,6 +736,149 @@ bash util/es-features.sh matrix --url http://arc3d.master.local/elementStore
 ```
 
 By default reads from local `.es/` JSON files. Use `--url` or `--from-api` to query a running server.
+
+## Rules for AI Agents
+
+These rules apply to any AI (Claude, GPT, Copilot, AIC agents, or any LLM) working within or against the elementStore. They are non-negotiable.
+
+### Rule 1: Search the Store Before Inventing
+
+**Before creating ANY new class, property, object, constant, enum, config array, or data structure — search the store for what already exists.**
+
+```bash
+# Search for existing classes
+curl -sf "$ES_URL/class" | jq -r '.[].id' | grep -i "<keyword>"
+
+# Search for existing objects
+curl -sf "$ES_URL/find/<suspected_id>"
+
+# List objects of a class
+curl -sf "$ES_URL/store/<class_id>"
+```
+
+If the data already exists as a class or object — **use it**. Do not duplicate it in code, config files, JSON arrays, or markdown. The store is the single source of truth.
+
+**Examples of violations:**
+- Hardcoding a list of environments when `@environment` objects exist
+- Creating a `PROVIDERS` constant when `@provider` objects exist
+- Writing an `agents.json` config when `ai:agent` objects are in the store
+- Embedding port numbers in code when `@installation` has them
+
+### Rule 2: Declare Before You Code
+
+**If you need a new data structure, define it as an elementStore class — not as code.**
+
+| You need... | Do this | Not this |
+|---|---|---|
+| A data structure | Create a `@class` with `@prop` definitions | Write a struct/interface/type in code |
+| An operation | Create an `@action` object | Write a standalone function |
+| A list of options | Use `@prop` with `options.values` | Hardcode an array |
+| A configuration | Create objects of an existing class | Write a `.env` or config file |
+| Validation rules | Use `@prop` validators and constraints | Write custom validation code |
+| An integration | Create a `@provider` with action bindings | Write ad-hoc API client code |
+
+Only write code when the elementStore schema genuinely cannot express what you need (storage provider internals, protocol handling, rendering logic).
+
+### Rule 3: Understand Relations Before Adding Properties
+
+**Every new class must declare its relations to existing classes.** Do not create isolated classes.
+
+Before adding a class, answer:
+1. Does it `extends_id` an existing class? (inheritance)
+2. Does it have `relation` props pointing to other classes? (references)
+3. Is there an existing class that should point to it? (reverse relations)
+4. Does it belong under a namespace that already has conventions? (`ai:`, `es:`, `@`)
+
+```json
+{
+  "id": "ai:agent_session",
+  "extends_id": "@registry-item",
+  "props": [
+    {"key": "agent_id", "data_type": "relation", "relation": {"class_id": "ai:agent"}},
+    {"key": "environment_id", "data_type": "relation", "relation": {"class_id": "@environment"}}
+  ]
+}
+```
+
+### Rule 4: Object Operations Go Through the Store
+
+**All reads and writes of structured data go through the REST API or `es-cli.sh`.** Never bypass the store by editing `.es/*.json` files for object-level changes.
+
+```bash
+# Correct
+curl -sf -X POST "$ES_URL/store/ai:task" -H 'Content-Type: application/json' \
+  -d '{"id":"task:123","class_id":"ai:task","name":"Fix bug","status":"open"}'
+
+# Wrong — editing the JSON file directly
+echo '{"id":"task:123",...}' >> .es/ai/ai.task.json
+```
+
+Editing `.es/` files directly is only allowed for:
+- Inspecting structure or debugging
+- Fixing malformed JSON
+- Bulk scripting across files (genesis/seed operations)
+
+### Rule 5: No Standalone Docs for Structured Data
+
+If data can be modeled as classes and objects, it belongs in the store — not in markdown, HTML, or config files.
+
+| Belongs in the store | Belongs in markdown |
+|---|---|
+| Feature definitions → `@feature` | Architecture decisions and rationale |
+| App status → `@app_feature` | Procedures and how-to guides |
+| Environment config → `@environment` | Integration guides (Docker, CI/CD) |
+| Agent definitions → `ai:agent` | Philosophy, overview, README |
+| Editor definitions → `@editor` | These AI rules |
+| Installation specs → `@installation` | |
+
+**Test:** If you're about to write a list of structured items in a doc, stop and ask: *"Should this be a class?"*
+
+### Rule 6: Feature-Driven Development
+
+Every feature must be tracked through `@feature` and `@app_feature` objects.
+
+1. Check if `@feature` exists for the capability. If not, create one.
+2. Check if `@app_feature` exists for your target app. If not, create one with `progress: "in_progress"`.
+3. Implement the feature.
+4. Update `@app_feature` with `progress: "implemented"`, file paths in `implemented_in`, and `notes`.
+
+### Rule 7: Respect Existing Naming Conventions
+
+| Prefix | Scope | Examples |
+|---|---|---|
+| `@` | System/meta classes | `@class`, `@prop`, `@environment`, `@installation` |
+| `ai:` | AI Company domain | `ai:agent`, `ai:message`, `ai:task`, `ai:worker` |
+| `es:` | elementStore internals | `es:finding`, `es:tenant`, `es:database` |
+| `feat:` | Feature registry | `feat:object_crud`, `feat:filter_by` |
+| `af:` | App-feature mapping | `af:es-admin:filter_by` |
+| `app:` | Application registry | `app:es-admin`, `app:es-php-backend` |
+
+New classes must follow the namespace of their domain. Do not invent new prefixes without checking existing ones.
+
+### Rule 8: Genesis Files Are Class Libraries
+
+When creating new classes, define them in `.genesis.json` files — not through ad-hoc API calls or code.
+
+- Classes + props → `*.genesis.json` (nested format with inline props)
+- Seed objects → `*.seed.json` (flat array of objects)
+- Place in the relevant project's `.es/` directory
+- Register in the project's genesis loader
+
+This ensures classes are reproducible, versionable, and can be seeded on any environment.
+
+### Rule 9: Check Platform Registry Classes First
+
+The `platform_root` project defines cross-cutting classes used by all projects:
+
+| Class | Purpose |
+|---|---|
+| `@project` | Project metadata (name, path, repos, ports) |
+| `@environment` | Deployment environments (hostnames, IPs, SSL, deployed repos) |
+| `@installation` | Installation specs (docker, services, ports, volumes) |
+| `@repository` | Git repositories |
+| `@registry-item` | Base class for registry objects (name, description, status, tags) |
+
+**Before creating infrastructure-related classes, check if `platform_root` already has them.** These classes exist precisely so that every project and agent shares the same model for environments, installations, and projects — instead of each one inventing its own.
 
 ## AI Interaction Guide
 
