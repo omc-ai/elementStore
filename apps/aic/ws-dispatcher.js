@@ -140,7 +140,7 @@ function spawnAgent(agentId, msgId) {
   const child = execFile('bash', args, {
     env: { ...process.env, ES_URL },
     maxBuffer: 10 * 1024 * 1024,
-    timeout: 600000 // 10 min max per agent run
+    timeout: 1800000 // 30 min max per agent run
   }, (error, stdout, stderr) => {
     runningAgents.delete(agentId);
     agentCooldowns.set(agentId, Date.now());
@@ -185,16 +185,22 @@ function handleChange(item) {
     }
   }
 
-  // ── Agent completed a response → notify Coordinator to orchestrate ──
-  // This is the autonomous feedback loop: any agent finishes → coordinator decides what's next
+  // ── Agent completed a response → autonomous orchestration loop ──
   if (item.class_id === 'ai:message' && item.status === 'complete' && item.role === 'assistant') {
     const fromAgent = item.agent_id || '';
-    // Don't loop: coordinator doesn't notify itself, assistant doesn't trigger coordinator
+
+    // Any non-coordinator/assistant agent completes → tell coordinator what happened
     if (fromAgent && fromAgent !== 'agent:coordinator' && fromAgent !== 'agent:assistant') {
       const contentPreview = (item.content || '').substring(0, 300);
-      log(`  🔄 ${fromAgent} completed response → notifying Coordinator`);
+      log(`  🔄 ${fromAgent} completed → notifying Coordinator`);
       createPendingMessage('agent:coordinator',
-        `Agent ${fromAgent} just completed their work. Here's a summary of their response:\n\n${contentPreview}${(item.content||'').length > 300 ? '...' : ''}\n\nReview the open tasks (GET /query/ai:task?status=open) and decide: what should happen next? Create new tasks, reassign work, or mark tasks as done. If all work is finished, report status to the owner via agent:assistant.`);
+        `Agent ${fromAgent} just completed their work. Here's a summary:\n\n${contentPreview}${(item.content||'').length > 300 ? '...' : ''}\n\nCheck open tasks: curl -sf "${ES_URL}/query/ai:task?status=open&_limit=20"\nCheck findings: curl -sf "${ES_URL}/store/es:finding" | jq length\n\nDecide what's next. Create fix tasks for any findings that don't have tasks yet. Assign work. Keep the pipeline moving.`);
+    }
+
+    // Coordinator itself completes → check if there's still unfinished work
+    if (fromAgent === 'agent:coordinator') {
+      log(`  🔄 Coordinator completed — checking for remaining work...`);
+      setTimeout(() => checkRemainingWork(), 5000);
     }
   }
 
@@ -289,9 +295,72 @@ function connect() {
   });
 }
 
-// ─── Status endpoint ─────────────────────────────────────
-// Simple HTTP server for daemon to check dispatcher health
+// ─── Autonomous work checker ─────────────────────────────
+// Runs after coordinator completes to see if there's still work to do
+function checkRemainingWork() {
+  const client = ES_URL.startsWith('https') ? https : http;
+
+  // Check open tasks
+  const tasksUrl = new URL(ES_URL + '/query/ai:task?status=open&_limit=50');
+  const inProgressUrl = new URL(ES_URL + '/query/ai:task?status=in_progress&_limit=50');
+
+  Promise.all([
+    new Promise((resolve) => {
+      client.get(tasksUrl, (res) => {
+        let data = ''; res.on('data', c => data += c);
+        res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { resolve([]); } });
+      }).on('error', () => resolve([]));
+    }),
+    new Promise((resolve) => {
+      client.get(inProgressUrl, (res) => {
+        let data = ''; res.on('data', c => data += c);
+        res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { resolve([]); } });
+      }).on('error', () => resolve([]));
+    })
+  ]).then(([openTasks, inProgressTasks]) => {
+    const totalPending = openTasks.length + inProgressTasks.length;
+
+    if (totalPending === 0) {
+      log('  ✅ All work complete — no open or in-progress tasks');
+      createPendingMessage('agent:assistant',
+        'All tasks are complete. The team has finished the current workload. Inform the owner of the final status — summarize what was accomplished, how many findings were discovered, and what was fixed.');
+      return;
+    }
+
+    // Check for stuck in_progress tasks (no agent running on them)
+    inProgressTasks.forEach(task => {
+      const assignedAgent = task.agent_id;
+      if (assignedAgent && !runningAgents.has(assignedAgent)) {
+        log(`  ⚠ Stuck task: ${task.id} (${task.name}) — in_progress but ${assignedAgent} is idle`);
+        createPendingMessage(assignedAgent,
+          `You have a stuck task that needs attention: "${task.name}" (${task.id}). It's marked in_progress but you're not working on it. Pick it up and complete it. Task details: ${task.description || 'Check the task in the store.'}`);
+      }
+    });
+
+    // Trigger developer for open tasks that aren't being worked on
+    openTasks.forEach(task => {
+      const assignedAgent = task.agent_id || 'agent:developer';
+      if (!runningAgents.has(assignedAgent)) {
+        log(`  📌 Open task needs pickup: ${task.id} → ${assignedAgent}`);
+        createPendingMessage(assignedAgent,
+          `Open task assigned to you: "${task.name}" (${task.id}). Priority: ${task.priority || 'P2'}. Pick it up and work on it. ${task.description || ''}`);
+        return; // Only trigger one at a time to avoid overwhelming
+      }
+    });
+
+    log(`  📊 Remaining: ${openTasks.length} open, ${inProgressTasks.length} in_progress`);
+  });
+}
+
+// Periodic check every 2 minutes for stuck work
+setInterval(checkRemainingWork, 120000);
+
+// ─── Status & stream endpoints ───────────────────────────
+const fs = require('fs');
+
 const statusServer = http.createServer((req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
   if (req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
@@ -300,10 +369,109 @@ const statusServer = http.createServer((req, res) => {
       agent_count: agentConfigs.size,
       uptime_s: Math.floor(process.uptime())
     }));
-  } else {
-    res.writeHead(404);
-    res.end();
+    return;
   }
+
+  // /stream/:agentId — return the live stream output for a running agent
+  const streamMatch = req.url.match(/^\/stream\/(.+)$/);
+  if (streamMatch) {
+    const agentId = decodeURIComponent(streamMatch[1]);
+    const info = runningAgents.get(agentId);
+
+    if (!info) {
+      // Agent not running — try to return the last log
+      const shortName = agentId.split(':')[1] || agentId;
+      const logFile = `/tmp/aic-agent-${shortName}.log`;
+      try {
+        const content = fs.readFileSync(logFile, 'utf8');
+        const lines = content.split('\n').slice(-100).join('\n');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'idle', agent_id: agentId, lines: lines.split('\n') }));
+      } catch (e) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'idle', agent_id: agentId, lines: ['Agent is idle. No recent log.'] }));
+      }
+      return;
+    }
+
+    // Agent is running — read the stream-json temp file
+    const msgId = info.msgId || '';
+    const pid = info.pid || '';
+
+    // Find the temp file
+    let streamContent = '';
+    try {
+      const files = fs.readdirSync('/tmp').filter(f => f.startsWith('aic-run-') && f.includes(String(pid)));
+      if (files.length > 0) {
+        streamContent = fs.readFileSync('/tmp/' + files[0], 'utf8');
+      } else {
+        // Try by msgId
+        const byMsg = fs.readdirSync('/tmp').filter(f => f.startsWith('aic-run-') && msgId && f.includes(msgId));
+        if (byMsg.length > 0) {
+          streamContent = fs.readFileSync('/tmp/' + byMsg[0], 'utf8');
+        }
+      }
+    } catch (e) {}
+
+    // Parse stream-json into readable lines
+    const lines = [];
+    const elapsed = Math.floor((Date.now() - info.startedAt) / 1000);
+    lines.push(`[agent: ${agentId}] [pid: ${pid}] [running: ${elapsed}s] [msg: ${msgId}]`);
+    lines.push('');
+
+    if (streamContent) {
+      streamContent.split('\n').forEach(line => {
+        if (!line.trim()) return;
+        try {
+          const obj = JSON.parse(line);
+          if (obj.type === 'assistant' && obj.message?.content) {
+            obj.message.content.forEach(block => {
+              if (block.type === 'text') {
+                lines.push('[text] ' + block.text.substring(0, 200));
+              } else if (block.type === 'tool_use') {
+                lines.push('[tool] ' + block.name + '(' + JSON.stringify(block.input).substring(0, 150) + ')');
+              }
+            });
+          } else if (obj.type === 'user' && obj.tool_use_result) {
+            const stdout = (obj.tool_use_result.stdout || '').substring(0, 200);
+            const stderr = (obj.tool_use_result.stderr || '').substring(0, 100);
+            if (stdout) lines.push('[result] ' + stdout.replace(/\n/g, ' '));
+            if (stderr) lines.push('[stderr] ' + stderr.replace(/\n/g, ' '));
+          } else if (obj.type === 'result') {
+            lines.push('[done] ' + (obj.result || '').substring(0, 200));
+          }
+        } catch (e) {}
+      });
+    } else {
+      lines.push('Waiting for output...');
+    }
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'running', agent_id: agentId, elapsed_s: elapsed, lines }));
+    return;
+  }
+
+  // /agents — list all agents with status
+  if (req.url === '/agents') {
+    const agents = [];
+    agentConfigs.forEach((config, id) => {
+      const running = runningAgents.get(id);
+      agents.push({
+        id,
+        name: config.name,
+        status: running ? 'running' : 'idle',
+        pid: running?.pid,
+        elapsed_s: running ? Math.floor((Date.now() - running.startedAt) / 1000) : 0,
+        msgId: running?.msgId
+      });
+    });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(agents));
+    return;
+  }
+
+  res.writeHead(404);
+  res.end();
 });
 
 // ─── Main ────────────────────────────────────────────────

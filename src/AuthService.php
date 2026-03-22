@@ -55,9 +55,6 @@ class AuthService
     /** @var int Unix timestamp of last successful key fetch */
     private static int $keyFetchedAt = 0;
 
-    /** @var object|null Decoded JWT claims for the current request */
-    private static ?object $currentClaims = null;
-
     /** @var int Public key TTL in seconds before re-fetching */
     private const KEY_TTL = 3600;
 
@@ -132,9 +129,6 @@ class AuthService
 
             $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
 
-            // Reset per-request claims cache
-            self::$currentClaims = null;
-
             // Dev fallback: X-User-Id header (deprecated — only works in development)
             if (empty($authHeader)) {
                 $esEnv = getenv('ES_ENV') ?: (getenv('PHP_ENV') ?: 'production');
@@ -163,7 +157,6 @@ class AuthService
             }
 
             $claims = $result['claims'];
-            self::$currentClaims = $claims;
             $model->setSecurityContext(
                 $claims->sub ?? $claims->user_id ?? null,
                 $claims->app_id ?? null,
@@ -367,42 +360,6 @@ class AuthService
     // =========================================================================
     // PERMISSION HELPERS
     // =========================================================================
-
-    /**
-     * Return the decoded JWT claims for the current request.
-     * Null when auth is not configured, disabled, or the request used the dev X-User-Id path.
-     *
-     * @return object|null
-     */
-    public static function getCurrentClaims(): ?object
-    {
-        return self::$currentClaims;
-    }
-
-    /**
-     * Assert that the current request carries the 'admin' role in its JWT claims.
-     *
-     * Returns true when auth is not configured / disabled (backward-compatible for dev installs
-     * without an auth_config). Returns false when auth IS enabled but the caller lacks admin.
-     *
-     * Usage:
-     *   if (!AuthService::requireAdmin()) {
-     *       return error('Admin role required', 403);
-     *   }
-     *
-     * @return bool
-     */
-    public static function requireAdmin(): bool
-    {
-        // Auth not configured or disabled — allow unrestricted access (dev installs)
-        if (self::$cachedConfig === null || !(self::$cachedConfig['is_enabled'] ?? false)) {
-            return true;
-        }
-        if (self::$currentClaims === null) {
-            return false;
-        }
-        return self::hasRole(self::$currentClaims, 'admin');
-    }
 
     /**
      * Check if JWT claims contain a specific role.

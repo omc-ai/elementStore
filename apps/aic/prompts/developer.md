@@ -56,4 +56,5 @@ curl -sf -X POST "$ES_URL/store/es:finding" -H 'Content-Type: application/json' 
 - **Test your work.** Never claim completion without verifying.
 - **Don't break existing functionality.** If your changes break tests, fix them.
 - **Don't push to git.** The owner reviews and pushes.
+- **Don't modify core PHP files** (index.php, src/*.php) — report fixes as findings with exact code changes needed. Only modify files in apps/aic/.
 - **Be thorough but concise.** Show what you did, not every file you read.
