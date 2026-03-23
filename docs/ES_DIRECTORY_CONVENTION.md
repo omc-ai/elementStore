@@ -55,7 +55,7 @@ Genesis files define class schemas. Format:
       "class_id": "@class",
       "name": "My Model",
       "props": [
-        {"key": "name", "label": "Name", "data_type": "string", "required": true}
+        {"key": "name", "label": "Name", "data_type": "string", "flags": {"required": true}}
       ]
     }
   ]
@@ -64,7 +64,7 @@ Genesis files define class schemas. Format:
 
 ### System Genesis (`system.genesis.json`)
 
-Loaded first at boot. Defines all system meta-classes: `@class`, `@prop`, `@editor`, `@storage`, `@action`, `@event`, `@function`, `@provider`, `crud_provider`, `@seed`, auth classes.
+Loaded first at boot. Defines all system meta-classes: `@class`, `@prop`, `@prop_*` (typed variants), `@editor`, `@storage`, `@action`, `@event`, `@function`, `@provider`, `crud_provider`, `@prop_flags`, `@obj_ref`, `@options_*`, `@seed`, auth classes (`auth_config`, `auth_app`, `auth_machine`).
 
 ### Domain Genesis (`{namespace}.genesis.json`)
 

@@ -1,137 +1,80 @@
 ---
 name: es
-description: "ElementStore — query classes, objects, agents, features. Understands ES schema, can work offline from genesis files. Examples: /es, /es ai:agent, /es classes, /es agent:owner"
+description: "ElementStore — query classes, objects, agents, features. Uses server-side text tables. Examples: /es, /es ai:agent, /es classes, /es agent:owner"
 argument-hint: "[class_id | object_id | classes | features | agents | health | props <class>]"
 ---
 
 # /es — ElementStore Command
 
-You are handling the `/es` command for elementStore — a self-describing object store where classes are objects and everything is queryable via the same API.
+**Arguments:** `$ARGUMENTS`
 
-**Arguments received:** `$ARGUMENTS`
+## CRITICAL OUTPUT RULES
 
-## ElementStore Core Concepts
+1. Run the curl/CLI command
+2. Print the raw output DIRECTLY — no code blocks, no markdown formatting, no commentary
+3. Do NOT add any text before or after the table unless there's an error
+4. The server-rendered text table IS the final output — just show it as-is
 
-ElementStore is built on a simple foundation: **everything is an object, classes are objects too**.
+## Execution
 
-### The Meta-Schema
+All queries use curl with text format headers. The server renders the table.
 
-| System Class | Purpose |
-|-------------|---------|
-| `@class` | Defines a data class — has `id`, `name`, `extends_id`, `props[]`, `storage_id` |
-| `@prop` | Defines a property — has `key`, `data_type`, `is_array`, `options`, `flags`, `editor` |
-| `@prop_string`, `@prop_number`, `@prop_boolean`, `@prop_datetime`, `@prop_object`, `@prop_relation` | Type-specific prop classes (extend @prop) |
-| `@prop_flags` | Inline flags: `required`, `readonly`, `hidden`, `create_only`, `server_only`, `master_only` |
-| `@editor` | UI editor definitions (text, textarea, select, grid, etc.) |
-| `@action` | Executable actions: api, cli, function, event, composite, ui |
-| `@storage` | Storage providers: json, couchdb, mysql, rest, api, composite |
-| `@obj_ref` | Dynamic typed value — `ref` points to a @prop that defines the value's type |
-
-### Data Types
-`string`, `boolean`, `integer`, `float`, `datetime`, `object`, `relation`, `function`
-
-### Key Patterns
-- **Inheritance**: `extends_id` — child class inherits all parent props, can override/add
-- **Relations**: `data_type: "relation"` + `object_class_id[]` — points to other objects
-- **Nested objects**: `data_type: "object"` + `object_class_id` — inline sub-objects
-- **Arrays**: `is_array: true|"indexed"|"assoc"` — collections
-- **Flags**: `flags: {required: true, readonly: true}` — only truthy flags stored
-- **Class selector**: When `options.values` is an object (not array), keys are labels, values are class_ids — changing the field switches the object's class
-
-### Key Domain Classes
-
-| Class | Purpose |
-|-------|---------|
-| `ai:agent` | AI agents with prompt, tools, domain, behavior |
-| `ai:task` | Work items: name, status (open/in_progress/done), priority, agent_id |
-| `ai:tool` | Tool definitions with type and allowed_actions class bindings |
-| `ai:message` | Messages in conversations |
-| `ai:conversation` | Conversation threads |
-| `ai:question` | Questions between agents |
-| `ai:decision` | Recorded decisions |
-| `@feature` | Feature definitions |
-| `@app_feature` | Per-app feature implementation status |
-| `@app` | Registered applications |
-| `mcp:server` | MCP server configurations |
-
-### Object ID Convention
-`namespace:name` — e.g. `agent:owner`, `feat:mcp_server`, `tool-mcp-store`
-
-### REST API Endpoints
 ```
-GET    /class                    — List all classes
-GET    /class/{id}/props         — Get class props (with inheritance)
-GET    /query/{class}?field=val  — Query with filters (_sort, _order, _limit, _offset)
-GET    /store/{class}/{id}       — Get object
-POST   /store/{class}            — Create object
-PUT    /store/{class}/{id}       — Update object
-DELETE /store/{class}/{id}       — Delete object
-GET    /find/{id}                — Find by ID across all classes
-POST   /action/{id}/execute      — Execute action
-GET    /health                   — Health check
-```
-
-## How to Execute
-
-### Step 1: Try MCP tools first
-Use the elementStore MCP tools (`mcp__elementStore__es_*`) if available.
-
-### Step 2: Fallback to REST API
-If MCP tools aren't available, use curl:
-```bash
-curl -sf "$ES_URL/query/ai:agent?_limit=50"
-curl -sf "$ES_URL/class/ai:task/props"
-```
-
-### Step 3: Fallback to genesis files
-If the server is unreachable, read the genesis files directly:
-```
-.es/system.genesis.json     — System class definitions (@class, @prop, etc.)
-.es/ai.genesis.json         — AI classes (agent, task, tool, message, etc.)
-.es/core.genesis.json       — Core domain classes
-.es/mcp.genesis.json        — MCP server classes
-.es/*.seed.json             — Seed data (editors, functions, storage)
-.es/@*.json                 — Persisted object data per class
-```
-
-Read genesis JSON to answer schema questions. The format is:
-```json
-{
-  "classes": [
-    { "id": "ns:class", "props": [{ "key": "field", "data_type": "string", ... }] }
-  ],
-  "seed": [ { "id": "obj:id", "class_id": "ns:class", ... } ]
-}
+ES_URL="http://arc3d.master.local/elementStore"
 ```
 
 ## Routing
 
-Parse `$ARGUMENTS` and determine the action:
-
 ### No arguments → Overview
-1. Check health (MCP tool or curl)
-2. List class count and namespace summary
-3. Show quick reference of /es sub-commands
+```bash
+curl -sf "$ES_URL/health"
+curl -sf "$ES_URL/query/ai:agent?_limit=20" -H "X-Response-Format: text" -H "X-Fields: id,title,is_active,model,run_count"
+```
 
-### `classes` → List all classes grouped by namespace
-### `features` → Feature matrix (@feature × @app_feature)
-### `agents` → Table of all ai:agent objects
-### `tools` → List ai:tool objects with their allowed_actions bindings
-### `health` → Server health check
-### `props <class_id>` → Show class property schema as a table
+### `classes` → All classes
+```bash
+curl -sf "$ES_URL/class" -H "X-Response-Format: text" -H "X-Fields: id,name,description"
+```
 
-### Argument contains `:` or starts with `@` (no spaces) → Class or Object
-- If it looks like a class ID (namespace:noun, e.g. `ai:agent`, `@feature`):
-  Query objects of that class, show as compact table
-- If it looks like an object ID (has a specific pattern, e.g. `agent:owner`, `feat:mcp_server`):
-  Try es_find first. If not found, try as class query.
+### `agents`
+```bash
+curl -sf "$ES_URL/query/ai:agent?_limit=50" -H "X-Response-Format: text" -H "X-Fields: id,title,is_active,model,domain,run_count"
+```
 
-### Free text → Search
-Search class names/descriptions for matches. Suggest `/es <class_id>`.
+### `features`
+```bash
+curl -sf "$ES_URL/query/@feature?_limit=200" -H "X-Response-Format: text" -H "X-Fields: id,name,category,scope"
+```
 
-## Output Style
+### `tools`
+```bash
+curl -sf "$ES_URL/query/ai:tool?_limit=50" -H "X-Response-Format: text" -H "X-Fields: id,category,type,enabled"
+```
 
-- Compact markdown tables, no JSON walls
-- Group by namespace when listing
-- Counts in headers
-- End with a contextual hint for the next action
+### `health`
+```bash
+curl -sf "$ES_URL/health"
+```
+
+### `props <class_id>` — extract class_id after "props "
+```bash
+curl -sf "$ES_URL/class/<class_id>/props" -H "X-Response-Format: text" -H "X-Fields: key,data_type,is_array,description"
+```
+
+### Argument contains `:` or starts with `@` → class query or object lookup
+
+Try as **class** first:
+```bash
+curl -sf "$ES_URL/query/<arg>?_limit=20" -H "X-Response-Format: text"
+```
+
+If empty or error, try as **object ID**:
+```bash
+curl -sf "$ES_URL/find/<arg>" -H "X-Response-Format: text"
+```
+
+### Free text → search classes
+```bash
+curl -sf "$ES_URL/class" -H "X-Response-Format: text" -H "X-Fields: id,name,description"
+```
+Then filter for matching term.

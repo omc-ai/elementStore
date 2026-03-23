@@ -12,6 +12,8 @@
 #   delete | del | rm               Delete objects/classes (API target only)
 #   init | reinit                    Delete + reload genesis from --es-dir (clean init)
 #   action | exec                    Execute action on object (PUT store/{class}/{id}/{prop})
+#   compare | diff                   Compare objects between two stores (wildcard class match)
+#   validate | check                Validate objects against class definitions
 #   classes                         List all class IDs
 #   health                          Connectivity check
 #
@@ -151,12 +153,15 @@ TIMING=false
 PUSH_ALL=false
 PUSH_GENESIS=false
 TOKEN="${ES_TOKEN:-}"
+ES_TOKEN_FILE="${ES_TOKEN_FILE:-${HOME}/.es/token.json}"
 CLASS_IDS=()           # repeatable --class (for delete multi-class)
 CLASS_FILTER=""         # --class-filter pattern
 INCLUDE_CLASS_DEF=false # --include-class-def (delete class definition too)
 GENESIS_DIR="${ES_DIR:-}"  # --genesis-dir / --es-dir (server-side .es/ path)
 PROP_NAME=""            # --prop (property name for action execution)
 ACTION_PARAMS=""        # --params (JSON params for action execution)
+FORMAT=""               # --format text|html|json (server-side response format)
+FIELDS=""               # --fields id,name,status (select specific fields)
 
 PASS=0; FAIL=0; SKIP=0
 
@@ -201,6 +206,8 @@ while [[ $# -gt 0 ]]; do
         --genesis-dir|--es-dir) GENESIS_DIR="$2";     shift 2 ;;
         --prop)     PROP_NAME="$2";    shift 2 ;;
         --params)   ACTION_PARAMS="$2"; shift 2 ;;
+        --format)   FORMAT="$2";       shift 2 ;;
+        --fields)   FIELDS="$2";       shift 2 ;;
         -v|--verbose) VERBOSE=true;     shift ;;
         --timing)   TIMING=true;        shift ;;
         -h|--help)  usage ;;
@@ -221,6 +228,11 @@ case "$CMD" in
     action|exec)            CMD="action" ;;
     delete|del|rm)          CMD="delete" ;;
     init|reinit)            CMD="init" ;;
+    login)                  CMD="login" ;;
+    logout)                 CMD="logout" ;;
+    whoami|me)              CMD="whoami" ;;
+    compare|diff)           CMD="compare" ;;
+    validate|check)         CMD="validate" ;;
     *) _err "Unknown command: ${CMD}. Run es.sh --help for usage."; exit 1 ;;
 esac
 
@@ -325,7 +337,13 @@ _http() {
 
     local args=(-s -o "$_RESP_FILE" -w "%{http_code}" -X "$method")
     args+=(-H "Content-Type: application/json")
-    args+=(-H "Accept: application/json")
+    if [[ -n "$FORMAT" && "$FORMAT" != "json" ]]; then
+        args+=(-H "X-Response-Format: ${FORMAT}")
+        args+=(-H "Accept: text/plain")
+    else
+        args+=(-H "Accept: application/json")
+    fi
+    [[ -n "$FIELDS" ]] && args+=(-H "X-Fields: ${FIELDS}")
     args+=(-H "X-Allow-Custom-Ids: true")
     [[ -n "$TOKEN" ]] && args+=(-H "Authorization: Bearer ${TOKEN}")
     [[ -n "$body"  ]] && args+=(-d "$body")
@@ -802,6 +820,9 @@ _output() {
         mkdir -p "$(dirname "$OUT_FILE")"
         echo "$data" | jq '.' > "$OUT_FILE"
         _ok "Written: ${OUT_FILE}"
+    elif [[ -n "$FORMAT" && "$FORMAT" != "json" ]]; then
+        # Text/HTML format — output raw (server already formatted)
+        echo "$data"
     else
         echo "$data" | jq '.'
     fi
@@ -1482,6 +1503,514 @@ cmd_pull() {
 }
 
 # =============================================================================
+# AUTH — login / logout / whoami / auto-token
+# =============================================================================
+
+# Token file format: {"accessToken":"...","refreshToken":"...","user":{...},"expiresAt":"ISO"}
+
+_token_dir() { dirname "$ES_TOKEN_FILE"; }
+
+_ensure_token_dir() {
+    local d; d=$(_token_dir)
+    [[ -d "$d" ]] || mkdir -p "$d"
+}
+
+_save_token() {
+    _ensure_token_dir
+    echo "$1" > "$ES_TOKEN_FILE"
+    chmod 600 "$ES_TOKEN_FILE"
+}
+
+_load_cached_token() {
+    # Already have a token from env/flag — use it
+    [[ -n "$TOKEN" ]] && return 0
+    # Try cached token file
+    if [[ -f "$ES_TOKEN_FILE" ]]; then
+        local data; data=$(cat "$ES_TOKEN_FILE" 2>/dev/null) || return 0
+        local access; access=$(echo "$data" | python3 -c "import json,sys; print(json.load(sys.stdin).get('accessToken',''))" 2>/dev/null) || true
+        if [[ -n "$access" ]]; then TOKEN="$access"; fi
+    fi
+    return 0
+}
+
+_derive_auth_url() {
+    # Derive auth URL from ES_URL: replace /elementStore with /api/auth
+    local base="${URL_DEFAULT:-${ES_URL:-}}"
+    [[ -z "$base" ]] && return 1
+    # Strip path, add /api/auth
+    echo "${base%/elementStore*}/api/auth"
+}
+
+cmd_login() {
+    local auth_url; auth_url=$(_derive_auth_url)
+    [[ -z "$auth_url" ]] && { _err "Cannot derive auth URL. Set --url or ES_URL."; exit 1; }
+
+    local email password app_id
+    app_id="${APP_ID:-cwm-architect}"
+
+    # Read credentials
+    if [[ -t 0 ]]; then
+        # Interactive
+        printf "Email: " >&2; read -r email
+        printf "Password: " >&2; read -rs password; echo >&2
+    else
+        # Piped — read lines from stdin
+        read -r email
+        read -r password
+    fi
+
+    _info "Authenticating at ${auth_url}..."
+
+    # Build JSON safely via python3 to handle special chars in password
+    local login_json; login_json=$(python3 -c "import json; print(json.dumps({'email':'$email','password':'''$(echo "$password" | sed "s/'/'\\\\''/g")'''}))" 2>/dev/null)
+    if [[ -z "$login_json" ]]; then
+        # Fallback: use python3 with stdin for maximum safety
+        login_json=$(python3 -c "
+import json, sys
+e = sys.argv[1]
+p = sys.stdin.read()
+print(json.dumps({'email': e, 'password': p}))
+" "$email" <<< "$password" 2>/dev/null)
+    fi
+
+    local http_code resp
+    resp=$(curl -s -w '\n%{http_code}' -X POST "${auth_url}/login" \
+        -H 'Content-Type: application/json' \
+        -d "$login_json" 2>&1)
+    http_code=$(echo "$resp" | tail -1)
+    resp=$(echo "$resp" | sed '$d')
+
+    if [[ -z "$resp" || "$http_code" == "000" ]]; then
+        _err "Login failed — no response from auth service at ${auth_url}"
+        exit 1
+    fi
+
+    # Check for error in response
+    local err; err=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('error',''))" 2>/dev/null) || true
+    if [[ -n "$err" ]]; then
+        _err "Login failed: $err"
+        exit 1
+    fi
+
+    # Extract tokens and user info
+    local token_data; token_data=$(echo "$resp" | python3 -c "
+import json, sys
+from datetime import datetime, timedelta
+d = json.load(sys.stdin)
+out = {
+    'accessToken': d.get('accessToken', d.get('access_token', '')),
+    'refreshToken': d.get('refreshToken', d.get('refresh_token', '')),
+    'user': d.get('user', {}),
+    'loginAt': datetime.utcnow().isoformat() + 'Z',
+    'authUrl': '$auth_url',
+    'esUrl': '${URL_DEFAULT:-${ES_URL:-}}'
+}
+print(json.dumps(out, indent=2))
+" 2>/dev/null)
+
+    if [[ -z "$token_data" ]]; then
+        _err "Failed to parse login response"
+        exit 1
+    fi
+
+    _save_token "$token_data"
+
+    local user_name; user_name=$(echo "$token_data" | python3 -c "import json,sys; print(json.load(sys.stdin).get('user',{}).get('name','?'))" 2>/dev/null)
+    local user_email; user_email=$(echo "$token_data" | python3 -c "import json,sys; print(json.load(sys.stdin).get('user',{}).get('email','?'))" 2>/dev/null)
+
+    _ok "Logged in as ${user_name} (${user_email})"
+    _info "Token saved to ${ES_TOKEN_FILE}"
+}
+
+cmd_logout() {
+    if [[ -f "$ES_TOKEN_FILE" ]]; then
+        rm -f "$ES_TOKEN_FILE"
+        _ok "Logged out — token removed"
+    else
+        _info "No cached token found"
+    fi
+}
+
+cmd_whoami() {
+    _load_cached_token
+    if [[ -z "$TOKEN" ]]; then
+        _err "Not logged in. Run: es-cli.sh login --url <ES_URL>"
+        exit 1
+    fi
+
+    local auth_url; auth_url=$(_derive_auth_url)
+    if [[ -n "$auth_url" ]]; then
+        local resp; resp=$(curl -sf "${auth_url}/me" -H "Authorization: Bearer ${TOKEN}" 2>&1)
+        if [[ -n "$resp" ]]; then
+            echo "$resp" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+u = d.get('user', d)
+print(f\"User:  {u.get('name','?')} ({u.get('email','?')})\")
+print(f\"ID:    {u.get('id','?')}\")
+print(f\"Role:  {u.get('role', d.get('role','?'))}\")
+" 2>/dev/null
+            return
+        fi
+    fi
+
+    # Fallback: decode JWT locally
+    echo "$TOKEN" | python3 -c "
+import json, sys, base64
+token = sys.stdin.read().strip()
+parts = token.split('.')
+if len(parts) >= 2:
+    payload = parts[1] + '=' * (4 - len(parts[1]) % 4)
+    d = json.loads(base64.urlsafe_b64decode(payload))
+    print(f\"User:  {d.get('email','?')}\")
+    print(f\"ID:    {d.get('userId','?')}\")
+    print(f\"Role:  {d.get('role','?')}\")
+    print(f\"App:   {d.get('appId','?')}\")
+" 2>/dev/null
+}
+
+# ── compare ───────────────────────────────────────────────────────────────────
+# Compare objects between two stores for matching class patterns.
+# Usage:
+#   es.sh compare --class '@class' --from http://store1/elementStore --to http://store2/elementStore
+#   es.sh compare --class 'ai:*'   --from http://store1/elementStore --to http://store2/elementStore
+#   es.sh compare --class '@*'     --from http://store1/elementStore --to http://store2/elementStore
+# Wildcards: * matches any suffix. No wildcard = exact class match.
+cmd_compare() {
+    local from_s="$FROM_STORAGE"
+    local to_s="$TO_STORAGE"
+    [[ -z "$from_s" ]] && { _err "Missing --from (source store)"; exit 1; }
+    [[ -z "$to_s" ]]   && { _err "Missing --to (target store)"; exit 1; }
+
+    local pattern="${CLASS_ID:-*}"
+
+    # Resolve class list from pattern
+    local from_classes=() to_classes=()
+
+    _step "Comparing stores"
+    _info "Source: ${from_s}"
+    _info "Target: ${to_s}"
+    _info "Pattern: ${pattern}"
+
+    # Get class lists from both stores
+    local from_base to_base
+    from_base=$(_url "$from_s")
+    to_base=$(_url "$to_s")
+
+    local code
+    code=$(_http "GET" "${from_base}/class")
+    [[ "$code" != "200" ]] && { _err "Cannot list classes from source: HTTP ${code}"; exit 1; }
+    local from_all_classes
+    from_all_classes=$(_resp | jq -r '.[].id' 2>/dev/null)
+
+    code=$(_http "GET" "${to_base}/class")
+    [[ "$code" != "200" ]] && { _err "Cannot list classes from target: HTTP ${code}"; exit 1; }
+    local to_all_classes
+    to_all_classes=$(_resp | jq -r '.[].id' 2>/dev/null)
+
+    # Filter by pattern (wildcard support)
+    _match_pattern() {
+        local id="$1" pat="$2"
+        if [[ "$pat" == "*" ]]; then
+            return 0
+        elif [[ "$pat" == *'*' ]]; then
+            local prefix="${pat%\*}"
+            [[ "$id" == "$prefix"* ]] && return 0
+        else
+            [[ "$id" == "$pat" ]] && return 0
+        fi
+        return 1
+    }
+
+    # Collect matching classes from both stores
+    local all_classes=()
+    while IFS= read -r c; do
+        [[ -z "$c" ]] && continue
+        _match_pattern "$c" "$pattern" && all_classes+=("$c")
+    done <<< "$from_all_classes"
+    while IFS= read -r c; do
+        [[ -z "$c" ]] && continue
+        _match_pattern "$c" "$pattern" || continue
+        # Add if not already present
+        local found=false
+        for existing in "${all_classes[@]+"${all_classes[@]}"}"; do
+            [[ "$existing" == "$c" ]] && found=true && break
+        done
+        [[ "$found" == false ]] && all_classes+=("$c")
+    done <<< "$to_all_classes"
+
+    [[ ${#all_classes[@]} -eq 0 ]] && { _warn "No classes match pattern: ${pattern}"; exit 0; }
+
+    _info "Classes to compare: ${#all_classes[@]}"
+    echo ""
+
+    local total_added=0 total_removed=0 total_changed=0 total_same=0
+
+    for class in "${all_classes[@]}"; do
+        local enc
+        enc=$(_urlencode "$class")
+
+        # Fetch from source
+        code=$(_http "GET" "${from_base}/query/${enc}?_limit=1000")
+        local from_data='[]'
+        [[ "$code" == "200" ]] && from_data=$(_resp)
+
+        # Fetch from target
+        code=$(_http "GET" "${to_base}/query/${enc}?_limit=1000")
+        local to_data='[]'
+        [[ "$code" == "200" ]] && to_data=$(_resp)
+
+        # Compare using python for reliable JSON diff
+        local _cmp_py="/tmp/es_cli_compare_$$.py"
+        cat > "$_cmp_py" << 'PYEOF'
+import json, sys
+from_data = json.loads(sys.argv[1])
+to_data = json.loads(sys.argv[2])
+class_id = sys.argv[3]
+if not isinstance(from_data, list): from_data = []
+if not isinstance(to_data, list): to_data = []
+from_map = {str(o.get('id','')): o for o in from_data if o.get('id')}
+to_map = {str(o.get('id','')): o for o in to_data if o.get('id')}
+from_ids = set(from_map.keys())
+to_ids = set(to_map.keys())
+only_source = sorted(from_ids - to_ids)
+only_target = sorted(to_ids - from_ids)
+common = from_ids & to_ids
+skip = {'created_at', 'updated_at', '_rev', '_id'}
+changed = []
+same = 0
+for oid in sorted(common):
+    a = {k: v for k, v in from_map[oid].items() if k not in skip}
+    b = {k: v for k, v in to_map[oid].items() if k not in skip}
+    if a != b:
+        diffs = []
+        for k in sorted(set(list(a.keys()) + list(b.keys()))):
+            if a.get(k) != b.get(k): diffs.append(k)
+        changed.append((oid, diffs))
+    else:
+        same += 1
+if not only_source and not only_target and not changed:
+    print(f'  {class_id}: {same} objects identical')
+else:
+    print(f'  {class_id}:')
+    for oid in only_source:
+        n = from_map[oid].get('name','')
+        print(f'    + {oid} (only in source)' + (f' — {n}' if n else ''))
+    for oid in only_target:
+        n = to_map[oid].get('name','')
+        print(f'    - {oid} (only in target)' + (f' — {n}' if n else ''))
+    for oid, diffs in changed:
+        print(f'    ~ {oid} differs: ' + ', '.join(diffs))
+    if same > 0:
+        print(f'    = {same} identical')
+print(f'__COUNTS__ {len(only_source)} {len(only_target)} {len(changed)} {same}')
+PYEOF
+        local result
+        result=$(python3 "$_cmp_py" "$from_data" "$to_data" "$class" 2>&1)
+        rm -f "$_cmp_py"
+
+        # Print result (without the counts line)
+        echo "$result" | grep -v '^__COUNTS__'
+
+        # Extract counts
+        local counts_line
+        counts_line=$(echo "$result" | grep '^__COUNTS__' || echo "__COUNTS__ 0 0 0 0")
+        local a r c s
+        a=$(echo "$counts_line" | awk '{print $2}')
+        r=$(echo "$counts_line" | awk '{print $3}')
+        c=$(echo "$counts_line" | awk '{print $4}')
+        s=$(echo "$counts_line" | awk '{print $5}')
+        total_added=$((total_added + a))
+        total_removed=$((total_removed + r))
+        total_changed=$((total_changed + c))
+        total_same=$((total_same + s))
+    done
+
+    echo ""
+    echo -e "─────────────────────────────────"
+    echo -e " ${GREEN}+ Only in source : ${total_added}${NC}"
+    echo -e " ${RED}- Only in target : ${total_removed}${NC}"
+    echo -e " ${YELLOW}~ Changed        : ${total_changed}${NC}"
+    echo -e " ${GRAY}= Identical      : ${total_same}${NC}"
+    echo -e "─────────────────────────────────"
+}
+
+# ── validate ──────────────────────────────────────────────────────────────────
+# Validate objects against their class definitions.
+# Usage:
+#   es.sh validate --class 'ai:agent'                           # all objects of one class
+#   es.sh validate --class 'ai:*'                               # wildcard classes
+#   es.sh validate --class 'ai:agent' --id 'agent:coordinator'  # single object
+#   es.sh validate --class '*'                                  # all classes
+cmd_validate() {
+    local s
+    s=$(_read_storage)
+    [[ -z "$s" ]] && { _err "No storage specified (--url or ES_URL)"; exit 1; }
+
+    local pattern="${CLASS_ID:-*}"
+    local target_id="${OBJECT_ID:-}"
+
+    _step "Validating objects"
+    _info "Store: ${s}"
+    _info "Class pattern: ${pattern}"
+    [[ -n "$target_id" ]] && _info "Object ID: ${target_id}"
+
+    local base
+    base=$(_url "$s")
+
+    # Match pattern helper
+    _match_pattern() {
+        local id="$1" pat="$2"
+        if [[ "$pat" == "*" ]]; then return 0
+        elif [[ "$pat" == *'*' ]]; then
+            local prefix="${pat%\*}"
+            [[ "$id" == "$prefix"* ]] && return 0
+        else
+            [[ "$id" == "$pat" ]] && return 0
+        fi
+        return 1
+    }
+
+    # Get matching classes
+    local code
+    code=$(_http "GET" "${base}/class")
+    [[ "$code" != "200" ]] && { _err "Cannot list classes: HTTP ${code}"; exit 1; }
+    local all_class_data
+    all_class_data=$(_resp)
+
+    local classes_to_check=()
+    while IFS= read -r c; do
+        [[ -z "$c" ]] && continue
+        _match_pattern "$c" "$pattern" && classes_to_check+=("$c")
+    done <<< "$(echo "$all_class_data" | jq -r '.[].id' 2>/dev/null)"
+
+    [[ ${#classes_to_check[@]} -eq 0 ]] && { _warn "No classes match: ${pattern}"; exit 0; }
+    _info "Classes to validate: ${#classes_to_check[@]}"
+    echo ""
+
+    local total_valid=0 total_invalid=0 total_warnings=0
+
+    for class in "${classes_to_check[@]}"; do
+        local enc
+        enc=$(_urlencode "$class")
+
+        # Get class definition (props)
+        local class_def
+        class_def=$(echo "$all_class_data" | jq -c ".[] | select(.id == \"$class\")" 2>/dev/null)
+        [[ -z "$class_def" ]] && { _warn "No class definition for: ${class}"; continue; }
+
+        # Get objects
+        local objects
+        if [[ -n "$target_id" ]]; then
+            code=$(_http "GET" "${base}/store/${enc}/$(_urlencode "$target_id")")
+            [[ "$code" != "200" ]] && { _err "${class}/${target_id}: not found (HTTP ${code})"; FAIL=$((FAIL+1)); continue; }
+            objects="[$(_resp)]"
+        else
+            code=$(_http "GET" "${base}/query/${enc}?_limit=500")
+            [[ "$code" != "200" ]] && { _warn "Cannot query ${class}: HTTP ${code}"; continue; }
+            objects=$(_resp)
+        fi
+
+        # Validate each object against class props using python
+        local _val_py="/tmp/es_cli_validate_$$.py"
+        cat > "$_val_py" << 'PYEOF'
+import json, sys
+class_def = json.loads(sys.argv[1])
+objects = json.loads(sys.argv[2])
+class_id = sys.argv[3]
+if not isinstance(objects, list): objects = []
+props = class_def.get('props', [])
+if not props:
+    if len(objects) > 0:
+        print(f'  {class_id}: {len(objects)} objects (no props defined — skip)')
+    print('__COUNTS__ 0 0 0')
+    sys.exit(0)
+prop_map = {}
+for p in props:
+    key = p.get('key', '')
+    if key: prop_map[key] = p
+system_fields = {'id', 'class_id', 'created_at', 'updated_at', '_rev', '_id'}
+valid = 0; invalid = 0; warnings = 0; issues = []
+for obj in objects:
+    oid = obj.get('id', '?')
+    obj_issues = []; obj_warnings = []
+    for key, prop in prop_map.items():
+        flags = prop.get('flags', {})
+        is_required = flags.get('required', False)
+        data_type = prop.get('data_type', '')
+        if is_required and key not in obj:
+            obj_issues.append(f'missing required: {key}')
+        if key in obj and obj[key] is not None:
+            val = obj[key]
+            if data_type == 'string' and not isinstance(val, str):
+                obj_issues.append(f'{key}: expected string, got {type(val).__name__}')
+            elif data_type == 'integer' and not isinstance(val, int):
+                if not (isinstance(val, float) and val == int(val)):
+                    obj_issues.append(f'{key}: expected integer, got {type(val).__name__}')
+            elif data_type == 'number' and not isinstance(val, (int, float)):
+                obj_issues.append(f'{key}: expected number, got {type(val).__name__}')
+            elif data_type == 'boolean' and not isinstance(val, bool):
+                obj_issues.append(f'{key}: expected boolean, got {type(val).__name__}')
+            elif data_type == 'object' and not isinstance(val, (dict, list)):
+                obj_issues.append(f'{key}: expected object/array, got {type(val).__name__}')
+            elif data_type == 'relation' and not isinstance(val, (str, list)):
+                obj_issues.append(f'{key}: expected relation (string/array), got {type(val).__name__}')
+    for key in obj:
+        if key not in prop_map and key not in system_fields:
+            obj_warnings.append(f'extra field: {key}')
+    if obj_issues:
+        invalid += 1
+        issues.append((oid, obj.get('name',''), obj_issues, obj_warnings))
+    elif obj_warnings:
+        warnings += 1; valid += 1
+        if len(obj_warnings) <= 3:
+            issues.append((oid, obj.get('name',''), [], obj_warnings))
+    else:
+        valid += 1
+if not issues and valid > 0:
+    print(f'  {class_id}: {valid} objects valid')
+elif issues:
+    print(f'  {class_id}:')
+    for oid, name, errs, warns in issues:
+        label = oid + (f' ({name})' if name else '')
+        for e in errs: print(f'    \u2717 {label}: {e}')
+        for w in warns: print(f'    \u26a0 {label}: {w}')
+    if valid > 0: print(f'    \u2713 {valid} valid')
+print(f'__COUNTS__ {valid} {invalid} {warnings}')
+PYEOF
+        local result
+        result=$(python3 "$_val_py" "$class_def" "$objects" "$class" 2>&1)
+        rm -f "$_val_py"
+
+        # Print result (without counts line)
+        echo "$result" | grep -v '^__COUNTS__'
+
+        local counts_line
+        counts_line=$(echo "$result" | grep '^__COUNTS__' || echo "__COUNTS__ 0 0 0")
+        local v i w
+        v=$(echo "$counts_line" | awk '{print $2}')
+        i=$(echo "$counts_line" | awk '{print $3}')
+        w=$(echo "$counts_line" | awk '{print $4}')
+        total_valid=$((total_valid + v))
+        total_invalid=$((total_invalid + i))
+        total_warnings=$((total_warnings + w))
+    done
+
+    echo ""
+    echo -e "─────────────────────────────────"
+    echo -e " ${GREEN}✓ Valid    : ${total_valid}${NC}"
+    [[ $total_warnings -gt 0 ]] && echo -e " ${YELLOW}⚠ Warnings : ${total_warnings}${NC}"
+    [[ $total_invalid -gt 0 ]]  && echo -e " ${RED}✗ Invalid  : ${total_invalid}${NC}"
+    echo -e "─────────────────────────────────"
+
+    [[ $total_invalid -gt 0 ]] && FAIL=$((FAIL + total_invalid))
+    PASS=$((PASS + total_valid))
+}
+
+# Auto-load cached token if no explicit token set
+_load_cached_token || true
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
@@ -1499,6 +2028,11 @@ case "$CMD" in
     pull)    cmd_pull    ;;
     delete)  cmd_delete  ;;
     init)    cmd_init    ;;
+    login)   cmd_login   ;;
+    logout)  cmd_logout  ;;
+    whoami)  cmd_whoami  ;;
+    compare) cmd_compare ;;
+    validate) cmd_validate ;;
 esac
 
 # ── Summary (only shown when multiple ops happened) ───────────────────────────

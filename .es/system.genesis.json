@@ -115,6 +115,22 @@
           "class_id": "@prop_object"
         },
         {
+          "key": "icon",
+          "label": "Icon",
+          "description": "Default icon name for objects of this class (used in cards, lists, tabs)",
+          "data_type": "string",
+          "display_order": 9,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "color",
+          "label": "Color",
+          "description": "Accent color for this class (hex or CSS value, e.g. #6366f1). Used in cards, badges, navigation.",
+          "data_type": "string",
+          "display_order": 10,
+          "class_id": "@prop_string"
+        },
+        {
           "key": "providers",
           "label": "Providers",
           "description": "Data providers for external API integration",
@@ -123,7 +139,7 @@
           "object_class_id": [
             "@provider"
           ],
-          "display_order": 10,
+          "display_order": 11,
           "class_id": "@prop_relation"
         },
         {
@@ -834,7 +850,7 @@
       "id": "@action",
       "class_id": "@class",
       "name": "Action",
-      "description": "Universal execution unit — a named function with typed parameters and field mapping. The action key (id) is the function name. The type determines HOW it executes: api (HTTP call), cli (shell command), function (registry lookup), event (bus dispatch), composite (chain), ui (JS handler). Parameters map between the source object and the request/response via request_mapping and response_mapping.",
+      "description": "Universal execution unit — follows a fixed pipeline: input → input_mapping → [execute] → output_mapping → output. The type determines HOW it executes: api (HTTP call), cli (shell command), function (registry lookup), event (bus dispatch), composite (chain), ui (JS handler). Universal mappings: input_mapping renames params before dispatch, output_mapping renames result after execution. Type-specific mappings: request_mapping and response_mapping apply inside api execution.",
       "is_system": true,
       "props": [
         {
@@ -989,6 +1005,22 @@
           "description": "Additional HTTP headers as key:value object (type=api)",
           "data_type": "object",
           "display_order": 13,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "input_mapping",
+          "label": "Input Mapping",
+          "description": "Universal pre-dispatch key renaming. Applied to params BEFORE execution for all action types. Format: {from_key: to_key}. Unmapped keys pass through unchanged.",
+          "data_type": "object",
+          "display_order": 14,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "output_mapping",
+          "label": "Output Mapping",
+          "description": "Universal post-execution key renaming. Applied to result AFTER execution for all action types. Format: {from_key: to_key}. Unmapped keys pass through unchanged.",
+          "data_type": "object",
+          "display_order": 15,
           "class_id": "@prop_object"
         },
         {
@@ -1843,6 +1875,190 @@
           "data_type": "object",
           "display_order": 10,
           "class_id": "@prop_object"
+        },
+        {
+          "key": "template",
+          "label": "Template",
+          "description": "Visual template ID for this context: card-default, card-compact, card-media, list-item, tile, kanban-card",
+          "data_type": "string",
+          "display_order": 11,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "title_field",
+          "label": "Title Field",
+          "description": "Prop key to use as the primary title in card/list views",
+          "data_type": "string",
+          "display_order": 12,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "subtitle_field",
+          "label": "Subtitle Field",
+          "description": "Prop key to use as secondary text / description in card views",
+          "data_type": "string",
+          "display_order": 13,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "image_field",
+          "label": "Image Field",
+          "description": "Prop key that provides an image URL or avatar for card/list rendering",
+          "data_type": "string",
+          "display_order": 14,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "color_field",
+          "label": "Color Field",
+          "description": "Prop key that provides an accent color (hex or CSS value) for the card/badge",
+          "data_type": "string",
+          "display_order": 15,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "badge_field",
+          "label": "Badge Field",
+          "description": "Prop key to render as a status badge or chip in card/grid views",
+          "data_type": "string",
+          "display_order": 16,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "columns",
+          "label": "Grid Columns",
+          "description": "Column definitions for grid/table contexts — ordered list of @visual_column declarations",
+          "data_type": "object",
+          "is_array": "indexed",
+          "object_class_id": ["@visual_column"],
+          "display_order": 17,
+          "class_id": "@prop_object"
+        },
+        {
+          "key": "sections",
+          "label": "Form Sections",
+          "description": "Layout sections for form contexts — ordered list of @visual_section declarations with field groupings",
+          "data_type": "object",
+          "is_array": "indexed",
+          "object_class_id": ["@visual_section"],
+          "display_order": 18,
+          "class_id": "@prop_object"
+        }
+      ]
+    },
+    {
+      "id": "@visual_column",
+      "class_id": "@class",
+      "name": "Visual Column",
+      "description": "Grid/table column declaration — defines how a prop renders in a tabular context: width, render type, sort behavior.",
+      "is_system": true,
+      "props": [
+        {
+          "key": "field",
+          "label": "Field",
+          "description": "Prop key to display in this column",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": { "required": true },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "label",
+          "label": "Label",
+          "description": "Column header override (defaults to prop label if omitted)",
+          "data_type": "string",
+          "display_order": 2,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "width",
+          "label": "Width",
+          "description": "Column width in pixels (null = auto-size)",
+          "data_type": "integer",
+          "display_order": 3,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "type",
+          "label": "Type",
+          "description": "Render type: text, number, date, datetime, boolean, badge, avatar, link, icon, image, action, relation",
+          "data_type": "string",
+          "options": {
+            "values": ["text","number","date","datetime","boolean","badge","avatar","link","icon","image","action","relation"]
+          },
+          "default_value": "text",
+          "display_order": 4,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "sortable",
+          "label": "Sortable",
+          "description": "Whether this column supports sorting (default true)",
+          "data_type": "boolean",
+          "default_value": true,
+          "display_order": 5,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "hidden",
+          "label": "Hidden",
+          "description": "Hidden by default — user can toggle visibility",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 6,
+          "class_id": "@prop_boolean"
+        },
+        {
+          "key": "formatter",
+          "label": "Formatter",
+          "description": "Template string with {{value}} placeholder for custom cell rendering",
+          "data_type": "string",
+          "display_order": 7,
+          "class_id": "@prop_string"
+        }
+      ]
+    },
+    {
+      "id": "@visual_section",
+      "class_id": "@class",
+      "name": "Visual Section",
+      "description": "Form layout section — groups fields under an optional heading with a configurable column grid.",
+      "is_system": true,
+      "props": [
+        {
+          "key": "title",
+          "label": "Title",
+          "description": "Section heading (omit for unnamed section)",
+          "data_type": "string",
+          "display_order": 1,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "columns",
+          "label": "Columns",
+          "description": "Number of grid columns in this section (default 1)",
+          "data_type": "integer",
+          "default_value": 1,
+          "display_order": 2,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "fields",
+          "label": "Fields",
+          "description": "Ordered prop keys to render in this section",
+          "data_type": "string",
+          "is_array": "indexed",
+          "display_order": 3,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "collapsed",
+          "label": "Collapsed",
+          "description": "Section starts collapsed (expandable by user)",
+          "data_type": "boolean",
+          "default_value": false,
+          "display_order": 4,
+          "class_id": "@prop_boolean"
         }
       ]
     },

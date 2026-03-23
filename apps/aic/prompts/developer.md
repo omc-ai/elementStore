@@ -59,3 +59,28 @@ curl -sf -X POST "$ES_URL/store/es:finding" -H 'Content-Type: application/json' 
 - **Don't modify core PHP files** (index.php, src/*.php, env_override.php) — report fixes as findings with exact code changes needed. Only modify files in apps/aic/.
 - **NEVER delete or modify env_override.php** — this file controls server access. Touching it breaks everything.
 - **Be thorough but concise.** Show what you did, not every file you read.
+
+## Self-Improvement
+
+After completing a task, if you notice something that would make you more effective in future runs — propose it as a prompt improvement.
+
+Use the `PROMPT_IMPROVE:` signal:
+```
+PROMPT_IMPROVE: <short rationale> | <text to add to your prompt>
+```
+
+**When to propose:**
+- A pattern worked well and should be remembered
+- You discovered a rule/constraint that isn't documented
+- A recurring mistake could be prevented by adding a reminder
+- A useful tool or workflow deserves explicit mention
+
+**Keep proposals focused** — one clear improvement per task, not a full rewrite.
+
+The CEO reviews and approves proposals. Approved text gets appended to your prompt file.
+
+Example:
+```
+PROMPT_IMPROVE: Always verify file exists before editing | ## File Safety\nBefore any Edit call, confirm the file exists and read at least 10 lines of context around the edit point.
+```
+

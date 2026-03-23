@@ -12,18 +12,16 @@ Migration converts an existing project's data models (classes, relations, API en
 ```
 project-root/
 └── .es/
-    ├── genesis.json                    # Base class definitions (@class, @prop)
     ├── {namespace}.genesis.json        # Class definitions per namespace/module
-    └── {class}.json                    # Initial seed data (objects) per class
+    └── {class}.seed.json               # Seed object data (optional)
 ```
 
 ### File Descriptions
 
 | File | Purpose | Required |
 |------|---------|----------|
-| `genesis.json` | Base system classes (@class, @prop). Only needed if the project overrides or extends base ElementStore genesis definitions. Usually **not required** — inherited from base ElementStore. | No |
-| `{namespace}.genesis.json` | Class definitions for a module/namespace. Each file contains an array of `@class` objects with their `props`. | Yes |
-| `{class}.json` | Initial object data (seed records) for a specific class. Array of objects conforming to the class schema. | Optional |
+| `{namespace}.genesis.json` | Class definitions for a module/namespace. Each file contains an array of `@class` objects with their `props`. System classes (`@class`, `@prop`, etc.) are inherited from ElementStore automatically — no base genesis file needed. | Yes |
+| `{class}.seed.json` | Initial object data (seed records) for a specific class. Flat array of objects conforming to the class schema. | Optional |
 
 ---
 
@@ -43,10 +41,10 @@ ls -la project-root/.es/
 
 #### 0.2 Check ElementStore Genesis Directory
 
-Read the existing genesis files in `elementStore/genesis/data/` to see what classes are already registered globally.
+Read the existing genesis files in `elementStore/.es/` to see what classes are already registered globally.
 
 ```bash
-ls -la elementStore/genesis/data/
+ls -la elementStore/.es/*.genesis.json
 ```
 
 #### 0.3 Check Live ElementStore Classes
@@ -54,7 +52,9 @@ ls -la elementStore/genesis/data/
 Query the running ElementStore to see all existing classes:
 
 ```bash
-curl http://{elementstore_url}/class
+bash util/es-cli.sh list --class @class --url $ES_URL
+# or
+curl -sf "$ES_URL/query/@class?_limit=200"
 ```
 
 #### 0.4 Stick to Existing Formats
@@ -120,8 +120,8 @@ Map every relationship between models:
 | Relation Type | ElementStore Mapping |
 |---------------|---------------------|
 | One-to-one | `data_type: "relation"`, `object_class_id: ["target_class"]` |
-| One-to-many | `data_type: "relation"`, `is_array: true`, `object_class_id: ["target_class"]` |
-| Many-to-many | `data_type: "relation"`, `is_array: true` (on both sides) |
+| One-to-many | `data_type: "relation"`, `is_array: "indexed"`, `object_class_id: ["target_class"]` |
+| Many-to-many | `data_type: "relation"`, `is_array: "indexed"` (on both sides) |
 | Embedded/nested | `data_type: "object"`, `object_class_id: ["target_class"]` |
 
 #### 1.4 Map API Endpoints
@@ -259,30 +259,9 @@ mkdir -p project-root/.es
 
 ### Phase 3: Genesis Files — Define the Classes
 
-#### 3.1 `genesis.json` (Base — Usually Not Required)
+> **System classes are inherited automatically.** Do NOT create a base `genesis.json` file. ElementStore boots with `system.genesis.json` which defines all system classes (`@class`, `@prop`, `@prop_*`, `@action`, etc.). Your project only needs `{namespace}.genesis.json` files for domain classes.
 
-Only create this file if the project needs to **override or extend** the base ElementStore system classes (`@class`, `@prop`). Most projects inherit these from ElementStore's built-in genesis.
-
-If needed, the format is:
-
-```json
-{
-  "version": "1.0.0",
-  "description": "Base class overrides for {project_name}",
-  "classes": [
-    {
-      "id": "@class",
-      "class_id": "@class",
-      "name": "Class",
-      "props": [
-        {"key": "custom_field", "label": "Custom Field", "data_type": "string"}
-      ]
-    }
-  ]
-}
-```
-
-#### 3.2 `{namespace}.genesis.json` — Class Definitions
+#### 3.1 `{namespace}.genesis.json` — Class Definitions
 
 Create one file per logical namespace or module. Each file contains an array of class definitions.
 
@@ -310,15 +289,15 @@ Create one file per logical namespace or module. Each file contains an array of 
           "key": "name",
           "label": "Name",
           "data_type": "string",
-          "required": true,
+          "flags": {"required": true},
           "display_order": 1
         },
         {
           "key": "price",
           "label": "Price",
-          "data_type": "float",
-          "required": true,
-          "editor": "currency",
+          "data_type": "number",
+          "flags": {"required": true},
+          "editor": {"id": "currency"},
           "display_order": 2
         },
         {
@@ -332,14 +311,13 @@ Create one file per logical namespace or module. Each file contains an array of 
           "key": "tags",
           "label": "Tags",
           "data_type": "string",
-          "is_array": true,
+          "is_array": "indexed",
           "display_order": 4
         },
         {
           "key": "active",
           "label": "Active",
           "data_type": "boolean",
-          "default_value": true,
           "display_order": 5
         }
       ]
@@ -354,7 +332,7 @@ Create one file per logical namespace or module. Each file contains an array of 
           "key": "name",
           "label": "Name",
           "data_type": "string",
-          "required": true
+          "flags": {"required": true}
         },
         {
           "key": "parent_id",
@@ -398,10 +376,12 @@ Each property in `props` uses this structure:
   "label": "Display Label",     // Display label for UI
   "description": "Help text",   // Help text
   "data_type": "string",        // Required. One of: string, boolean, float, integer, object, relation, unique, function
-  "is_array": false,            // Multiple values (any type can be array)
-  "required": false,            // Must have a value
-  "readonly": false,            // Cannot edit after creation
-  "hidden": false,              // Hide from UI
+  "is_array": "false",          // Multiple values — string: "false" | "indexed" | "assoc"
+  "flags": {                    // Behavior flags — only include truthy flags
+    "required": true,           // Must have a value
+    "readonly": true,           // Cannot edit after creation
+    "hidden": true              // Hide from UI
+  },
   "default_value": null,        // Default for new objects
   "display_order": 0,           // Sort order in forms
   "group_name": "General",      // Form section grouping
@@ -606,12 +586,12 @@ For a simple blog project:
       "_version": 1707753600,
       "providers": ["post_crud"],
       "props": [
-        {"key": "title", "label": "Title", "data_type": "string", "required": true, "display_order": 1},
-        {"key": "slug", "label": "Slug", "data_type": "string", "required": true, "display_order": 2},
+        {"key": "title", "label": "Title", "data_type": "string", "flags": {"required": true}, "display_order": 1},
+        {"key": "slug", "label": "Slug", "data_type": "string", "flags": {"required": true}, "display_order": 2},
         {"key": "body", "label": "Body", "data_type": "string", "editor": "rich", "display_order": 3},
         {"key": "status", "label": "Status", "data_type": "string", "options": {"type": "string_options", "values": ["draft", "published", "archived"]}, "default_value": "draft", "display_order": 4},
-        {"key": "author", "label": "Author", "data_type": "relation", "object_class_id": ["author"], "required": true, "display_order": 5},
-        {"key": "tags", "label": "Tags", "data_type": "relation", "is_array": true, "object_class_id": ["tag"], "display_order": 6},
+        {"key": "author", "label": "Author", "data_type": "relation", "object_class_id": ["author"], "flags": {"required": true}, "display_order": 5},
+        {"key": "tags", "label": "Tags", "data_type": "relation", "is_array": "indexed", "object_class_id": ["tag"], "display_order": 6},
         {"key": "published_at", "label": "Published At", "data_type": "string", "editor": "datetime", "display_order": 7}
       ]
     },
@@ -623,7 +603,7 @@ For a simple blog project:
       "_version": 1707753600,
       "providers": ["author_crud"],
       "props": [
-        {"key": "name", "label": "Name", "data_type": "string", "required": true, "display_order": 1},
+        {"key": "name", "label": "Name", "data_type": "string", "flags": {"required": true}, "display_order": 1},
         {"key": "email", "label": "Email", "data_type": "string", "display_order": 2},
         {"key": "bio", "label": "Bio", "data_type": "string", "editor": "textarea", "display_order": 3}
       ]
@@ -636,7 +616,7 @@ For a simple blog project:
       "_version": 1707753600,
       "providers": ["tag_crud"],
       "props": [
-        {"key": "name", "label": "Name", "data_type": "string", "required": true},
+        {"key": "name", "label": "Name", "data_type": "string", "flags": {"required": true}},
         {"key": "color", "label": "Color", "data_type": "string", "editor": "color"}
       ]
     }
@@ -785,7 +765,7 @@ for cls in data.get('classes', []):
 
     # Check if class exists
     if [ "$FORCE" = false ]; then
-      EXISTING=$(curl -s "$API_URL/class/$CLASS_ID")
+      EXISTING=$(curl -s "$API_URL/store/@class/$CLASS_ID")
       if echo "$EXISTING" | grep -q '"id"' && ! echo "$EXISTING" | grep -q '"error"'; then
         # Compare versions
         EXISTING_VER=$(echo "$EXISTING" | python3 -c "import json,sys; print(json.load(sys.stdin).get('_version', 0))" 2>/dev/null)
@@ -798,7 +778,7 @@ for cls in data.get('classes', []):
       fi
     fi
 
-    RESULT=$(curl -s -X POST "$API_URL/class" \
+    RESULT=$(curl -s -X POST "$API_URL/store/@class" \
       -H "Content-Type: application/json" \
       -d "$class_json")
 
@@ -868,7 +848,7 @@ for cls in json.load(sys.stdin).get('classes', []):
 
     while IFS= read -r class_id; do
       [ -z "$class_id" ] && continue
-      RESULT=$(curl -s "$API_URL/class/$class_id")
+      RESULT=$(curl -s "$API_URL/store/@class/$class_id")
       if echo "$RESULT" | grep -q '"id"' && ! echo "$RESULT" | grep -q '"error"'; then
         PROPS=$(echo "$RESULT" | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('props',[])))" 2>/dev/null)
         echo "  OK $class_id ($PROPS props)"
@@ -910,11 +890,11 @@ chmod +x .es/load.sh
 
 ### Phase 7: Sync to Central Genesis Directory
 
-After the migration is complete and verified, copy the genesis files to the main ElementStore genesis directory so they're available to all projects.
+After the migration is complete and verified, copy the genesis files to the main ElementStore `.es/` directory so they're available to all projects.
 
 #### Rules
 
-1. **Never modify existing files** in `elementStore/genesis/data/` — other projects depend on them
+1. **Never modify existing files** in `elementStore/.es/` — other projects depend on them
 2. **Add new files only** — one file per project namespace
 3. **Use `_version` timestamps** to track changes over time
 4. **Keep project `.es/` as the source of truth** — central genesis is a copy
@@ -923,12 +903,11 @@ After the migration is complete and verified, copy the genesis files to the main
 
 ```
 elementStore/
-└── genesis/
-    └── data/
-        ├── blog.genesis.json           # From blog project
-        ├── commerce.genesis.json       # From e-commerce project
-        ├── crm.genesis.json            # From CRM project
-        └── ...
+└── .es/
+    ├── blog.genesis.json           # From blog project
+    ├── commerce.genesis.json       # From e-commerce project
+    ├── crm.genesis.json            # From CRM project
+    └── ...
 ```
 
 #### Sync Procedure
@@ -936,7 +915,7 @@ elementStore/
 ```bash
 # Copy project genesis to central (never overwrite without version check)
 PROJECT_ES="project-root/.es"
-CENTRAL_GENESIS="elementStore/genesis/data"
+CENTRAL_GENESIS="elementStore/.es"
 
 for file in "$PROJECT_ES"/*.genesis.json; do
   filename=$(basename "$file")
@@ -1006,7 +985,7 @@ When performing a migration, follow this checklist:
 - [ ] **10. Write seed data** — `{class}.json` for any initial/reference data
 - [ ] **11. Create `load.sh`** — Seed loader script in `.es/`
 - [ ] **12. Load to ElementStore** — Run `load.sh` to populate the running instance
-- [ ] **13. Sync to central genesis** — Copy genesis files to `elementStore/genesis/data/` (new files only)
+- [ ] **13. Sync to central genesis** — Copy genesis files to `elementStore/.es/` (new files only)
 - [ ] **14. Validate** — Ensure all relations reference existing classes, types are correct
 - [ ] **15. Document gaps** — Note any models that couldn't be fully mapped
 
@@ -1023,8 +1002,8 @@ If the project has class hierarchies (e.g., `Vehicle → Car`, `Vehicle → Truc
   "name": "Vehicle",
   "is_abstract": true,
   "props": [
-    {"key": "make", "label": "Make", "data_type": "string", "required": true},
-    {"key": "model", "label": "Model", "data_type": "string", "required": true},
+    {"key": "make", "label": "Make", "data_type": "string", "flags": {"required": true}},
+    {"key": "model", "label": "Model", "data_type": "string", "flags": {"required": true}},
     {"key": "year", "label": "Year", "data_type": "integer"}
   ]
 }
@@ -1059,7 +1038,7 @@ Child classes inherit all parent props automatically. Only define additional or 
 - **Always check existing classes first** — reuse and extend before creating new ones
 - **Never modify existing genesis files** in the central directory — add new files only
 - The project `.es/` directory is the **source of truth** — central genesis is a synchronized copy
-- When in doubt about a class format, query the live ElementStore API: `GET /class/{id}`
+- When in doubt about a class format, query the live ElementStore API: `GET /store/@class/{id}`
 
 ## Related Files
 

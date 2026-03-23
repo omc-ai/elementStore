@@ -127,14 +127,41 @@ Property behavior flags are stored as `flags: {required: true, readonly: true}` 
 |-------|---------|
 | `@feature` | Feature definitions (canonical list of ES capabilities) |
 | `@app_feature` | Per-app implementation status (`progress`: implemented / partial / not_started) |
-| `@app` | Registered applications (PHP backend, Admin UI, arch-fe, arch-be, ...) |
+| `@app` | Registered applications (es-php-backend, es-admin, es-client-npm, ...) |
+| `@provider` | External API provider base class (base_url, auth, mapping, write_mode) |
+| `@cloudflare` | Cloudflare DNS/zone provider (extends @provider) — genesis: `.es/cloudflare.genesis.json` |
+| `ai:agent` | AI team agent definition (name, prompt, tools, avatar) |
+| `ai:task` | Work unit (status: open→assigned→in_progress→review→verified→done) |
+| `ai:message` | Universal message (user_id, agent_id, to_agents[], content, status) |
+| `es:finding` | Bug/issue report (name, description, severity, category, status) |
+
+### Genesis Files (`.es/`)
+
+| File | Domain |
+|------|--------|
+| `system.genesis.json` | Meta-schema: @class, @prop, @prop_*, @editor, @action, @event, @provider, @storage, @options_* |
+| `ai.genesis.json` | AI team classes: ai:agent, ai:task, ai:message, ai:conversation |
+| `apps.genesis.json` | App registry: @app, @app_feature, @feature |
+| `cloudflare.genesis.json` | Cloudflare provider: @cloudflare, cloudflare:dns_record, cloudflare:zone |
+| `cwm.genesis.json` | CloudWM/Kamatera provider — **duplicate of cloudwm.genesis.json** (open finding 8c79) |
+| `cloudwm.genesis.json` | CloudWM/Kamatera provider — **duplicate of cwm.genesis.json** (open finding 8c79) |
+| `core.genesis.json` | Visual building blocks: core:atomObj, core:baseElement, core:baseContainer |
+| `es-core.genesis.json` | ES self-management: es:finding, es:plan |
+| `infra.genesis.json` | Infrastructure: infra:vm, infra:network |
+| `ui.genesis.json` | UI elements: ui:dialog, ui:canvas, ui:button |
+| `auth.genesis.json` | Auth configuration classes |
+| `events.genesis.json` | Event definitions |
+| `signing.genesis.json` | Action signing and audit trail |
+| `mcp.genesis.json` | MCP server classes |
+| `accounting.genesis.json` | Accounting domain classes |
+| `saas.genesis.json` | SaaS pricing tiers: saas:pricing_tier (Free, Pro, Enterprise) — arc3d.ai SaaS platform |
 
 ## Feature IDs — Naming Convention
 
 ```
 feat:<group>_<name>        e.g. feat:filter_by, feat:client_atomobj
-af:<app-short>:<feat-id>   e.g. af:es-admin:filter_by, af:arch-fe:filter_by
-app:<slug>                 e.g. app:es-admin, app:es-php-backend, app:architect-frontend
+af:<app-short>:<feat-id>   e.g. af:es-admin:filter_by, af:es-client:filter_by
+app:<slug>                 e.g. app:es-admin, app:es-php-backend, app:es-client-npm
 ```
 
 ## Rule: Feature-Driven Development
@@ -162,6 +189,59 @@ bash util/es-cli.sh set @app_feature '{"id":"af:es-admin:my_feature","progress":
 ```
 
 The `@app_feature.progress` field tracks lifecycle: `not_started` → `planned` → `in_progress` → `partial` → `implemented` → `tested`.
+
+## Client Package (@es-client)
+
+The reference client is the `@es-client` TypeScript package (`packages/es-client/`).
+
+| Path | Description |
+|------|-------------|
+| `packages/es-client/src/` | TypeScript source |
+| `admin/dist/element-store.js` | IIFE build (used by Admin UI) |
+| `admin/dist/element-store-widgets.js` | Widget bundle |
+| `@agura/es-client` | NPM package (ESM, for external consumers) |
+
+The MCP server package (`packages/es-mcp-server/`) exposes elementStore as Claude Code tools. It auto-discovers classes and creates tools for CRUD operations. Install via `install.sh`.
+
+The Admin UI (`admin/js/app.js`) imports from `admin/dist/element-store.js`. The compiled IIFE exposes `ElementStore`, `AtomStorage`, `AtomObj`, `AtomElement`, `AtomCollection` globally. Do NOT edit `admin/dist/*.js` files directly — build from TypeScript source.
+
+## AI Agent Team
+
+The elementStore hosts an active AI agent team. Agents use the store for all state — tasks, messages, findings.
+
+### Key locations
+- **Dashboard**: `apps/aic/aic2.html` — current AI Company dashboard (v2, WhatsApp-style per-agent channels, vanilla JS + WS)
+- **Dashboard v1**: `apps/aic/index.html` — older dashboard version
+- **Orchestrator**: `apps/aic/aic-daemon.sh` — spawns executor per agent
+- **Executor**: `apps/aic/agent-run.sh` — runs Claude with agent prompt + task context
+- **Prompts**: `apps/aic/prompts/` — per-agent system prompts (shared.md + role-specific)
+- **Prompt improvements**: `apps/aic/apply-prompt-improvement.sh` — applies PROMPT_IMPROVE signals
+- **Action executor**: `apps/aic/es-action-tool.sh` — agents call this to execute @action objects (`bash es-action-tool.sh <action_id> [json_params]`)
+- **PM2 config**: `apps/aic/ecosystem.config.js` — process manager config for aic services
+
+### Agent classes
+| Class | Purpose |
+|-------|---------|
+| `ai:agent` | Agent definition (name, prompt, tools, avatar) |
+| `ai:task` | Work units (status: open→assigned→in_progress→review→verified→done) |
+| `ai:message` | Universal message unit (user_id, agent_id, to_agents[], results[], content, chunks[], status, references[]) |
+| `ai:conversation` | Thread container (user_id, agent_id, project_ids[], task_id, title, status) |
+
+### Agent Output Signals
+Agents communicate outcomes via output signals parsed by the orchestrator (`agent-run.sh`):
+- `TASK_COMPLETE: task:id` — marks task for review
+- `VERIFIED: task:id` — reviewer approves
+- `REJECTED: task:id` — reviewer rejects (retry)
+- `CREATE_TASK: name | agent:id | P1` — creates new task
+- `FINDING: description` — reports a bug or issue
+- `PROMPT_IMPROVE: rationale | text` — proposes prompt improvement
+
+### Rules for agent-authored changes
+- Agents use output signals (above) for task lifecycle changes
+- Agents write directly to elementStore via REST API (`curl POST/PUT $ES_URL/store/...`) for findings, messages, custom state
+- Agents do NOT push to git — owner reviews and pushes
+- Agents do NOT modify files outside the project directory
+- Agents do NOT modify `env_override.php` or core PHP files
 
 ## Rule: No External Docs When Objects Can Describe It
 

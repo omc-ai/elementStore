@@ -194,8 +194,8 @@ class AuthService
 
             $claims = $result['claims'];
             $model->setSecurityContext(
-                $claims->sub ?? $claims->user_id ?? null,
-                $claims->app_id ?? null,
+                $claims->sub ?? $claims->userId ?? $claims->user_id ?? null,
+                $claims->appId ?? $claims->app_id ?? null,
                 $claims->domain ?? null
             );
 
@@ -224,15 +224,35 @@ class AuthService
      */
     public static function verifyLocal(string $token): array
     {
+        // Try RS256 with JWKS public keys first (preferred)
+        if (self::$cachedKeySet !== null) {
+            try {
+                $decoded = JWT::decode($token, self::$cachedKeySet);
+                return ['valid' => true, 'claims' => $decoded, 'error' => null];
+            } catch (\Throwable $e) {
+                // RS256 failed — fall through to HS256
+            }
+        }
+
+        // HS256 fallback — use shared secret from auth_config or environment
+        $hs256Secret = self::$cachedConfig['hs256_secret'] ?? null;
+        if ($hs256Secret === null) {
+            $hs256Secret = getenv('ES_JWT_SECRET') ?: ($_ENV['ES_JWT_SECRET'] ?? $_SERVER['ES_JWT_SECRET'] ?? null);
+        }
+        if ($hs256Secret !== null) {
+            try {
+                $decoded = JWT::decode($token, new Key($hs256Secret, 'HS256'));
+                return ['valid' => true, 'claims' => $decoded, 'error' => null];
+            } catch (\Throwable $e) {
+                return ['valid' => false, 'claims' => null, 'error' => 'HS256 verification failed: ' . $e->getMessage()];
+            }
+        }
+
+        // No keys available at all
         if (self::$cachedKeySet === null) {
-            return ['valid' => false, 'claims' => null, 'error' => 'Public key not loaded'];
+            return ['valid' => false, 'claims' => null, 'error' => 'No verification keys available (neither RS256 JWKS nor HS256 secret configured)'];
         }
-        try {
-            $decoded = JWT::decode($token, self::$cachedKeySet);
-            return ['valid' => true, 'claims' => $decoded, 'error' => null];
-        } catch (\Exception $e) {
-            return ['valid' => false, 'claims' => null, 'error' => $e->getMessage()];
-        }
+        return ['valid' => false, 'claims' => null, 'error' => 'RS256 verification failed and no HS256 fallback configured'];
     }
 
     /**
@@ -508,7 +528,7 @@ class AuthService
      */
     public static function getSubject(object $claims): ?string
     {
-        return $claims->sub ?? $claims->user_id ?? null;
+        return $claims->sub ?? $claims->userId ?? $claims->user_id ?? null;
     }
 
     /**

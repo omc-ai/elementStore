@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 #
-# install.sh — Install elementStore MCP server + /es skill into Claude Code
+# install.sh — Install es MCP server + /es skill into Claude Code
 #
 # Usage:
 #   bash install.sh                              # uses default ES_URL
-#   bash install.sh http://my-server/elementStore # custom URL
+#   bash install.sh http://my-server/es # custom URL
 #   bash install.sh --uninstall                  # remove from Claude Code
 #   bash install.sh --agent agent:cto            # use a specific agent
 #
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ES_URL="${ES_URL:-http://arc3d.master.local/elementStore}"
+ES_URL="${ES_URL:-http://arc3d.master.local/es}"
 AGENT_ID="agent:owner"
 MCP_JSON="$HOME/.mcp.json"
 SKILL_DIR="$HOME/.claude/skills/es"
@@ -33,15 +33,15 @@ R='\033[0;31m' G='\033[0;32m' B='\033[0;34m' Y='\033[0;33m' N='\033[0m' DIM='\03
 
 # ── Uninstall ──
 if [[ "${UNINSTALL:-}" == "1" ]]; then
-  echo -e "${B}Removing elementStore from Claude Code...${N}"
+  echo -e "${B}Removing es from Claude Code...${N}"
 
   # Remove MCP server entry
   if [[ -f "$MCP_JSON" ]]; then
     node -e "
       const fs = require('fs');
       const cfg = JSON.parse(fs.readFileSync('$MCP_JSON', 'utf8'));
-      if (cfg.mcpServers?.elementStore) {
-        delete cfg.mcpServers.elementStore;
+      if (cfg.mcpServers?.es) {
+        delete cfg.mcpServers.es;
         fs.writeFileSync('$MCP_JSON', JSON.stringify(cfg, null, 2));
         console.log('  Removed MCP server from ~/.mcp.json');
       }
@@ -60,7 +60,7 @@ if [[ "${UNINSTALL:-}" == "1" ]]; then
       const fs = require('fs');
       const cfg = JSON.parse(fs.readFileSync('$SETTINGS_LOCAL', 'utf8'));
       const arr = cfg.enabledMcpjsonServers || [];
-      const idx = arr.indexOf('elementStore');
+      const idx = arr.indexOf('es');
       if (idx !== -1) { arr.splice(idx, 1); fs.writeFileSync('$SETTINGS_LOCAL', JSON.stringify(cfg, null, 2)); console.log('  Removed from enabled servers'); }
     "
   fi
@@ -71,7 +71,7 @@ fi
 
 # ── Install ──
 echo -e "${B}╭─────────────────────────────────────────╮${N}"
-echo -e "${B}│  elementStore → Claude Code installer    │${N}"
+echo -e "${B}│  es → Claude Code installer    │${N}"
 echo -e "${B}╰─────────────────────────────────────────╯${N}"
 echo ""
 echo -e "  ${DIM}Server:${N}  $SCRIPT_DIR"
@@ -95,7 +95,7 @@ node -e "
   try { cfg = JSON.parse(fs.readFileSync('$MCP_JSON', 'utf8')); } catch {}
   if (!cfg.mcpServers) cfg.mcpServers = {};
 
-  cfg.mcpServers.elementStore = {
+  cfg.mcpServers.es = {
     command: 'node',
     args: [
       '${SCRIPT_DIR}/src/index.js',
@@ -119,8 +119,8 @@ node -e "
   let cfg = {};
   try { cfg = JSON.parse(fs.readFileSync('$SETTINGS_LOCAL', 'utf8')); } catch {}
   if (!cfg.enabledMcpjsonServers) cfg.enabledMcpjsonServers = [];
-  if (!cfg.enabledMcpjsonServers.includes('elementStore')) {
-    cfg.enabledMcpjsonServers.push('elementStore');
+  if (!cfg.enabledMcpjsonServers.includes('es')) {
+    cfg.enabledMcpjsonServers.push('es');
   }
   fs.writeFileSync('$SETTINGS_LOCAL', JSON.stringify(cfg, null, 2));
   console.log('  ✓ settings.local.json updated');
@@ -134,18 +134,18 @@ echo -e "  ✓ /es skill installed at $SKILL_DIR"
 
 # ── 5. Health check ──
 echo ""
-echo -e "${DIM}Checking elementStore connectivity...${N}"
+echo -e "${DIM}Checking es connectivity...${N}"
 HEALTH=$(curl -sf "$ES_URL/health" 2>/dev/null | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('status','?'))" 2>/dev/null || echo "unreachable")
 if [[ "$HEALTH" == "ok" ]]; then
-  echo -e "  ${G}✓ elementStore is up${N}"
+  echo -e "  ${G}✓ es is up${N}"
 else
-  echo -e "  ${Y}⚠ elementStore unreachable at $ES_URL (server may need to be started)${N}"
+  echo -e "  ${Y}⚠ es unreachable at $ES_URL (server may need to be started)${N}"
 fi
 
 # ── Done ──
 echo ""
 echo -e "${G}╭─────────────────────────────────────────╮${N}"
-echo -e "${G}│  ✓ elementStore installed!               │${N}"
+echo -e "${G}│  ✓ es installed!               │${N}"
 echo -e "${G}╰─────────────────────────────────────────╯${N}"
 echo ""
 echo -e "  ${B}What's available after restart:${N}"
@@ -160,10 +160,10 @@ echo -e "    /es agent:owner        Get a specific object"
 echo -e "    /es props ai:task      Show class schema"
 echo ""
 echo -e "  ${DIM}@ resources:${N}"
-echo -e "    @elementStore:es://classes     All classes"
-echo -e "    @elementStore:es://agents      All agents"
-echo -e "    @elementStore:es://ns/ai       AI namespace classes"
-echo -e "    @elementStore:es://ns/mcp      MCP namespace classes"
+echo -e "    @es:classes     All classes"
+echo -e "    @es:agents      All agents"
+echo -e "    @es:ns/ai       AI namespace classes"
+echo -e "    @es:ns/mcp      MCP namespace classes"
 echo ""
 echo -e "  ${DIM}MCP tools (9):${N}"
 echo -e "    es_health, es_classes, es_class_props, es_query,"

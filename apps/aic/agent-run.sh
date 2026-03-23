@@ -16,8 +16,15 @@ set -uo pipefail
 AGENT_ID="${1:-}"
 MSG_ID="${2:-}"
 ES_URL="${ES_URL:-http://arc3d.master.local/elementStore}"
+ES_TOKEN="${ES_TOKEN:-}"         # Bearer token for ES endpoints
 DEFAULT_PROVIDER="provider:claude-cli"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ES_TOKEN_FILE="${ES_TOKEN_FILE:-${HOME}/.es/token.json}"
+
+# Auto-load cached token if ES_TOKEN not set
+if [ -z "$ES_TOKEN" ] && [ -f "$ES_TOKEN_FILE" ]; then
+  ES_TOKEN=$(python3 -c "import json; print(json.load(open('$ES_TOKEN_FILE')).get('accessToken',''))" 2>/dev/null || true)
+fi
 
 if [ -z "$AGENT_ID" ]; then
   echo "Usage: $0 <agent_id> [message_id]"
@@ -25,12 +32,15 @@ if [ -z "$AGENT_ID" ]; then
 fi
 
 NOW() { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
-# ES API helpers — strip auth error prefix that server prepends before actual JSON
-ESH='-H X-Disable-Ownership:true'
-es_get()    { local raw; raw=$(curl -s -H 'X-Disable-Ownership: true' "$ES_URL/query/$1?id=$(echo "$2" | sed 's/:/%3A/g')&_limit=1" 2>/dev/null || true); echo "$raw" | sed 's/^{"error":"[^"]*"}//g' | jq -c '.[0] // empty' 2>/dev/null || true; }
-es_query()  { local raw; raw=$(curl -s -H 'X-Disable-Ownership: true' "$ES_URL/query/$1?$2" 2>/dev/null); echo "$raw" | sed 's/^{"error":"[^"]*"}//g'; }
-es_create() { local raw; raw=$(curl -s -X POST -H 'Content-Type: application/json' -H 'X-Disable-Ownership: true' -H 'X-Allow-Custom-Ids: true' "$ES_URL/store/$1" -d "$2" 2>/dev/null); echo "$raw" | sed 's/^{"error":"[^"]*"}//g'; }
-es_update() { local raw; raw=$(curl -s -X PUT -H 'Content-Type: application/json' -H 'X-Disable-Ownership: true' "$ES_URL/store/$1/$2" -d "$3" 2>/dev/null); echo "$raw" | sed 's/^{"error":"[^"]*"}//g'; }
+# ES API helpers — include Bearer token when available
+_es_auth() { [ -n "$ES_TOKEN" ] && printf -- '-H\nAuthorization: Bearer %s' "$ES_TOKEN" || true; }
+_ES_AUTH_ARGS=()
+[ -n "$ES_TOKEN" ] && _ES_AUTH_ARGS=(-H "Authorization: Bearer $ES_TOKEN")
+es_get()    { local raw; raw=$(curl -s "${_ES_AUTH_ARGS[@]}" "$ES_URL/query/$1?id=$(echo "$2" | sed 's/:/%3A/g')&_limit=1" 2>/dev/null || true); echo "$raw" | sed 's/^{"error":"[^"]*"}//g' | jq -c '.[0] // empty' 2>/dev/null || true; }
+es_query()  { local raw; raw=$(curl -s "${_ES_AUTH_ARGS[@]}" "$ES_URL/query/$1?$2" 2>/dev/null); echo "$raw" | sed 's/^{"error":"[^"]*"}//g'; }
+es_create() { local raw; raw=$(curl -s -X POST -H 'Content-Type: application/json' "${_ES_AUTH_ARGS[@]}" -H 'X-Allow-Custom-Ids: true' "$ES_URL/store/$1" -d "$2" 2>/dev/null); echo "$raw" | sed 's/^{"error":"[^"]*"}//g'; }
+es_update() { local raw; raw=$(curl -s -X PUT -H 'Content-Type: application/json' "${_ES_AUTH_ARGS[@]}" "$ES_URL/store/$1/$2" -d "$3" 2>/dev/null); echo "$raw" | sed 's/^{"error":"[^"]*"}//g'; }
+es_log() { curl -sf -X POST "$ES_URL/store/es:log" -H 'Content-Type: application/json' "${_ES_AUTH_ARGS[@]}" -d "{\"class_id\":\"es:log\",\"level\":\"$1\",\"message\":\"$2\",\"source\":\"${3:-agent-run}\"}" > /dev/null 2>&1; }
 
 # ─── Load agent ──────────────────────────────────────────
 AGENT_DATA=$(es_get "ai:agent" "$AGENT_ID")
@@ -48,6 +58,7 @@ AGENT_TOOLS=$(echo "$AGENT_DATA" | jq -r '(.tools // []) | join(",")')
 MAX_BUDGET=$(echo "$AGENT_DATA" | jq -r '.behavior.max_budget_usd // 1.00')
 
 echo "[$(date '+%H:%M:%S')] Agent: $AGENT_NAME ($AGENT_ID) mode=$SESSION_MODE tools=$AGENT_TOOLS"
+es_log "info" "Worker started: $AGENT_NAME ($AGENT_ID) PID=$$" "agent-run"
 
 # ─── Load prompt from file if available ──────────────────
 load_prompt_file() {
@@ -89,6 +100,37 @@ resolve_provider() {
   echo "$provider_id"
 }
 
+# ─── F4: Context budget helpers ──────────────────────────
+# Estimate token count (rough: 1 token ≈ 4 chars)
+estimate_tokens() {
+  local text="$1"
+  echo $(( ${#text} / 4 ))
+}
+
+# Max context tokens for this agent (from agent.behavior or default)
+MAX_CONTEXT_TOKENS=$(echo "$AGENT_DATA" | jq -r '.behavior.max_context_tokens // 8000')
+
+# Trim a JSON array of objects to fit within a token budget
+# Returns a trimmed JSON array
+trim_to_budget() {
+  local json_array="$1"
+  local budget="$2"
+  local count
+  count=$(echo "$json_array" | jq 'length' 2>/dev/null || echo 0)
+  local current="$json_array"
+  # Trim from end if over budget
+  while [ "$count" -gt 1 ]; do
+    local estimated
+    estimated=$(estimate_tokens "$current")
+    if [ "$estimated" -le "$budget" ]; then
+      break
+    fi
+    count=$((count - 1))
+    current=$(echo "$json_array" | jq --argjson n "$count" '.[:$n]' 2>/dev/null || echo '[]')
+  done
+  echo "$current"
+}
+
 # ─── Build scoped context ────────────────────────────────
 # Each agent only sees data relevant to them, not everything
 build_agent_context() {
@@ -120,6 +162,25 @@ build_agent_context() {
   local questions
   questions=$(es_query "ai:question" "to_agents=$AGENT_ID&status=open&_limit=10" | jq -c '[.[] | {id,from_agent,question,status}]' 2>/dev/null || echo '[]')
 
+  # F4: Context budget — trim tasks and history to stay within token budget
+  local tasks_budget=$(( MAX_CONTEXT_TOKENS / 3 ))
+  local findings_budget=$(( MAX_CONTEXT_TOKENS / 6 ))
+  tasks=$(trim_to_budget "$tasks" "$tasks_budget")
+  findings=$(trim_to_budget "$findings" "$findings_budget")
+
+  # F6: Memory Agent — inject relevant memories into context
+  local memories=""
+  local mem_raw
+  mem_raw=$(es_query "ai:memory" "agent_id=$AGENT_ID&_sort=importance&_order=desc&_limit=5" 2>/dev/null || echo '[]')
+  # Also query global memories (no agent_id)
+  local global_mem
+  global_mem=$(es_query "ai:memory" "_limit=3&_sort=importance&_order=desc" 2>/dev/null || echo '[]')
+  local all_mem
+  all_mem=$(echo "[$mem_raw, $global_mem]" | jq -c 'flatten | unique_by(.id) | .[:5] | [.[] | {content,importance,source_type}]' 2>/dev/null || echo '[]')
+  if [ "$all_mem" != "[]" ] && [ -n "$all_mem" ]; then
+    memories="$all_mem"
+  fi
+
   context="## Your Tasks
 ${tasks}
 
@@ -127,7 +188,59 @@ ${tasks}
 ${findings}
 
 ## Questions For You
-${questions}"
+${questions}
+
+## Relevant Memories
+${memories:-[]}"
+
+  # ── Action tools — @action objects bound to this agent ──
+  # Agent field: action_tools[] = array of @action IDs
+  # Agents call: bash $SCRIPT_DIR/es-action-tool.sh <action_id> '<json_params>'
+  # Requires ES_TOKEN env var with a valid admin Bearer token
+  local action_tools_ids
+  action_tools_ids=$(echo "$AGENT_DATA" | jq -r '(.action_tools // []) | .[]' 2>/dev/null || true)
+
+  if [ -n "$action_tools_ids" ]; then
+    local actions_section=""
+    actions_section="## Available Action Tools
+Execute @action objects directly using Bash (requires ES_TOKEN env var):
+  ES_TOKEN=\$ES_TOKEN bash ${SCRIPT_DIR}/es-action-tool.sh <action_id> '<json_params>'
+
+"
+    while IFS= read -r act_id; do
+      [ -z "$act_id" ] && continue
+      # Fetch action definition
+      local act_data
+      act_data=$(es_get "@action" "$act_id" 2>/dev/null || true)
+      [ -z "$act_data" ] || [ "$act_data" = "null" ] && continue
+
+      local act_name act_desc act_type act_params_desc
+      act_name=$(echo "$act_data" | jq -r '.name // ""')
+      act_desc=$(echo "$act_data" | jq -r '.description // ""')
+      act_type=$(echo "$act_data" | jq -r '.type // "api"')
+
+      # Build params description from action.params[]
+      act_params_desc=$(echo "$act_data" | jq -r '
+        (.params // []) | map(
+          "    - " + .key + " (" + (.data_type // "string") +
+          (if (.flags.required // false) then ", required" else ", optional" end) + ")" +
+          (if .description != null and .description != "" then ": " + .description else "" end)
+        ) | join("\n")
+      ' 2>/dev/null || true)
+
+      actions_section="${actions_section}### ${act_id} — ${act_name} [${act_type}]
+${act_desc}
+Params:
+${act_params_desc:-    (none)}
+Call: bash ${SCRIPT_DIR}/es-action-tool.sh ${act_id} '{\"key\":\"value\"}'
+
+"
+    done <<< "$action_tools_ids"
+
+    context="${context}
+
+${actions_section}"
+  fi
 
   echo "$context"
 }
@@ -247,6 +360,26 @@ monitor_claude_cli_stream() {
   if [ -f "$tmpfile" ]; then
     result=$(grep '"type":"result"' "$tmpfile" 2>/dev/null | tail -1 | jq -r '.result // ""' 2>/dev/null || true)
     [ -z "$result" ] && result="$last_text"
+
+    # F4: Extract token usage from claude CLI stream-json
+    # Claude CLI emits a "result" line with usage.input_tokens / usage.output_tokens
+    local cli_input_tokens cli_output_tokens
+    cli_input_tokens=$(grep '"type":"result"' "$tmpfile" 2>/dev/null | tail -1 \
+      | jq -r '.usage.input_tokens // 0' 2>/dev/null || echo 0)
+    cli_output_tokens=$(grep '"type":"result"' "$tmpfile" 2>/dev/null | tail -1 \
+      | jq -r '.usage.output_tokens // 0' 2>/dev/null || echo 0)
+    # Expose as globals (same pattern as ANTHROPIC_* vars)
+    ANTHROPIC_INPUT_TOKENS="${cli_input_tokens:-0}"
+    ANTHROPIC_OUTPUT_TOKENS="${cli_output_tokens:-0}"
+
+    # F4: Warn if context approaching limit
+    local total_tokens=$(( ANTHROPIC_INPUT_TOKENS + ANTHROPIC_OUTPUT_TOKENS ))
+    if [ "$total_tokens" -gt 0 ] && [ "$MAX_CONTEXT_TOKENS" -gt 0 ]; then
+      local pct=$(( total_tokens * 100 / MAX_CONTEXT_TOKENS ))
+      if [ "$pct" -ge 80 ]; then
+        echo "[$(date '+%H:%M:%S')] F4 ContextBudget: ${total_tokens} tokens (${pct}% of ${MAX_CONTEXT_TOKENS} budget)" >&2
+      fi
+    fi
   fi
   [ -z "$result" ] && result="[no response]"
 
@@ -335,6 +468,51 @@ postprocess_response() {
   # Agents mark tasks via curl (tool use), but also check text signals
   echo "$result" | grep -oP 'TASK_COMPLETE:\s*\K\S+' 2>/dev/null | while IFS= read -r task_ref; do
     [ -z "$task_ref" ] && continue
+
+    # F5: Self-critique gate — only for developer/coordinator, not reviewer (avoids infinite loop)
+    local enable_critique
+    enable_critique=$(echo "$AGENT_DATA" | jq -r '.behavior.self_critique // false')
+    if [ "$enable_critique" = "true" ] && [ "$AGENT_ID" != "agent:reviewer" ]; then
+      echo "[$(date '+%H:%M:%S')] F5 Self-critique: reviewing work for $task_ref..." >&2
+      local task_desc
+      task_desc=$(es_get "ai:task" "$task_ref" | jq -r '.description // .name // ""' 2>/dev/null || echo "")
+      local critique_prompt="You just completed a task. Self-review your work.
+
+Task: $task_ref
+Description: $task_desc
+
+Your response was:
+---
+${result:0:2000}
+---
+
+Answer ONLY with one of:
+1. PASS: [1 line reason why the work is complete and correct]
+2. NEEDS_WORK: [specific gap or issue that must be fixed before completion]
+
+Be strict. Only PASS if you are confident the task is genuinely done."
+
+      local critique_result
+      critique_result=$(echo "$critique_prompt" | claude --print --model sonnet \
+        --output-format text \
+        --max-budget-usd 0.10 2>/dev/null || echo "PASS: critique unavailable")
+
+      echo "[$(date '+%H:%M:%S')] F5 Self-critique result: ${critique_result:0:100}" >&2
+
+      if echo "$critique_result" | grep -q "^NEEDS_WORK:"; then
+        local issue
+        issue=$(echo "$critique_result" | sed 's/^NEEDS_WORK: *//')
+        echo "[$(date '+%H:%M:%S')] F5 Self-critique: BLOCKED completion of $task_ref — $issue" >&2
+        # Add a note to the task about what needs fixing
+        es_update "ai:task" "$task_ref" "$(jq -n \
+          --arg note "Self-critique: $issue" \
+          '{self_critique_note:$note}')" > /dev/null 2>&1
+        # Don't mark complete — agent must continue
+        continue
+      fi
+      echo "[$(date '+%H:%M:%S')] F5 Self-critique: PASSED — marking $task_ref → review" >&2
+    fi
+
     echo "[$(date '+%H:%M:%S')] Post-process: marking $task_ref → review" >&2
     es_update "ai:task" "$task_ref" "$(jq -n --arg by "$AGENT_ID" --arg now "$(NOW)" \
       '{status:"review", completed_by:$by, completed_at:$now}')" > /dev/null 2>&1
@@ -359,6 +537,61 @@ postprocess_response() {
     es_create "ai:task" "$(jq -n \
       --arg name "$task_name" --arg agent "$task_agent" --arg pri "$task_priority" --arg now "$(NOW)" \
       '{class_id:"ai:task", name:$name, agent_id:$agent, priority:$pri, status:"assigned", created:$now}')" > /dev/null 2>&1
+  done
+
+  # Parse prompt improvement proposals (agent proposes, owner approves)
+  # Format: PROMPT_IMPROVE: <rationale> | <proposed text>
+  # Example: PROMPT_IMPROVE: Always check for existing tests before writing | ## Testing Rule\nRun existing tests first with `npm test`
+  echo "$result" | grep -oP 'PROMPT_IMPROVE:\s*\K.+' 2>/dev/null | head -3 | while IFS= read -r proposal_line; do
+    [ -z "$proposal_line" ] && continue
+    local rationale proposed_text prompt_file agent_lower
+    rationale=$(echo "$proposal_line" | sed 's/ *|.*//' | xargs)
+    proposed_text=$(echo "$proposal_line" | grep -oP '\|\s*\K.+' || echo "")
+    # Derive prompt file from agent name
+    agent_lower=$(echo "$AGENT_NAME" | tr '[:upper:]' '[:lower:]')
+    prompt_file="${agent_lower}.md"
+    echo "[$(date '+%H:%M:%S')] Post-process: creating prompt proposal for $prompt_file" >&2
+    es_create "ai:prompt_proposal" "$(jq -n \
+      --arg agent "$AGENT_ID" \
+      --arg file "$prompt_file" \
+      --arg proposed "$proposed_text" \
+      --arg rationale "$rationale" \
+      --arg now "$(NOW)" \
+      '{class_id:"ai:prompt_proposal", agent_id:$agent, prompt_file:$file, proposed_addition:$proposed, rationale:$rationale, status:"pending", created:$now}')" > /dev/null 2>&1
+    # Notify owner
+    es_create "ai:message" "$(jq -n \
+      --arg agent "$AGENT_ID" \
+      --arg rationale "$rationale" \
+      --arg file "$prompt_file" \
+      --arg now "$(NOW)" \
+      '{class_id:"ai:message", role:"assistant", agent_id:$agent, to_agents:["agent:assistant"], content:("Prompt improvement proposal for **" + $file + "**:\n\n> " + $rationale + "\n\nReview pending proposals: `curl $ES_URL/query/ai:prompt_proposal?status=pending`\nApprove with: `bash apps/aic/apply-prompt-improvement.sh <proposal_id>`"), status:"pending", created:$now}')" > /dev/null 2>&1
+  done
+
+  # F2: Typed artifacts — parse ARTIFACT: <type> | <json_or_text> signals
+  # Types: code, plan, document, data, analysis, image_prompt
+  # Example: ARTIFACT: code | {"language":"bash","content":"#!/bin/bash\n...","description":"Deploy script"}
+  # Example: ARTIFACT: plan | {"steps":["step1","step2"],"description":"Implementation plan"}
+  echo "$result" | grep -oP 'ARTIFACT:\s*\K.+' 2>/dev/null | head -5 | while IFS= read -r artifact_line; do
+    [ -z "$artifact_line" ] && continue
+    local artifact_type artifact_content
+    artifact_type=$(echo "$artifact_line" | sed 's/ *|.*//' | xargs | tr '[:upper:]' '[:lower:]')
+    artifact_content=$(echo "$artifact_line" | grep -oP '\|\s*\K.+' || echo "")
+    [ -z "$artifact_type" ] && artifact_type="document"
+    [ -z "$artifact_content" ] && artifact_content="$artifact_line"
+
+    # Try to get current task_id from recent in_progress tasks for this agent
+    local linked_task
+    linked_task=$(es_query "ai:task" "agent_id=$AGENT_ID&status=in_progress&_limit=1" \
+      | jq -r '.[0].id // ""' 2>/dev/null || echo "")
+
+    echo "[$(date '+%H:%M:%S')] F2 Artifact: type=$artifact_type task=${linked_task:-none}" >&2
+    es_create "ai:artifact" "$(jq -n \
+      --arg type "$artifact_type" \
+      --arg content "$artifact_content" \
+      --arg agent "$AGENT_ID" \
+      --arg task "${linked_task:-}" \
+      --arg now "$(NOW)" \
+      '{class_id:"ai:artifact", artifact_type:$type, content:$content, agent_id:$agent, task_id:$task, status:"created", created:$now}')" > /dev/null 2>&1
   done
 
   # Parse review verdicts (reviewer approves or rejects)
@@ -483,6 +716,7 @@ echo "$MESSAGES" | while IFS= read -r msg_json; do
 ES_URL: ${ES_URL}
 Agent ID: ${AGENT_ID}
 Date: $(date -u '+%Y-%m-%d')
+${ES_TOKEN:+ES_TOKEN: ${ES_TOKEN}}
 
 ${agent_context}
 
@@ -580,5 +814,6 @@ ${conv_history}"
     --argjson rc "$((run_count+1))" --arg lr "$(NOW)" --argjson st "$stats_json" \
     '{run_count:$rc,last_run:$lr,stats:$st}')" > /dev/null 2>&1
 
+  es_log "info" "Worker finished: $AGENT_NAME ($AGENT_ID) PID=$$ duration=${duration}s exit=$exit_code" "agent-run"
   echo "[$(date '+%H:%M:%S')] Done"
 done

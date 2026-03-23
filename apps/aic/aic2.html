@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Company — Dashboard</title>
+<title>AI Company v2 — ASI Dashboard</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
@@ -214,6 +214,8 @@ header h1{font-size:1.1em;color:#fff}
 .dp-tab{padding:6px 10px;font-size:0.78em;cursor:pointer;color:rgba(255,255,255,.6);font-weight:500;white-space:nowrap;border-bottom:2px solid transparent;transition:all .15s}
 .dp-tab:hover{color:rgba(255,255,255,.85)}
 .dp-tab.active{color:#fff;border-bottom-color:#25d366;font-weight:600}
+.dp-tab.has-activity::after{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#25d366;margin-left:5px;vertical-align:middle;animation:dp-pulse 1.4s ease-in-out infinite}
+@keyframes dp-pulse{0%,100%{box-shadow:0 0 0 0 rgba(37,211,102,.7);opacity:1}50%{box-shadow:0 0 0 4px rgba(37,211,102,0);opacity:.7}}
 .dp-panel{display:none;min-height:0}
 .dp-panel.active{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .dp-panel>#tasks,.dp-panel>#findings-list,.dp-panel>#q-others{overflow-y:auto;flex:1;min-height:0}
@@ -390,32 +392,6 @@ body.dark hr{border-color:#21262d}
 
 /* Convtitle */
 body.dark .conv-title{background:#161b22;border-bottom-color:#21262d;color:#8b949e}
-
-/* Project cards */
-.proj-card{border:1px solid #d1d9e0;border-radius:8px;margin:8px;overflow:hidden;transition:box-shadow .1s}
-.proj-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.08)}
-.proj-card-hdr{padding:8px 10px;border-bottom:1px solid #f0f2f5;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.proj-card-body{padding:6px 10px}
-.proj-card .proj-name{font-weight:700;font-size:0.9em;color:#1f2328;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.proj-card .proj-type{font-size:0.67em;font-weight:600;padding:1px 6px;border-radius:10px;color:#fff;flex-shrink:0}
-.proj-card .proj-desc{font-size:0.75em;color:#59636e;margin-bottom:5px;line-height:1.3}
-.proj-card .proj-path{font-size:0.68em;color:#9ea7b0;margin-bottom:4px;font-family:'SF Mono',Monaco,Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.proj-card .proj-tags{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:4px}
-.proj-card .proj-tag{font-size:0.65em;background:#f0f2f5;color:#59636e;padding:1px 5px;border-radius:3px}
-.proj-task{padding:4px 0;border-bottom:1px solid #f6f8fa;display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.8em}
-.proj-task:last-child{border-bottom:none}
-.proj-task:hover{background:#f8f9fa;margin:0 -10px;padding-left:10px;padding-right:10px}
-.proj-task .pt-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.proj-task .pt-agent{font-size:0.72em;color:#59636e;flex-shrink:0}
-.proj-section-hdr{font-size:0.7em;font-weight:600;color:#9ea7b0;text-transform:uppercase;letter-spacing:.04em;padding:4px 0 2px;margin-top:2px}
-body.dark .proj-card{border-color:#30363d;background:#0d1117}
-body.dark .proj-card-hdr{border-bottom-color:#21262d}
-body.dark .proj-card .proj-name{color:#e6edf3}
-body.dark .proj-card .proj-desc{color:#8b949e}
-body.dark .proj-card .proj-path{color:#484f58}
-body.dark .proj-card .proj-tag{background:#161b22;color:#8b949e}
-body.dark .proj-task{border-bottom-color:#161b22}
-body.dark .proj-task:hover{background:#161b22}
 </style>
 </head>
 <body>
@@ -435,9 +411,13 @@ body.dark .proj-task:hover{background:#161b22}
         <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-email">Email</label>
         <input type="email" id="aic-email" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em" required autocomplete="username">
       </div>
-      <div style="margin-bottom:16px">
+      <div style="margin-bottom:12px">
         <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-password">Password</label>
         <input type="password" id="aic-password" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em" required autocomplete="current-password">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-machine">Machine <span style="font-weight:400;color:#59636e">(optional — sets elementStore target)</span></label>
+        <input type="text" id="aic-machine" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em" placeholder="e.g. ai-office" autocomplete="off">
       </div>
       <button type="submit" id="aic-login-btn" style="width:100%;padding:10px;background:#075e54;color:#fff;border:none;border-radius:4px;font-size:0.95em;font-weight:600;cursor:pointer">Sign In</button>
     </form>
@@ -445,13 +425,14 @@ body.dark .proj-task:hover{background:#161b22}
 </div>
 
 <header>
-  <h1>AI Company</h1>
+  <h1>AI Company v2</h1>
   <div class="hdr-status">
     <button id="btn-start" onclick="aicStart()" style="background:#25d366;color:#fff;border:none;padding:4px 14px;border-radius:4px;font-size:0.82em;font-weight:600;cursor:pointer">Start</button>
     <button id="btn-stop" onclick="aicStop()" style="background:#cf222e;color:#fff;border:none;padding:4px 14px;border-radius:4px;font-size:0.82em;font-weight:600;cursor:pointer;display:none">Stop</button>
     <button id="btn-clear" onclick="aicClear()" style="background:transparent;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.3);padding:4px 10px;border-radius:4px;font-size:0.78em;cursor:pointer" title="Clear all messages">Clear</button>
     <span id="ws-status"><span class="dot load"></span>connecting</span>
     <span id="class-count"></span>
+    <span id="aic-es-url" style="opacity:0.6;font-size:0.7em;font-family:monospace"></span>
     <span id="aic-env-label" style="opacity:0.7;font-size:0.75em"></span>
     <span id="aic-user" style="font-weight:600"></span>
     <button onclick="aicLogout()" style="background:transparent;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.3);padding:4px 10px;border-radius:4px;font-size:0.78em;cursor:pointer">Logout</button>
@@ -465,7 +446,7 @@ body.dark .proj-task:hover{background:#161b22}
 <!-- LEFT: Team sidebar -->
 <div class="col" style="overflow-y:auto;gap:6px">
   <div class="card" style="flex-shrink:0">
-    <div class="card-hdr" style="background:#075e54;color:#fff;border-bottom:none">Team <span class="count" id="agent-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
+    <div class="card-hdr" style="background:#075e54;color:#fff;border-bottom:none">Team <span class="count" id="agent-count" style="background:rgba(255,255,255,.2);color:#fff">0</span> <label style="font-weight:400;font-size:0.85em;margin-left:auto;cursor:pointer"><input type="checkbox" id="ag-only-active" onchange="load()" style="margin-right:3px">active</label></div>
     <div class="card-body" id="agents" style="padding:0"></div>
   </div>
   <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0">
@@ -510,7 +491,6 @@ body.dark .proj-task:hover{background:#161b22}
       <div class="dp-tab active" data-tab="tasks" onclick="switchDataTab('tasks')">Tasks <span class="count" id="task-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
       <div class="dp-tab" data-tab="findings" onclick="switchDataTab('findings')">Findings <span class="count" id="finding-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
       <div class="dp-tab" data-tab="questions" onclick="switchDataTab('questions')">Questions <span class="count" id="q-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
-      <div class="dp-tab" data-tab="projects" onclick="switchDataTab('projects')">Projects <span class="count" id="project-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
       <div class="dp-tab" data-tab="usage" onclick="switchDataTab('usage')">Usage</div>
       <div class="dp-tab" data-tab="browse" onclick="switchDataTab('browse')">Browse</div>
     </div>
@@ -544,11 +524,6 @@ body.dark .proj-task:hover{background:#161b22}
     <!-- Usage panel -->
     <div class="dp-panel" id="dp-usage" style="flex:1;overflow-y:auto;padding:0">
       <div id="usage-list"></div>
-    </div>
-
-    <!-- Projects panel -->
-    <div class="dp-panel" id="dp-projects" style="flex:1;overflow-y:auto;padding:0">
-      <div id="projects-list"></div>
     </div>
 
     <!-- Data Browser panel -->
@@ -604,7 +579,7 @@ body.dark .proj-task:hover{background:#161b22}
       <div id="m-tasks" style="font-size:0.85em"></div>
     </div>
     <div id="m-pane-feed" style="display:none">
-      <div id="m-feed" class="feed" style="max-height:400px;min-height:60px;overflow-y:auto;border-radius:6px;font-size:0.85em"></div>
+      <div id="m-feed" style="font-size:0.85em;color:#59636e">Switch to agent channel in feed to view messages.</div>
     </div>
   </div>
 </div>
@@ -714,6 +689,7 @@ body.dark .proj-task:hover{background:#161b22}
     var envId = form.querySelector('#aic-env').value;
     var email = form.querySelector('#aic-email').value.trim();
     var password = form.querySelector('#aic-password').value;
+    var machineName = (form.querySelector('#aic-machine').value || '').trim();
     var errorEl = form.querySelector('#aic-login-error');
     var btn = form.querySelector('#aic-login-btn');
 
@@ -724,15 +700,34 @@ body.dark .proj-task:hover{background:#161b22}
     applyEnv(envId);
 
     try {
+      var loginBody = { email: email, password: password };
+      if (machineName) loginBody.machineName = machineName;
+
       var res = await fetch(AUTH_BASE + '/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, password: password })
+        body: JSON.stringify(loginBody)
       });
       var data = await res.json();
       if (!res.ok) throw new Error(data.error || data.message || 'Login failed');
 
       store.storage.setAuth(data);
+
+      // If auth returned an esUrl (from machine config), redirect API calls there
+      if (data.esUrl) {
+        API = data.esUrl;
+        store.storage.data.url = API;
+        WS_URL = API.replace(/^http/, 'ws') + '/ws';
+        console.log('[AIC] Using machine esUrl:', API);
+      }
+
+      // Persist machine name for next login
+      if (machineName) localStorage.setItem('aic_machine_name', machineName);
+
+      // Show connected ES URL in header
+      var esLabel = document.getElementById('aic-es-url');
+      if (esLabel) esLabel.textContent = API.replace(/^https?:\/\//, '');
+
       hideAicLogin();
       window._aicStartApp();
     } catch (err) {
@@ -745,7 +740,12 @@ body.dark .proj-task:hover{background:#161b22}
   };
 
   window.aicLogout = async function() {
-    await logout();
+    try { await logout(); } catch(e) { /* ignore logout API errors */ }
+    // Also clear directly in case logout() failed
+    if (store.storage.clearAuth) store.storage.clearAuth();
+    // Reset API to current origin
+    API = location.origin + '/elementStore';
+    store.storage.data.url = API;
     showAicLogin();
   };
 
@@ -782,15 +782,30 @@ body.dark .proj-task:hover{background:#161b22}
   esws._onMessage = function(msg) {
     if (msg.event === 'initial' && msg.items) {
       console.log('[WS] initial:', msg.class_id, msg.items.length, 'items');
-      // Store items — only messages trigger feed render
+
+      // Cache data by class into window variables for sidebar/panel rendering
+      var cls = msg.class_id;
+      if (cls === 'ai:agent') { window._agents = msg.items; }
+      else if (cls === 'ai:task') { window._tasks = msg.items; }
+      else if (cls === 'ai:question') { window._questions = msg.items; }
+      else if (cls === 'ai:decision') { window._decisions = msg.items; }
+      else if (cls === 'ai:worker') { window._workers = msg.items; }
+      else if (cls === 'ai:agent_session') { window._sessions = msg.items; }
+      else if (cls === 'es:finding') { window._findings = msg.items; }
+      else if (cls === 'ai:conversation') { window._conversations = msg.items; }
+
+      // Store all items in feedItems (messages for feed, others for reference)
       for (var i = 0; i < msg.items.length; i++) {
         var item = msg.items[i];
         if (item && item.id) {
           feedItems[item.id] = item;
         }
       }
+
+      // Trigger UI rebuild from cached data
       feedDirty = true;
       renderFeed();
+      sched();
       return;
     }
     origOnMessage(msg);
@@ -798,16 +813,16 @@ body.dark .proj-task:hover{background:#161b22}
   function bg(t,c){return '<span class="badge b-'+esc(c)+'">'+esc(t)+'</span>'}
 
   // ─── Render ──────────────────────────────────────────────
+  // Reads from cached window.* variables populated by WS initial/change events.
+  // No REST fetches — all data flows through WebSocket subscriptions.
   async function load(){
     try {
-      var agents = await fetch(API+'/store/ai:agent').then(r=>r.json());
-      var tasks = await fetch(API+'/store/ai:task').then(r=>r.json());
-      var questions = await fetch(API+'/store/ai:question').then(r=>r.json());
-      var decisions = await fetch(API+'/store/ai:decision').then(r=>r.json());
-      var workers = []; try{workers=await fetch(API+'/store/ai:worker').then(r=>r.ok?r.json():[]);}catch(e){}
-      var sessions = []; try{sessions=await fetch(API+'/store/ai:agent_session').then(r=>r.ok?r.json():[]);}catch(e){}
-      window._sessions = sessions;
-      window._tasks = tasks;
+      var agents = window._agents || [];
+      var tasks = window._tasks || [];
+      var questions = window._questions || [];
+      var decisions = window._decisions || [];
+      var workers = window._workers || [];
+      var sessions = window._sessions || [];
 
       // Build agent → last open task map
       var agentLastTask = {};
@@ -889,7 +904,6 @@ body.dark .proj-task:hover{background:#161b22}
       document.getElementById('worker-count').textContent = wkVisibleCount;
       document.getElementById('workers-list').innerHTML = wkh || '<div style="padding:8px;color:#59636e;font-size:0.82em">No workers</div>';
 
-      window._agents = agents;
       agents.sort(function(a,b){return (a.execution_order||99)-(b.execution_order||99)});
       updateActivityBar();
 
@@ -927,71 +941,28 @@ body.dark .proj-task:hover{background:#161b22}
       document.getElementById('agent-count').textContent=agVisibleCount+'/'+agents.length;
       document.getElementById('agents').innerHTML=ah||'<div style="padding:12px;color:#59636e">'+(agOnlyActive?'No active agents':'No agents')+'</div>';
 
-      // Tasks — grouped by project
-      var openT=tasks.filter(function(t){return t.status!=='done' && t.status!=='verified'});
+      // Tasks
+      var openT=tasks.filter(function(t){return t.status!=='done'});
+      openT.sort(function(a,b){return (a.step||99)-(b.step||99)});
       document.getElementById('task-count').textContent=openT.length;
       var th='';
-      if(openT.length) {
-        // Build project groups
-        var projGroups = {};
-        var noProject = [];
-        openT.forEach(function(t){
-          var proj = t.project || t.project_id || null;
-          if(proj) { (projGroups[proj]||(projGroups[proj]=[])).push(t); }
-          else { noProject.push(t); }
-        });
-        // Sort each group: in_progress first, then by priority, then step
-        var sortT = function(a,b){
-          var sp = {in_progress:0,review:1,assigned:2,open:3,failed:4};
-          var sa = sp[a.status]||9, sb = sp[b.status]||9;
-          if(sa!==sb) return sa-sb;
-          var pp = {P0:0,P1:1,P2:2,P3:3};
-          return (pp[a.priority]||9)-(pp[b.priority]||9);
-        };
-        // Render project groups (with tasks first)
-        Object.keys(projGroups).sort().forEach(function(proj){
-          var pts = projGroups[proj].sort(sortT);
-          th+='<div style="border-bottom:2px solid #e8e8e8;padding:4px 0">';
-          th+='<div style="padding:4px 10px 2px;font-size:0.73em;font-weight:700;color:#0550ae;background:#f6f8fa;display:flex;align-items:center;gap:5px">';
-          th+='<span>📁</span><span>'+esc(proj)+'</span><span style="margin-left:auto;color:#59636e;font-weight:400">'+pts.length+' task'+(pts.length>1?'s':'')+'</span>';
-          th+='</div>';
-          pts.forEach(function(t){
-            var pc=(t.priority||'').toLowerCase();
-            var stCls = t.status==='in_progress'?'progress':(t.status==='review'?'open':'open');
-            th+='<div class="task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')" style="cursor:pointer">';
-            th+='<div class="t-name">'+bg(t.priority||'?',pc)+' '+bg(t.status||'?',stCls)+' '+esc(t.name)+'</div>';
-            th+='<div class="t-meta">';
-            if(t.agent_id)th+='<span>'+esc(agentName(t.agent_id))+'</span>';
-            if(t.step)th+='<span>step:'+t.step+'</span>';
-            th+='</div></div>';
-          });
-          th+='</div>';
-        });
-        // Ungrouped tasks
-        if(noProject.length){
-          noProject.sort(sortT);
-          th+='<div style="padding:4px 10px 2px;font-size:0.73em;font-weight:700;color:#59636e;background:#f6f8fa">Unassigned</div>';
-          noProject.forEach(function(t){
-            var pc=(t.priority||'').toLowerCase();
-            var stCls = t.status==='in_progress'?'progress':(t.status==='review'?'open':'open');
-            th+='<div class="task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')" style="cursor:pointer">';
-            th+='<div class="t-name">'+bg(t.priority||'?',pc)+' '+bg(t.status||'?',stCls)+' '+esc(t.name)+'</div>';
-            th+='<div class="t-meta">';
-            if(t.agent_id)th+='<span>'+esc(agentName(t.agent_id))+'</span>';
-            if(t.step)th+='<span>step:'+t.step+'</span>';
-            th+='</div></div>';
-          });
-        }
-      }
+      openT.forEach(function(t){
+        var pc=(t.priority||'').toLowerCase();
+        var stCls = t.status === 'open' ? 'open' : (t.status === 'done' || t.status === 'verified' ? 'done' : 'progress');
+        th+='<div class="task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')" style="cursor:pointer">';
+        th+='<div class="t-name">'+bg(t.priority||'?',pc)+' '+bg(t.status||'?',stCls)+' '+esc(t.name)+'</div>';
+        th+='<div class="t-meta">';
+        if(t.agent_id)th+='<span>'+esc(agentName(t.agent_id))+'</span>';
+        if(t.step)th+='<span>step:'+t.step+'</span>';
+        th+='</div></div>';
+      });
       document.getElementById('tasks').innerHTML=th||'<div style="padding:12px;color:#59636e">No open tasks</div>';
 
-      // Findings count
-      fetch(API+'/store/es:finding').then(function(r){return r.json()}).then(function(f){
-        document.getElementById('finding-count').textContent=f.length;
-      }).catch(function(){});
+      // Findings count — from cached data
+      var findings = window._findings || [];
+      document.getElementById('finding-count').textContent=findings.length;
 
       // Questions — split into "for me" (owner/all) and "others"
-      window._questions = questions;
       var qOpen = questions.filter(function(q){return q.status==='open'});
       var qForMe = qOpen.filter(function(q){
         return q.to_title==='owner' || q.to_title==='all' || !q.to_agents || q.to_agents.length===0;
@@ -1081,18 +1052,21 @@ body.dark .proj-task:hover{background:#161b22}
       // Render channel tabs
       renderChannelTabs();
 
-      // Map existing conversations to channels
-      var allConvs = [];
-      try { allConvs = await fetch(API+'/query/ai:conversation?status=active&_limit=50').then(function(r){return r.json()}); } catch(e){}
+      // Map existing conversations to channels — from cached data
+      var allConvs = (window._conversations || []).filter(function(c){ return c.status === 'active'; });
       allConvs.forEach(function(c) {
         if(c.agent_id && !channelConversations[c.agent_id]) channelConversations[c.agent_id] = c.id;
       });
 
       document.getElementById('ws-status').innerHTML='<span class="dot ok"></span>online';
-      try {
-        var cls=await fetch(API+'/class').then(function(r){return r.ok?r.json():[]});
-        if(cls && cls.length) document.getElementById('class-count').textContent=cls.length+' classes';
-      } catch(e2) {}
+      // Class count — fetch once, not on every load
+      if(!window._classCountLoaded) {
+        window._classCountLoaded = true;
+        try {
+          var cls=await fetch(API+'/class').then(function(r){return r.ok?r.json():[]});
+          if(cls && cls.length) document.getElementById('class-count').textContent=cls.length+' classes';
+        } catch(e2) {}
+      }
 
     }catch(e){
       console.warn('[load] error:', e.message || e);
@@ -1161,36 +1135,7 @@ body.dark .proj-task:hover{background:#161b22}
     document.getElementById('m-pane-prompt').style.display = tab === 'prompt' ? '' : 'none';
     document.getElementById('m-pane-tasks').style.display = tab === 'tasks' ? '' : 'none';
     document.getElementById('m-pane-feed').style.display = tab === 'feed' ? '' : 'none';
-    if(tab === 'feed' && window._modalAgentId) renderModalFeed(window._modalAgentId);
   };
-
-  // ─── Modal feed — filtered messages for this agent ───────
-  function renderModalFeed(agentId) {
-    var el = document.getElementById('m-feed');
-    if(!el) return;
-    var items = Object.values(feedItems);
-    var messages = items.filter(function(item) {
-      if(item.class_id !== 'ai:message') return false;
-      if(item.id === '_ws_status') return false;
-      // Include messages from/to this agent
-      return item.agent_id === agentId ||
-        (item.to_agents && item.to_agents.indexOf(agentId) >= 0) ||
-        (item.user_id === agentId);
-    });
-    messages.sort(function(a,b) {
-      var da = a.created || a.created_at || a.updated_at || '';
-      var db = b.created || b.created_at || b.updated_at || '';
-      return da.localeCompare(db);
-    });
-    if(messages.length === 0) {
-      el.innerHTML = '<div style="padding:24px 12px;color:#8b949e;text-align:center;font-size:0.85em">No messages for this agent yet.</div>';
-      return;
-    }
-    var h = '';
-    messages.forEach(function(m) { h += messageCard(m); });
-    el.innerHTML = h;
-    el.scrollTop = el.scrollHeight;
-  }
 
   // ─── Agent modal ────────────────────────────────────────
   window.showAgent=function(i){
@@ -1240,9 +1185,6 @@ body.dark .proj-task:hover{background:#161b22}
       tTaskH+='</div>';
     });
     document.getElementById('m-tasks').innerHTML = tTaskH;
-
-    // Store agent id for feed tab
-    window._modalAgentId = a.id;
 
     // Reset to prompt tab
     switchAgentTab('prompt');
@@ -1326,7 +1268,7 @@ body.dark .proj-task:hover{background:#161b22}
     var tabs = document.getElementById('ch-tabs');
     var h = '<div class="ch-tab'+(activeChannel==='general'?' active':'')+'" data-channel="general" onclick="switchChannel(\'general\')">#general</div>';
     (window._agents||[]).forEach(function(a) {
-      if(a.id === 'agent:assistant') return;
+      // v2: all agents get their own tab (no more skipping assistant)
       var isRunning = !!(window._runningAgentIds||{})[a.id];
       var shortName = a.name.toLowerCase().replace(/\s+/g,'-');
       var unread = channelUnread[a.id] || 0;
@@ -1369,6 +1311,7 @@ body.dark .proj-task:hover{background:#161b22}
   var feedEl=document.getElementById('feed');
   var MAX_FEED=200;
   var feedItems={}; // id → item data
+  window._feedItems = feedItems; // expose for external scripts
   var feedDirty=false;
   var feedRenderTimer=null;
 
@@ -1481,8 +1424,10 @@ body.dark .proj-task:hover{background:#161b22}
 
     var items = Object.values(feedItems);
 
-    // Messages only — the feed is a group chat
+    // Messages + logs — the feed is a group chat
     var messages = items.filter(function(item) {
+      // Include @log items as system messages in #general
+      if(item.class_id === 'es:log') return true;
       if(item.class_id !== 'ai:message') return false;
       // Hide system health/status messages
       if(item.role === 'system' && item.metadata && item.metadata.type === 'health') return false;
@@ -1500,6 +1445,7 @@ body.dark .proj-task:hover{background:#161b22}
     // Filter by active channel
     if(activeChannel !== 'general') {
       messages = messages.filter(function(item) {
+        if(item.class_id === 'es:log') return false; // logs only in #general
         return item.agent_id === activeChannel ||
           (item.to_agents && item.to_agents.indexOf(activeChannel) >= 0) ||
           (item.conversation_id && channelConversations[activeChannel] === item.conversation_id);
@@ -1590,6 +1536,20 @@ body.dark .proj-task:hover{background:#161b22}
 
   // Message card — chat bubble with expandable logs
   function messageCard(item) {
+    // @log items render as system-style messages
+    if (item.class_id === 'es:log') {
+      var logTime = (item.created || item.created_at || '').substring(11,19);
+      var logLevel = (item.level || 'info').toUpperCase();
+      var logColor = logLevel === 'ERROR' ? '#cf222e' : logLevel === 'WARNING' ? '#9a6700' : '#59636e';
+      var logSource = item.source || 'system';
+      var logMsg = esc(item.message || '');
+      return '<div class="msg system-msg" id="'+esc(item.id)+'" style="border-left:3px solid '+logColor+'">'
+        + '<div class="msg-hdr"><span class="avatar system">L</span>'
+        + '<span class="msg-name" style="color:'+logColor+'">'+esc(logSource)+' ['+logLevel+']</span>'
+        + '<span class="msg-time">'+logTime+'</span></div>'
+        + '<div class="msg-body"><p>'+logMsg+'</p></div></div>';
+    }
+
     var role = item.role || '?';
     var status = item.status || '';
     var isUser = role === 'user';
@@ -1759,8 +1719,12 @@ body.dark .proj-task:hover{background:#161b22}
   // ─── Activity Bar ─────────────────────────────────────────
   // Tracks what each agent is doing right now
   var agentActivity = {}; // agent_id → { status, task, since }
+  window._agentActivity = agentActivity; // expose for external scripts
 
   function updateActivityBar() {
+    // Delegate to the enhanced refreshActivityBar which unifies all status sources
+    if (typeof refreshActivityBar === 'function') { refreshActivityBar(); return; }
+    // Fallback (before refreshActivityBar is defined)
     var agents = window._agents || [];
     var bar = document.getElementById('activity-bar');
     if (!bar || !agents.length) return;
@@ -1769,15 +1733,8 @@ body.dark .proj-task:hover{background:#161b22}
       var act = agentActivity[a.id] || {};
       var isWorking = act.status === 'streaming' || act.status === 'processing';
       var cls = isWorking ? 'working' : 'idle';
-      var task = '';
-      if (isWorking && act.task) {
-        task = act.task;
-      } else if (isWorking) {
-        task = 'thinking...';
-      } else {
-        task = 'idle';
-      }
-      h += '<div class="ab-agent ' + cls + '">';
+      var task = isWorking ? (act.task || 'thinking...') : 'idle';
+      h += '<div class="ab-agent ' + cls + '" style="cursor:pointer" onclick="switchChannel(\'' + a.id + '\')">';
       h += '<span class="ab-dot"></span>';
       h += '<strong>' + esc(a.name) + '</strong>';
       h += '<span class="ab-task">' + esc(task) + '</span>';
@@ -1832,61 +1789,68 @@ body.dark .proj-task:hover{background:#161b22}
   }, 30000);
 
   // ─── Data Panel ──────────────────────────────────────────
+  var activeDataTab = 'tasks';
   window.switchDataTab = function(tab) {
+    activeDataTab = tab;
     document.querySelectorAll('.dp-tab').forEach(function(t){t.classList.remove('active')});
     document.querySelectorAll('.dp-panel').forEach(function(p){p.classList.remove('active');p.style.display='none'});
     var tabEl = document.querySelector('.dp-tab[data-tab="'+tab+'"]');
     var panelEl = document.getElementById('dp-'+tab);
-    if(tabEl) tabEl.classList.add('active');
+    if(tabEl) { tabEl.classList.add('active'); tabEl.classList.remove('has-activity'); }
     if(panelEl) { panelEl.classList.add('active'); panelEl.style.display='flex'; }
     if(tab === 'browse') browseLoad();
     if(tab === 'findings') loadFindings();
     if(tab === 'tasks') loadTasks();
     if(tab === 'usage') loadUsage();
-    if(tab === 'projects') loadProjects();
   };
 
-  // Live task loading for the Tasks tab
-  window.loadTasks = function() {
-    fetch(API+'/store/ai:task').then(function(r){return r.json()}).then(function(items){
-      var openT = items.filter(function(t){return t.status !== 'done' && t.status !== 'verified'});
-      var doneT = items.filter(function(t){return t.status === 'done' || t.status === 'verified'});
-      document.getElementById('task-count').textContent = openT.length;
-      var el = document.getElementById('tasks');
+  // Signal new activity on a data panel tab (pulse dot) when not currently active
+  function signalDataTabActivity(tab) {
+    if(activeDataTab === tab) return;
+    var tabEl = document.querySelector('.dp-tab[data-tab="'+tab+'"]');
+    if(tabEl) tabEl.classList.add('has-activity');
+  }
 
-      var h = '';
-      // Open/in-progress tasks
-      openT.sort(function(a,b){return (a.step||99)-(b.step||99)});
-      openT.forEach(function(t){
-        var pc=(t.priority||'').toLowerCase();
-        var stCls = t.status==='open'?'open':(t.status==='in_progress'?'progress':'open');
+  // Task rendering for the Tasks tab — reads from cached window._tasks
+  window.loadTasks = function() {
+    var items = window._tasks || [];
+    var openT = items.filter(function(t){return t.status !== 'done' && t.status !== 'verified'});
+    var doneT = items.filter(function(t){return t.status === 'done' || t.status === 'verified'});
+    document.getElementById('task-count').textContent = openT.length;
+    var el = document.getElementById('tasks');
+
+    var h = '';
+    // Open/in-progress tasks
+    openT.sort(function(a,b){return (a.step||99)-(b.step||99)});
+    openT.forEach(function(t){
+      var pc=(t.priority||'').toLowerCase();
+      var stCls = t.status==='open'?'open':(t.status==='in_progress'?'progress':'open');
+      h+='<div class="task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')" style="cursor:pointer">';
+      h+='<div class="t-name">'+bg(t.priority||'?',pc)+' '+bg(t.status||'?',stCls)+' '+esc(t.name)+'</div>';
+      h+='<div class="t-meta">';
+      if(t.agent_id)h+='<span>'+esc(agentName(t.agent_id))+'</span>';
+      if(t.step)h+='<span>step:'+t.step+'</span>';
+      h+='</div></div>';
+    });
+
+    if(!openT.length) h += '<div style="padding:8px 10px;color:#667781;font-size:0.82em">No open tasks</div>';
+
+    // Completed tasks section
+    if(doneT.length) {
+      h += '<div style="border-top:1px solid #e8e8e8;padding:6px 10px;font-size:0.75em;font-weight:600;color:#1a7f37;background:#f0fff4">Completed ('+doneT.length+')</div>';
+      h += '<div id="done-tasks" style="opacity:0.7">';
+      doneT.forEach(function(t){
         h+='<div class="task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')" style="cursor:pointer">';
-        h+='<div class="t-name">'+bg(t.priority||'?',pc)+' '+bg(t.status||'?',stCls)+' '+esc(t.name)+'</div>';
+        h+='<div class="t-name">'+bg('done','done')+' '+esc(t.name)+'</div>';
         h+='<div class="t-meta">';
         if(t.agent_id)h+='<span>'+esc(agentName(t.agent_id))+'</span>';
-        if(t.step)h+='<span>step:'+t.step+'</span>';
+        if(t.completed_at)h+='<span>'+t.completed_at.substring(11,19)+'</span>';
         h+='</div></div>';
       });
+      h += '</div>';
+    }
 
-      if(!openT.length) h += '<div style="padding:8px 10px;color:#667781;font-size:0.82em">No open tasks</div>';
-
-      // Completed tasks section
-      if(doneT.length) {
-        h += '<div style="border-top:1px solid #e8e8e8;padding:6px 10px;font-size:0.75em;font-weight:600;color:#1a7f37;background:#f0fff4">Completed ('+doneT.length+')</div>';
-        h += '<div id="done-tasks" style="opacity:0.7">';
-        doneT.forEach(function(t){
-          h+='<div class="task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')" style="cursor:pointer">';
-          h+='<div class="t-name">'+bg('done','done')+' '+esc(t.name)+'</div>';
-          h+='<div class="t-meta">';
-          if(t.agent_id)h+='<span>'+esc(agentName(t.agent_id))+'</span>';
-          if(t.completed_at)h+='<span>'+t.completed_at.substring(11,19)+'</span>';
-          h+='</div></div>';
-        });
-        h += '</div>';
-      }
-
-      el.innerHTML=h;
-    }).catch(function(){});
+    el.innerHTML=h;
   };
 
   // ─── Usage ───────────────────────────────────────────────
@@ -1900,7 +1864,9 @@ body.dark .proj-task:hover{background:#161b22}
   }
 
   window.loadUsage = function() {
-    fetch(API + '/store/ai:agent').then(function(r) { return r.json(); }).then(function(agents) {
+    // Use cached agents data
+    var agents = (window._agents || []).slice();
+    (function(agents) {
       var h = '';
       // Sort by total runs desc
       agents.sort(function(a, b) {
@@ -1931,153 +1897,59 @@ body.dark .proj-task:hover{background:#161b22}
       });
       if (!agents.length) h = '<div style="padding:20px;text-align:center;color:#667781;font-size:0.85em">No agents found</div>';
       document.getElementById('usage-list').innerHTML = h;
-    }).catch(function() {});
-  };
-
-  // ─── Projects ─────────────────────────────────────────────
-  window.loadProjects = function() {
-    Promise.all([
-      fetch(API+'/store/@project').then(function(r){return r.json()}),
-      fetch(API+'/store/ai:task').then(function(r){return r.json()})
-    ]).then(function(results) {
-      var projects = results[0];
-      var allTasks = results[1];
-      projects = projects.filter(function(p){ return p.status !== 'disabled'; });
-      // Sort: projects with open tasks first, then alphabetical
-      projects.sort(function(a,b){
-        var aT = allTasks.filter(function(t){ return (t.project===a.id||t.project===a.name) && t.status!=='done' && t.status!=='verified'; }).length;
-        var bT = allTasks.filter(function(t){ return (t.project===b.id||t.project===b.name) && t.status!=='done' && t.status!=='verified'; }).length;
-        if(bT !== aT) return bT - aT;
-        return (a.name||'').localeCompare(b.name||'');
-      });
-      document.getElementById('project-count').textContent = projects.length;
-
-      var h = '';
-      var typeColor = {api:'#0550ae',service:'#1a7f37',web:'#9a6700',application:'#5a3e9b',library:'#59636e',devops:'#cf222e',frontend:'#0069d9',tool:'#59636e'};
-      var langColor = {php:'#4F5D95',javascript:'#f0c410',typescript:'#3178c6',python:'#3572A5',bash:'#89e051',mixed:'#d1d9e0'};
-      var statusOrder = ['in_progress','review','assigned','open','failed'];
-
-      projects.forEach(function(p) {
-        var pTasks = allTasks.filter(function(t){
-          return t.project === p.id || t.project === p.name || t.project_id === p.id;
-        });
-        var openT = pTasks.filter(function(t){ return t.status !== 'done' && t.status !== 'verified'; });
-        var doneT = pTasks.filter(function(t){ return t.status === 'done' || t.status === 'verified'; });
-        var inProgressT = openT.filter(function(t){ return t.status === 'in_progress'; });
-        var reviewT = openT.filter(function(t){ return t.status === 'review'; });
-        var tc = typeColor[p.type] || '#59636e';
-        var lc = langColor[p.language] || '#c9d1d9';
-
-        h += '<div class="proj-card">';
-
-        // Card header
-        h += '<div class="proj-card-hdr">';
-        h += '<div style="width:9px;height:9px;border-radius:50%;background:'+lc+';flex-shrink:0" title="'+esc(p.language||'')+'"></div>';
-        h += '<span class="proj-name">'+esc(p.name||p.id)+'</span>';
-        h += '<span class="proj-type" style="background:'+tc+'">'+esc(p.type||'app')+'</span>';
-        if(p.language) h += '<span style="font-size:0.67em;color:#9ea7b0;flex-shrink:0">'+esc(p.language)+'</span>';
-        // Task count badges
-        if(inProgressT.length) h += '<span style="font-size:0.7em;background:#fff8c5;color:#9a6700;padding:1px 6px;border-radius:10px;font-weight:600">'+inProgressT.length+' active</span>';
-        if(reviewT.length) h += '<span style="font-size:0.7em;background:#ddf4ff;color:#0550ae;padding:1px 6px;border-radius:10px;font-weight:600">'+reviewT.length+' review</span>';
-        if(openT.length && !inProgressT.length && !reviewT.length) h += '<span style="font-size:0.7em;background:#f0f2f5;color:#59636e;padding:1px 6px;border-radius:10px;font-weight:600">'+openT.length+' open</span>';
-        if(doneT.length && !openT.length) h += '<span style="font-size:0.7em;background:#dafbe1;color:#1a7f37;padding:1px 6px;border-radius:10px;font-weight:600">✓ '+doneT.length+'</span>';
-        h += '</div>';
-
-        // Card body
-        h += '<div class="proj-card-body">';
-        if(p.description) h += '<div class="proj-desc">'+esc(p.description)+'</div>';
-        if(p.path) h += '<div class="proj-path">'+esc(p.path)+'</div>';
-
-        // Tags
-        if(p.tags && p.tags.length) {
-          h += '<div class="proj-tags">';
-          p.tags.forEach(function(t){ h += '<span class="proj-tag">'+esc(t)+'</span>'; });
-          h += '</div>';
-        }
-
-        // Tasks grouped by status
-        if(openT.length) {
-          // Group by status: in_progress → review → assigned/open → failed
-          var groups = {};
-          openT.forEach(function(t){ (groups[t.status]||(groups[t.status]=[])).push(t); });
-          statusOrder.forEach(function(st){
-            if(!groups[st] || !groups[st].length) return;
-            var label = {in_progress:'Active',review:'In Review',assigned:'Assigned',open:'Open',failed:'Failed'}[st] || st;
-            h += '<div class="proj-section-hdr">'+label+' ('+groups[st].length+')</div>';
-            groups[st].forEach(function(t){
-              var pc=(t.priority||'').toLowerCase();
-              var stCls=st==='in_progress'?'progress':st==='review'?'open':'open';
-              h += '<div class="proj-task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')">';
-              h += '<span>'+bg(t.priority||'?',pc)+'</span>';
-              h += '<span class="pt-name">'+esc(t.name)+'</span>';
-              if(t.agent_id) h += '<span class="pt-agent">'+esc(agentName(t.agent_id))+'</span>';
-              h += '</div>';
-            });
-          });
-        } else if(!pTasks.length) {
-          h += '<div style="font-size:0.72em;color:#c9d1d9;padding:2px 0;font-style:italic">No tasks</div>';
-        } else {
-          h += '<div style="font-size:0.72em;color:#1a7f37;padding:2px 0">All '+doneT.length+' tasks done ✓</div>';
-        }
-
-        h += '</div></div>';
-      });
-
-      if(!projects.length) h = '<div style="padding:20px;text-align:center;color:#667781;font-size:0.85em">No projects found</div>';
-      document.getElementById('projects-list').innerHTML = h;
-    }).catch(function(e){ console.error('loadProjects', e); });
+    })(agents);
   };
 
   // ─── Findings ────────────────────────────────────────────
+  // Findings rendering — reads from cached window._findings
   window.loadFindings = function() {
-    fetch(API+'/store/es:finding').then(function(r){return r.json()}).then(function(items){
-      document.getElementById('finding-count').textContent = items.length;
-      var el = document.getElementById('findings-list');
-      if(!items.length) { el.innerHTML='<div style="padding:20px;text-align:center;color:#667781;font-size:0.85em">No findings yet</div>'; return; }
-      items.sort(function(a,b){
-        var sev={critical:0,high:1,medium:2,low:3};
-        return (sev[a.severity]||9)-(sev[b.severity]||9);
-      });
-      var h='';
-      items.forEach(function(f, idx){
-        var loc = '';
-        if(f.location) {
-          var locs = Array.isArray(f.location) ? f.location : [f.location];
-          loc = locs.map(function(l){return '<code>'+esc(l)+'</code>'}).join(', ');
-        }
-        h+='<div class="finding-item" onclick="toggleFinding('+idx+')">';
-        h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
-        h+='<span class="f-sev '+(f.severity||'medium')+'">'+(f.severity||'?')+'</span>';
-        if(f.category) h+='<span style="font-size:0.7em;color:#667781;background:#f0f2f5;padding:1px 5px;border-radius:3px">'+esc(f.category)+'</span>';
-        h+='<span style="font-size:0.7em;color:#667781">'+(f.status||'open')+'</span>';
-        h+='</div>';
-        h+='<div class="f-title" style="font-weight:600;font-size:0.88em;margin-top:3px">'+esc(f.name||'unnamed')+'</div>';
+    var items = (window._findings || []).slice();
+    document.getElementById('finding-count').textContent = items.length;
+    var el = document.getElementById('findings-list');
+    if(!items.length) { el.innerHTML='<div style="padding:20px;text-align:center;color:#667781;font-size:0.85em">No findings yet</div>'; return; }
+    items.sort(function(a,b){
+      var sev={critical:0,high:1,medium:2,low:3};
+      return (sev[a.severity]||9)-(sev[b.severity]||9);
+    });
+    var h='';
+    items.forEach(function(f, idx){
+      var loc = '';
+      if(f.location) {
+        var locs = Array.isArray(f.location) ? f.location : [f.location];
+        loc = locs.map(function(l){return '<code>'+esc(l)+'</code>'}).join(', ');
+      }
+      h+='<div class="finding-item" onclick="toggleFinding('+idx+')">';
+      h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
+      h+='<span class="f-sev '+(f.severity||'medium')+'">'+(f.severity||'?')+'</span>';
+      if(f.category) h+='<span style="font-size:0.7em;color:#667781;background:#f0f2f5;padding:1px 5px;border-radius:3px">'+esc(f.category)+'</span>';
+      h+='<span style="font-size:0.7em;color:#667781">'+(f.status||'open')+'</span>';
+      h+='</div>';
+      h+='<div class="f-title" style="font-weight:600;font-size:0.88em;margin-top:3px">'+esc(f.name||'unnamed')+'</div>';
 
-        // Expandable detail section
-        h+='<div class="f-detail" id="finding-detail-'+idx+'" style="display:none;margin-top:6px;font-size:0.84em">';
-        if(f.description && f.description !== f.name) {
-          h+='<div style="margin-bottom:6px;color:#111b21;line-height:1.5">'+esc(f.description)+'</div>';
-        }
-        if(loc) {
-          h+='<div style="margin-bottom:4px"><span style="font-weight:600;color:#667781;font-size:0.9em">Location:</span> '+loc+'</div>';
-        }
-        if(f.fix) {
-          h+='<div style="background:#dafbe1;padding:6px 8px;border-radius:4px;margin-top:4px;font-size:0.92em">';
-          h+='<span style="font-weight:600;color:#1a7f37">Fix:</span> '+esc(f.fix)+'</div>';
-        }
-        if(f.gitlab_issue) {
-          h+='<div style="margin-top:4px"><a href="'+esc(f.gitlab_issue)+'" target="_blank" style="color:#027eb5;font-size:0.85em;text-decoration:none">GitLab Issue #'+(f.gitlab_iid||'')+'  ↗</a></div>';
-        }
-        if(f.reported_by) {
-          h+='<div style="margin-top:4px;font-size:0.82em;color:#667781">Reported by: '+esc(f.reported_by)+'</div>';
-        }
-        h+='<div style="margin-top:4px;font-size:0.78em;color:#8b949e;font-family:monospace">'+esc(f.id)+'</div>';
-        h+='</div>';
+      // Expandable detail section
+      h+='<div class="f-detail" id="finding-detail-'+idx+'" style="display:none;margin-top:6px;font-size:0.84em">';
+      if(f.description && f.description !== f.name) {
+        h+='<div style="margin-bottom:6px;color:#111b21;line-height:1.5">'+esc(f.description)+'</div>';
+      }
+      if(loc) {
+        h+='<div style="margin-bottom:4px"><span style="font-weight:600;color:#667781;font-size:0.9em">Location:</span> '+loc+'</div>';
+      }
+      if(f.fix) {
+        h+='<div style="background:#dafbe1;padding:6px 8px;border-radius:4px;margin-top:4px;font-size:0.92em">';
+        h+='<span style="font-weight:600;color:#1a7f37">Fix:</span> '+esc(f.fix)+'</div>';
+      }
+      if(f.gitlab_issue) {
+        h+='<div style="margin-top:4px"><a href="'+esc(f.gitlab_issue)+'" target="_blank" style="color:#027eb5;font-size:0.85em;text-decoration:none">GitLab Issue #'+(f.gitlab_iid||'')+'  ↗</a></div>';
+      }
+      if(f.reported_by) {
+        h+='<div style="margin-top:4px;font-size:0.82em;color:#667781">Reported by: '+esc(f.reported_by)+'</div>';
+      }
+      h+='<div style="margin-top:4px;font-size:0.78em;color:#8b949e;font-family:monospace">'+esc(f.id)+'</div>';
+      h+='</div>';
 
-        h+='</div>';
-      });
-      el.innerHTML=h;
-    }).catch(function(){});
+      h+='</div>';
+    });
+    el.innerHTML=h;
   };
 
   window.toggleFinding = function(idx) {
@@ -2137,17 +2009,21 @@ body.dark .proj-task:hover{background:#161b22}
     console.log('[WS] connected:', msg);
 
     // Subscribe with fetch — get last N objects on connect
+    // All data classes use fetch so initial data arrives via WS (no REST polling needed)
     var feedClasses = {
       'ai:message': 100,
-      'ai:task': 20,
-      'ai:question': 15,
-      'ai:decision': 10,
-      'ai:worker': 5,
-      'ai:conversation': 10,
+      'ai:task': 50,
+      'ai:question': 30,
+      'ai:decision': 20,
+      'ai:worker': 10,
+      'ai:conversation': 20,
+      'ai:agent': 50,
+      'ai:agent_session': 30,
       'ai:round': 5,
-      'es:finding': 10,
+      'es:finding': 30,
+      'es:log': 20,
     };
-    var notifyOnly = ['ai:agent','ai:preference','ai:agent_session','ai:prompt'];
+    var notifyOnly = ['ai:preference','ai:prompt'];
 
     // Subscribe with fetch for feed classes
     Object.keys(feedClasses).forEach(function(c){
@@ -2165,6 +2041,17 @@ body.dark .proj-task:hover{background:#161b22}
   var rt=null;
   function sched(){if(rt)clearTimeout(rt);rt=setTimeout(function(){rt=null;load()},500)}
 
+  // Upsert an item into a cached array (window._tasks, etc.)
+  function cacheUpsert(arr, item) {
+    if (!arr || !item || !item.id) return arr || [];
+    var idx = -1;
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i].id === item.id) { idx = i; break; }
+    }
+    if (idx >= 0) { arr[idx] = item; } else { arr.push(item); }
+    return arr;
+  }
+
   esws.on('change',function(item){
     if(!item||!item.id) return;
     // Only put messages into the chat feed
@@ -2173,20 +2060,41 @@ body.dark .proj-task:hover{background:#161b22}
     if(item.class_id!=='ai:message') { feedItems[item.id] = item; }
     // Track agent activity for the activity bar
     trackAgentActivity(item);
-    // Auto-refresh Tasks and Findings tabs on relevant changes
-    if(item.class_id==='ai:task') loadTasks();
-    if(item.class_id==='es:finding') loadFindings();
-    // Worker changes → update running indicators immediately
+
+    // Update cached arrays from WS change events — no REST needed
+    if(item.class_id==='ai:task') {
+      window._tasks = cacheUpsert(window._tasks || [], item);
+      loadTasks();
+      signalDataTabActivity('tasks');
+    }
+    if(item.class_id==='es:finding') {
+      window._findings = cacheUpsert(window._findings || [], item);
+      loadFindings();
+      signalDataTabActivity('findings');
+    }
+    if(item.class_id==='ai:agent') {
+      window._agents = cacheUpsert(window._agents || [], item);
+    }
+    if(item.class_id==='ai:question') {
+      window._questions = cacheUpsert(window._questions || [], item);
+      signalDataTabActivity('questions');
+    }
+    if(item.class_id==='ai:decision') {
+      window._decisions = cacheUpsert(window._decisions || [], item);
+    }
+    if(item.class_id==='ai:agent_session') {
+      window._sessions = cacheUpsert(window._sessions || [], item);
+    }
+    if(item.class_id==='ai:conversation') {
+      window._conversations = cacheUpsert(window._conversations || [], item);
+    }
+    // Worker changes → update cached array + running indicators immediately
     if(item.class_id==='ai:worker') {
-      window._runningAgentIds = window._runningAgentIds || {};
+      window._workers = cacheUpsert(window._workers || [], item);
       if(item.current_agent && item.status==='running') {
+        window._runningAgentIds = window._runningAgentIds || {};
         window._runningAgentIds[item.current_agent] = true;
-      } else if(item.current_agent && item.status !== 'running') {
-        // Agent stopped — clear so status dot goes idle immediately
-        delete window._runningAgentIds[item.current_agent];
       }
-      // Re-render channel tabs immediately (don't wait for sched/load cycle)
-      renderChannelTabs();
     }
     // Track unread per agent channel
     if(item.class_id==='ai:message' && item.agent_id && item.agent_id !== 'agent:assistant') {
@@ -2204,9 +2112,24 @@ body.dark .proj-task:hover{background:#161b22}
     }
     sched();
   });
+  // Remove an item from a cached array by id
+  function cacheRemove(arr, id) {
+    if (!arr || !id) return arr || [];
+    return arr.filter(function(x){ return x.id !== id; });
+  }
+
   esws.on('delete',function(item){
     if(!item||!item.id) return;
     feedRemove(item.id);
+    // Remove from cached arrays
+    if(item.class_id==='ai:task') { window._tasks = cacheRemove(window._tasks, item.id); loadTasks(); }
+    if(item.class_id==='es:finding') { window._findings = cacheRemove(window._findings, item.id); loadFindings(); }
+    if(item.class_id==='ai:agent') { window._agents = cacheRemove(window._agents, item.id); }
+    if(item.class_id==='ai:question') { window._questions = cacheRemove(window._questions, item.id); }
+    if(item.class_id==='ai:decision') { window._decisions = cacheRemove(window._decisions, item.id); }
+    if(item.class_id==='ai:worker') { window._workers = cacheRemove(window._workers, item.id); }
+    if(item.class_id==='ai:agent_session') { window._sessions = cacheRemove(window._sessions, item.id); }
+    if(item.class_id==='ai:conversation') { window._conversations = cacheRemove(window._conversations, item.id); }
     feedDirty = true;
     renderFeed();
     sched();
@@ -2237,23 +2160,45 @@ body.dark .proj-task:hover{background:#161b22}
     var envLabel = document.getElementById('aic-env-label');
     if (envLabel) envLabel.textContent = activeEnv.name;
 
-    load();
-    setInterval(function(){if(!esws.ws||esws.ws.readyState!==1)load()},15000);
+    load(); // Initial render from empty caches; WS initial events will trigger sched() → load()
+
+    // Fallback: when WS is disconnected, fetch data via REST to keep UI alive
+    setInterval(function(){
+      if(!esws.ws||esws.ws.readyState!==1) {
+        // WS down — fetch critical data via REST as fallback
+        Promise.all([
+          fetch(API+'/store/ai:agent').then(function(r){return r.json()}).catch(function(){return []}),
+          fetch(API+'/store/ai:task').then(function(r){return r.json()}).catch(function(){return []}),
+          fetch(API+'/store/ai:worker').then(function(r){return r.ok?r.json():[]}).catch(function(){return []}),
+        ]).then(function(results){
+          window._agents = results[0];
+          window._tasks = results[1];
+          window._workers = results[2];
+          load();
+        });
+      }
+    },15000);
   }
 
   // ─── Startup: load environments, check auth, then start ──
   (async function() {
     await loadEnvironments();
+
+    // Restore saved machine name
+    var savedMachine = localStorage.getItem('aic_machine_name');
+    var machineInput = document.getElementById('aic-machine');
+    if (savedMachine && machineInput) machineInput.value = savedMachine;
+
     var authed = await checkAuth();
     if (!authed) {
       showAicLogin();
       return;
     }
     hideAicLogin();
+    var esLabel = document.getElementById('aic-es-url');
+    if (esLabel) esLabel.textContent = API.replace(/^https?:\/\//, '');
     startApp();
-    loadTasks();
-    loadFindings();
-    setInterval(function(){ loadTasks(); loadFindings(); }, 10000);
+    // Tasks and findings are loaded via WS initial events — no REST polling needed
   })();
 
   // ─── Voice Interface ─────────────────────────────────────
@@ -2419,55 +2364,88 @@ function refreshTerm() {
 
 function escH(s) { return s ? String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''; }
 
-// ─── Live activity bar from store data ───────────────────
-// Check for streaming/processing messages to know who's working
-setInterval(function() {
-  // Use store data — check for messages with status=streaming or status=processing
-  fetch(API + '/query/ai:message?status=streaming&_limit=10')
-    .then(function(r) { return r.json(); })
-    .then(function(streamingMsgs) {
-      var activeAgents = {};
-      streamingMsgs.forEach(function(m) {
-        if (m.agent_id) activeAgents[m.agent_id] = { status: 'running', since: m.created || m.updated_at };
-      });
+// ─── Live activity bar from cached data ───────────────────
+// Check window._feedItems for streaming/processing messages to know who's working
+// No REST polling — WS change events keep _feedItems up to date
+function refreshActivityBar() {
+  // Scan cached feedItems for streaming messages
+  var activeAgents = {};
+  var items = window._feedItems || {};
+  Object.keys(items).forEach(function(id) {
+    var m = items[id];
+    if (m && m.class_id === 'ai:message' && (m.status === 'streaming' || m.status === 'processing') && m.agent_id) {
+      var since = m.updated_at || m.created || null;
+      activeAgents[m.agent_id] = { status: 'running', since: since };
+    }
+  });
+  // Also include agents known running from workers
+  var runIds = window._runningAgentIds || {};
+  Object.keys(runIds).forEach(function(aid) {
+    if (!activeAgents[aid]) activeAgents[aid] = { status: 'running', since: null };
+  });
 
-      // Sync streaming agents into _runningAgentIds so channel tabs + sidebar dots stay accurate.
-      // Only ADD here — removal is handled by WS worker events and the full load() cycle.
-      // (Removing here would clear agents that are running but not currently streaming.)
-      window._runningAgentIds = window._runningAgentIds || {};
-      var hadChanges = false;
-      Object.keys(activeAgents).forEach(function(aid) {
-        if (!window._runningAgentIds[aid]) { window._runningAgentIds[aid] = true; hadChanges = true; }
-      });
-      if (hadChanges) renderChannelTabs();
+  // Update activity bar
+  var agents = window._agents || [];
+  var bar = document.getElementById('activity-bar');
+  if (!bar || !agents.length) return;
+  var act_data = window._agentActivity || {};
+  var agentLastTask = window._agentLastTask || {};
+  var now = Date.now();
+  var h = '';
+  agents.forEach(function(a) {
+    var act = activeAgents[a.id] || act_data[a.id] || {};
+    var isWorking = act.status === 'running' || act.status === 'streaming' || act.status === 'processing';
+    var cls = isWorking ? 'working' : 'idle';
 
-      // Update activity bar
-      var agents = window._agents || [];
-      var bar = document.getElementById('activity-bar');
-      if (!bar || !agents.length) return;
-      var h = '';
-      agents.forEach(function(a) {
-        var act = activeAgents[a.id] || agentActivity[a.id] || {};
-        var isWorking = act.status === 'running' || act.status === 'streaming' || act.status === 'processing';
-        var cls = isWorking ? 'working' : 'idle';
-        var task = isWorking ? 'working...' : 'idle';
-        h += '<div class="ab-agent ' + cls + '" style="cursor:pointer" title="' + a.id + '">';
-        h += '<span class="ab-dot"></span>';
-        h += '<strong>' + escH(a.name) + '</strong>';
-        h += '<span class="ab-task">' + task + '</span>';
-        h += '</div>';
-      });
-      bar.innerHTML = h;
+    // Task label: prefer current in_progress task name, else latest assigned task
+    var taskLabel = '';
+    if (isWorking) {
+      var curTask = agentLastTask[a.id];
+      if (curTask && curTask.name) {
+        taskLabel = curTask.name.length > 28 ? curTask.name.substring(0, 27) + '…' : curTask.name;
+      } else if (act.task) {
+        taskLabel = act.task.length > 28 ? act.task.substring(0, 27) + '…' : act.task;
+      } else {
+        taskLabel = 'working…';
+      }
+      // Append elapsed time
+      if (act.since) {
+        var sinceMs = now - new Date(act.since).getTime();
+        if (!isNaN(sinceMs) && sinceMs > 0) {
+          var mins = Math.floor(sinceMs / 60000);
+          var secs = Math.floor((sinceMs % 60000) / 1000);
+          taskLabel += ' (' + (mins > 0 ? mins + 'm' : '') + secs + 's)';
+        }
+      }
+    } else {
+      // Show last run time if available
+      var lastRunAgo = '';
+      if (a.last_run) {
+        var lrMs = now - new Date(a.last_run).getTime();
+        if (!isNaN(lrMs) && lrMs > 0) {
+          var lrMins = Math.floor(lrMs / 60000);
+          lastRunAgo = lrMins < 60 ? lrMins + 'm ago' : Math.floor(lrMins/60) + 'h ago';
+        }
+      }
+      taskLabel = lastRunAgo ? 'idle · ' + lastRunAgo : 'idle';
+    }
 
-      // Update Start/Stop buttons + connection status
-      var anyRunning = Object.keys(activeAgents).length > 0;
-      var startBtn = document.getElementById('btn-start');
-      var stopBtn = document.getElementById('btn-stop');
-      if (startBtn) startBtn.style.display = anyRunning ? 'none' : 'inline-block';
-      if (stopBtn) stopBtn.style.display = anyRunning ? 'inline-block' : 'none';
-    })
-    .catch(function() {});
-}, 3000);
+    h += '<div class="ab-agent ' + cls + '" style="cursor:pointer" title="' + escH(a.id) + '" onclick="switchChannel(\'' + a.id + '\')">';
+    h += '<span class="ab-dot"></span>';
+    h += '<strong>' + escH(a.name) + '</strong>';
+    h += '<span class="ab-task">' + escH(taskLabel) + '</span>';
+    h += '</div>';
+  });
+  bar.innerHTML = h;
+
+  // Update Start/Stop buttons + connection status
+  var anyRunning = Object.keys(activeAgents).length > 0;
+  var startBtn = document.getElementById('btn-start');
+  var stopBtn = document.getElementById('btn-stop');
+  if (startBtn) startBtn.style.display = anyRunning ? 'none' : 'inline-block';
+  if (stopBtn) stopBtn.style.display = anyRunning ? 'inline-block' : 'none';
+}
+setInterval(refreshActivityBar, 3000);
 
 // Dark mode
 function toggleDarkMode() {

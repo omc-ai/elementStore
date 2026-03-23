@@ -24,10 +24,28 @@ const SCRIPT_DIR = __dirname;
 const RECONNECT_DELAY = 5000;
 const MAX_RECONNECT_DELAY = 30000;
 
+// ─── Token loading ──────────────────────────────────────
+const fs = require('fs');
+const TOKEN_FILE = process.env.ES_TOKEN_FILE || require('os').homedir() + '/.es/token.json';
+let ES_TOKEN = process.env.ES_TOKEN || '';
+
+function loadCachedToken() {
+  if (ES_TOKEN) return;
+  try {
+    const data = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf-8'));
+    if (data.accessToken) { ES_TOKEN = data.accessToken; log('Loaded token from ' + TOKEN_FILE); }
+  } catch { /* no cached token */ }
+}
+loadCachedToken();
+
 // ─── State ───────────────────────────────────────────────
 const runningAgents = new Map();   // agent_id → { pid, startedAt, msgId }
 const agentCooldowns = new Map();  // agent_id → lastCompletedAt (ms)
 const agentConfigs = new Map();    // agent_id → { cooldown, tools, ... }
+// F3 — Stuck detection: tracks output hashes to detect agent loops
+const agentStuckState = new Map(); // agent_id → { lastHash, loopCount, lastProgressAt }
+const STUCK_LOOP_THRESHOLD = 3;    // N identical outputs → stuck
+const STUCK_TIMEOUT_MS = 20 * 60 * 1000; // 20 min with no progress → stuck
 let reconnectDelay = RECONNECT_DELAY;
 let ws = null;
 
@@ -37,13 +55,64 @@ function log(msg) {
   console.log(`[${ts}] ${msg}`);
 }
 
+// ─── F3: Stuck detection helpers ─────────────────────────
+const crypto = require('crypto');
+
+function hashOutput(text) {
+  // Normalize whitespace + lowercase before hashing to avoid false positives
+  const normalized = (text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  return crypto.createHash('sha1').update(normalized).digest('hex').substring(0, 12);
+}
+
+function checkStuck(agentId, outputText) {
+  const hash = hashOutput(outputText);
+  const state = agentStuckState.get(agentId) || { lastHash: null, loopCount: 0, lastProgressAt: Date.now() };
+
+  if (state.lastHash === hash) {
+    state.loopCount++;
+    log(`  🔁 F3 Stuck[${agentId}]: loop ${state.loopCount}/${STUCK_LOOP_THRESHOLD} (hash=${hash})`);
+  } else {
+    // Progress detected — reset
+    state.loopCount = 0;
+    state.lastProgressAt = Date.now();
+    state.lastHash = hash;
+  }
+  state.lastHash = hash;
+  agentStuckState.set(agentId, state);
+  return state.loopCount >= STUCK_LOOP_THRESHOLD;
+}
+
+function reportStuckAgent(agentId) {
+  const config = agentConfigs.get(agentId);
+  const agentName = config?.name || agentId;
+  log(`  🚨 F3 STUCK AGENT: ${agentName} — reporting finding + notifying coordinator`);
+
+  esPost('/store/es:finding', {
+    class_id: 'es:finding',
+    name: `Stuck agent: ${agentName}`,
+    description: `Agent ${agentId} has produced identical output ${STUCK_LOOP_THRESHOLD} consecutive runs. Possible infinite loop or blocked task. Manual intervention or task reset required.`,
+    severity: 'high',
+    category: 'stuck',
+    agent_id: agentId,
+    status: 'open'
+  });
+
+  createPendingMessage('agent:coordinator',
+    `⚠️ F3 STUCK DETECTION: Agent ${agentId} (${agentName}) appears to be in a loop — identical output for ${STUCK_LOOP_THRESHOLD} consecutive runs.\n\nPossible causes: blocked task, circular dependency, or repeating failed attempt.\n\nPlease:\n1. Review the agent's recent messages\n2. Reset or reassign their current task\n3. Check for any blocking findings\n\nQuery recent: curl -sf "${ES_URL}/query/ai:message?agent_id=${agentId}&_sort=created&_order=desc&_limit=5"`);
+
+  // Reset stuck counter after reporting
+  agentStuckState.set(agentId, { lastHash: null, loopCount: 0, lastProgressAt: Date.now() });
+}
+
 // ─── Load agent configs from store ───────────────────────
 function loadAgentConfigs() {
   const url = new URL(ES_URL + '/store/ai:agent');
   const client = url.protocol === 'https:' ? https : http;
 
   return new Promise((resolve) => {
-    client.get(url, (res) => {
+    const opts = { hostname: url.hostname, port: url.port, path: url.pathname + url.search, headers: {} };
+    if (ES_TOKEN) opts.headers['Authorization'] = 'Bearer ' + ES_TOKEN;
+    client.get(opts, (res) => {
       let data = '';
       res.on('data', (chunk) => data += chunk);
       res.on('end', () => {
@@ -77,15 +146,18 @@ function esPost(path, body) {
   const client = url.protocol === 'https:' ? https : http;
   const bodyStr = JSON.stringify(body);
 
+  const headers = {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(bodyStr)
+  };
+  if (ES_TOKEN) headers['Authorization'] = 'Bearer ' + ES_TOKEN;
+
   const req = client.request({
     hostname: url.hostname,
     port: url.port || (url.protocol === 'https:' ? 443 : 80),
     path: url.pathname,
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(bodyStr)
-    }
+    headers
   });
   req.on('error', () => {}); // fire-and-forget
   req.write(bodyStr);
@@ -140,7 +212,7 @@ function spawnAgent(agentId, msgId, force) {
   const logFile = `/tmp/aic-agent-${agentId.split(':')[1] || agentId}.log`;
 
   const child = execFile('bash', args, {
-    env: { ...process.env, ES_URL },
+    env: { ...process.env, ES_URL, ...(ES_TOKEN ? { ES_TOKEN } : {}) },
     maxBuffer: 10 * 1024 * 1024,
     timeout: 1800000 // 30 min max per agent run
   }, (error, stdout, stderr) => {
@@ -150,11 +222,23 @@ function spawnAgent(agentId, msgId, force) {
     if (error) {
       if (error.killed) {
         log(`  ✗ ${agentName} killed (timeout)`);
+        // F3: timeout counts as a stuck signal for non-assistant agents
+        if (agentId !== 'agent:assistant') {
+          const state = agentStuckState.get(agentId) || { lastHash: null, loopCount: 0, lastProgressAt: Date.now() };
+          state.loopCount++;
+          agentStuckState.set(agentId, state);
+          if (state.loopCount >= STUCK_LOOP_THRESHOLD) reportStuckAgent(agentId);
+        }
       } else {
         log(`  ✗ ${agentName} error: ${error.message}`);
       }
     } else {
       log(`  ✓ ${agentName} completed`);
+      // F3: Check for stuck loops in non-assistant agents
+      if (agentId !== 'agent:assistant' && stdout) {
+        const isStuck = checkStuck(agentId, stdout);
+        if (isStuck) reportStuckAgent(agentId);
+      }
     }
   });
 
@@ -218,6 +302,12 @@ function handleChange(item) {
     // Close any findings linked to this task
     if (item.finding_id) {
       esPut('/store/es:finding/' + encodeURIComponent(item.finding_id), { status: 'fixed' });
+    }
+
+    // F1 DAG Planning: unlock dependent tasks when a task completes
+    if (item.dag_id) {
+      log(`  🔗 F1 DAG: ${item.id} done — checking for unblocked dependents in ${item.dag_id}`);
+      unlockDagDependents(item.id, item.dag_id);
     }
   }
 
@@ -395,6 +485,57 @@ function esPut(path, body) {
   req.on('error', () => {});
   req.write(bodyStr);
   req.end();
+}
+
+// ─── F1: DAG Planning — unlock dependent tasks ───────────
+function esGet(path, callback) {
+  const url = new URL(ES_URL + path);
+  const client = url.protocol === 'https:' ? https : http;
+  client.get({ hostname: url.hostname, port: url.port || 80, path: url.pathname + url.search,
+    headers: { 'X-Disable-Ownership': 'true' } }, (res) => {
+    let data = '';
+    res.on('data', chunk => data += chunk);
+    res.on('end', () => { try { callback(JSON.parse(data)); } catch(e) { callback(null); } });
+  }).on('error', () => callback(null));
+}
+
+function unlockDagDependents(completedTaskId, dagId) {
+  // Query all tasks in this DAG that depend on completedTaskId
+  esGet(`/query/ai:task?dag_id=${encodeURIComponent(dagId)}&_limit=50`, (tasks) => {
+    if (!tasks || !Array.isArray(tasks)) return;
+
+    tasks.forEach(task => {
+      if (!task.depends_on || !Array.isArray(task.depends_on)) return;
+      if (!task.depends_on.includes(completedTaskId)) return;
+      if (task.status !== 'open' && task.status !== 'blocked') return;
+
+      // Check if ALL dependencies are now done
+      const allDone = task.depends_on.every(depId => {
+        const dep = tasks.find(t => t.id === depId);
+        return dep && (dep.status === 'done' || dep.status === 'verified');
+      });
+
+      if (allDone) {
+        log(`  🔓 F1 DAG: unlocking task ${task.id} (all deps done)`);
+        esPut(`/store/ai:task/${encodeURIComponent(task.id)}`, {
+          status: 'assigned',
+          blocked_by: []
+        });
+        // Notify the assigned agent
+        if (task.agent_id) {
+          createPendingMessage(task.agent_id,
+            `🔓 DAG task unblocked: ${task.id} — "${task.name}". All dependencies completed. Ready to start.`);
+        }
+      } else {
+        // Update remaining blockers
+        const remaining = task.depends_on.filter(depId => {
+          const dep = tasks.find(t => t.id === depId);
+          return !dep || (dep.status !== 'done' && dep.status !== 'verified');
+        });
+        esPut(`/store/ai:task/${encodeURIComponent(task.id)}`, { blocked_by: remaining });
+      }
+    });
+  });
 }
 
 function closeGitLabIssue(iid) {

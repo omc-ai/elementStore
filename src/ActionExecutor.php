@@ -68,6 +68,17 @@ class ActionExecutor
     /**
      * Execute an action definition.
      *
+     * Universal pipeline — all action types follow the same pattern:
+     *
+     *   input → input_mapping → [execute] → output_mapping → output
+     *
+     *   1. Apply action.input_mapping to params  (rename/select keys before dispatch)
+     *   2. Dispatch to the type-specific executor
+     *   3. Apply action.output_mapping to result (rename/select keys after execution)
+     *
+     * input_mapping / output_mapping format: {from_key: to_key}
+     * Keys present in the map are renamed; unmapped keys pass through unchanged.
+     *
      * @param array  $action   @action element data (type, endpoint, function, etc.)
      * @param array  $params   Runtime parameter values (e.g. ['id' => '42'])
      * @param mixed  $context  The object this action is being executed on (optional)
@@ -81,7 +92,14 @@ class ActionExecutor
     {
         $type = $action['type'] ?? 'ui';
 
-        return match ($type) {
+        // ── STEP 1: Map input params ──────────────────────────────────────────
+        $inputMapping = $action['input_mapping'] ?? [];
+        if (!empty($inputMapping)) {
+            $params = $this->applyMapping($inputMapping, $params);
+        }
+
+        // ── STEP 2: Execute ───────────────────────────────────────────────────
+        $result = match ($type) {
             'api'       => $this->executeApi($action, $params, $context),
             'cli'       => $this->executeCli($action, $params, $context),
             'function'  => $this->executeFunction($action, $params),
@@ -90,6 +108,51 @@ class ActionExecutor
             'ui'        => null, // UI-only, no-op on server
             default     => throw new \InvalidArgumentException("Unknown action type: {$type}"),
         };
+
+        // ── STEP 3: Map output ────────────────────────────────────────────────
+        $outputMapping = $action['output_mapping'] ?? [];
+        if (!empty($outputMapping) && is_array($result)) {
+            $result = $this->applyMapping($outputMapping, $result);
+        }
+
+        return $result;
+    }
+
+    // =========================================================================
+    // MAPPING HELPER
+    // =========================================================================
+
+    /**
+     * Apply a key-rename mapping to a flat associative array.
+     *
+     * Format: {from_key: to_key}
+     * - Keys listed in the map are renamed from → to.
+     * - Keys NOT in the map pass through unchanged.
+     * - If from_key === to_key the value is kept as-is (no rename needed).
+     *
+     * Used for both input_mapping (params → execution params) and
+     * output_mapping (result → returned result).
+     *
+     * @param array $mapping  {from_key: to_key}
+     * @param array $data     Input data
+     * @return array          Data with renamed keys
+     */
+    private function applyMapping(array $mapping, array $data): array
+    {
+        if (empty($mapping)) {
+            return $data;
+        }
+
+        $result = $data;
+        foreach ($mapping as $from => $to) {
+            if (array_key_exists($from, $data)) {
+                $result[$to] = $data[$from];
+                if ($from !== $to) {
+                    unset($result[$from]);
+                }
+            }
+        }
+        return $result;
     }
 
     // =========================================================================

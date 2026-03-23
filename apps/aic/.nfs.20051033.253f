@@ -22,30 +22,11 @@ PID_FILE="/tmp/aic-daemon.pid"
 LOG_FILE="/tmp/aic-daemon.log"
 DISPATCHER_LOG="/tmp/aic-dispatcher.log"
 ES_URL="${ES_URL:-http://arc3d.master.local/elementStore}"
-ES_TOKEN="${ES_TOKEN:-}"
-ES_TOKEN_FILE="${ES_TOKEN_FILE:-${HOME}/.es/token.json}"
 MAX_RESTARTS=100
 RESTART_DELAY=10
 
-# Auto-load cached token
-if [ -z "$ES_TOKEN" ] && [ -f "$ES_TOKEN_FILE" ]; then
-  ES_TOKEN=$(python3 -c "import json; print(json.load(open('$ES_TOKEN_FILE')).get('accessToken',''))" 2>/dev/null || true)
-fi
-
 is_running() {
   [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null
-}
-
-# Log lifecycle events to @log in elementStore
-_DAEMON_AUTH=()
-[ -n "$ES_TOKEN" ] && _DAEMON_AUTH=(-H "Authorization: Bearer $ES_TOKEN")
-es_log() {
-  local level="${1:-info}"
-  local message="$2"
-  local source="${3:-aic-daemon}"
-  curl -sf -X POST "$ES_URL/store/es:log" \
-    -H 'Content-Type: application/json' "${_DAEMON_AUTH[@]}" \
-    -d "{\"class_id\":\"es:log\",\"level\":\"$level\",\"message\":\"$message\",\"source\":\"$source\"}" > /dev/null 2>&1
 }
 
 do_start() {
@@ -121,7 +102,7 @@ for aid, info in d.get('running_agents',{}).items():
     # Check from store
     echo ""
     echo "Workers in store:"
-    curl -sf "${_DAEMON_AUTH[@]}" "$ES_URL/store/ai:worker" 2>/dev/null | python3 -c "
+    curl -sf "$ES_URL/store/ai:worker" 2>/dev/null | python3 -c "
 import json,sys
 for w in json.load(sys.stdin):
     print(f'  {w.get(\"id\",\"?\"):25s} status={w.get(\"status\",\"?\")} rounds={w.get(\"rounds_completed\",0)}')
@@ -174,11 +155,10 @@ do_run() {
   local dispatcher_pid=""
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] AIC daemon started (PID $$)"
-  es_log "info" "Daemon started (PID $$)" "aic-daemon"
 
   # Register daemon in store
   curl -sf -X POST "$ES_URL/store/ai:worker" \
-    -H 'Content-Type: application/json' "${_DAEMON_AUTH[@]}" \
+    -H 'Content-Type: application/json' \
     -H 'X-Allow-Custom-Ids: true' \
     -d "{\"id\":\"worker:daemon\",\"class_id\":\"ai:worker\",\"name\":\"AIC Daemon\",\"status\":\"running\",\"pid\":$$,\"started\":\"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\",\"last_heartbeat\":\"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\",\"rounds_completed\":0,\"es_url\":\"$ES_URL\"}" > /dev/null 2>&1
 
@@ -190,10 +170,9 @@ do_run() {
         kill "$dispatcher_pid" 2>/dev/null
         wait "$dispatcher_pid" 2>/dev/null
       fi
-      ES_URL="$ES_URL" ES_TOKEN="$ES_TOKEN" node "$SCRIPT_DIR/ws-dispatcher.js" >> "$DISPATCHER_LOG" 2>&1 &
+      ES_URL="$ES_URL" node "$SCRIPT_DIR/ws-dispatcher.js" >> "$DISPATCHER_LOG" 2>&1 &
       dispatcher_pid=$!
       echo "[$(date '+%Y-%m-%d %H:%M:%S')] WS dispatcher started (PID $dispatcher_pid)"
-      es_log "info" "WS dispatcher started (PID $dispatcher_pid)" "aic-daemon"
     else
       echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: node not found or ws-dispatcher.js missing — running in poll mode only"
     fi
@@ -204,13 +183,11 @@ do_run() {
   # Cleanup on exit
   cleanup() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Daemon shutting down..."
-    es_log "warning" "Daemon shutting down (PID $$)" "aic-daemon"
     if [ -n "$dispatcher_pid" ] && kill -0 "$dispatcher_pid" 2>/dev/null; then
       kill "$dispatcher_pid" 2>/dev/null
-      es_log "info" "WS dispatcher stopped (PID $dispatcher_pid)" "aic-daemon"
     fi
     curl -sf -X PUT "$ES_URL/store/ai:worker/worker:daemon" \
-      -H 'Content-Type: application/json' "${_DAEMON_AUTH[@]}" \
+      -H 'Content-Type: application/json' \
       -d '{"status":"stopped"}' > /dev/null 2>&1
   }
   trap cleanup EXIT SIGTERM SIGINT
@@ -230,13 +207,12 @@ do_run() {
     # Check if dispatcher is still alive, restart if not
     if [ -n "$dispatcher_pid" ] && ! kill -0 "$dispatcher_pid" 2>/dev/null; then
       echo "[$(date '+%Y-%m-%d %H:%M:%S')] Dispatcher died — restarting..."
-      es_log "error" "WS dispatcher died (PID $dispatcher_pid) — restarting" "aic-daemon"
       start_dispatcher
     fi
 
     # Update store
     curl -sf -X PUT "$ES_URL/store/ai:worker/worker:daemon" \
-      -H 'Content-Type: application/json' "${_DAEMON_AUTH[@]}" \
+      -H 'Content-Type: application/json' \
       -d "{\"status\":\"restarting\",\"last_heartbeat\":\"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\",\"rounds_completed\":$restart_count}" > /dev/null 2>&1
 
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Restarting in ${RESTART_DELAY}s..."
@@ -244,7 +220,6 @@ do_run() {
   done
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Max restarts reached. Daemon exiting."
-  es_log "error" "Max restarts ($MAX_RESTARTS) reached — daemon exiting" "aic-daemon"
 }
 
 # ─── Main ─────────────────────────────────────────────────

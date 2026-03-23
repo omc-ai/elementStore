@@ -151,7 +151,114 @@
           "display_order": 11,
           "class_id": "@prop_string"
         }
-      ]
+      ],
+      "icon": "app-window",
+      "color": "#6366f1",
+      "contexts": {
+        "grid": {
+          "fields": [
+            "name",
+            "application_id",
+            "role",
+            "status",
+            "server_url"
+          ],
+          "sort_by": "name",
+          "page_size": 25,
+          "title_field": "name",
+          "badge_field": "status",
+          "template": "list-item",
+          "columns": [
+            {
+              "field": "name",
+              "label": "App",
+              "type": "text",
+              "width": 200
+            },
+            {
+              "field": "application_id",
+              "label": "ID",
+              "type": "text",
+              "width": 140
+            },
+            {
+              "field": "role",
+              "label": "Role",
+              "type": "badge",
+              "width": 120
+            },
+            {
+              "field": "status",
+              "label": "Status",
+              "type": "badge",
+              "width": 100
+            },
+            {
+              "field": "server_url",
+              "label": "URL",
+              "type": "link",
+              "width": 200
+            }
+          ]
+        },
+        "card": {
+          "template": "card-default",
+          "title_field": "name",
+          "subtitle_field": "description",
+          "badge_field": "role",
+          "fields": [
+            "name",
+            "description",
+            "application_id",
+            "role",
+            "status"
+          ]
+        },
+        "form": {
+          "template": "form-default",
+          "title_field": "name",
+          "sections": [
+            {
+              "title": "Identity",
+              "columns": 2,
+              "fields": [
+                "name",
+                "application_id",
+                "role",
+                "status"
+              ]
+            },
+            {
+              "title": "Connection",
+              "columns": 1,
+              "fields": [
+                "server_url",
+                "description"
+              ]
+            },
+            {
+              "title": "Details",
+              "collapsed": true,
+              "fields": [
+                "genesis_files",
+                "repositories",
+                "class_count",
+                "client_language"
+              ]
+            }
+          ]
+        },
+        "compact": {
+          "template": "list-item",
+          "title_field": "name",
+          "badge_field": "role",
+          "fields": [
+            "name",
+            "role",
+            "status"
+          ]
+        }
+      }
     },
     {
       "id": "@feature",
@@ -289,7 +396,105 @@
           "display_order": 8,
           "class_id": "@prop_string"
         }
-      ]
+      ],
+      "icon": "sparkles",
+      "color": "#8b5cf6",
+      "contexts": {
+        "grid": {
+          "fields": [
+            "name",
+            "category",
+            "scope",
+            "group"
+          ],
+          "sort_by": "name",
+          "page_size": 50,
+          "title_field": "name",
+          "badge_field": "category",
+          "template": "list-item",
+          "columns": [
+            {
+              "field": "name",
+              "label": "Feature",
+              "type": "text",
+              "width": 250
+            },
+            {
+              "field": "category",
+              "label": "Category",
+              "type": "badge",
+              "width": 120
+            },
+            {
+              "field": "scope",
+              "label": "Scope",
+              "type": "badge",
+              "width": 100
+            },
+            {
+              "field": "group",
+              "label": "Group",
+              "type": "text",
+              "width": 130
+            },
+            {
+              "field": "description",
+              "label": "Description",
+              "type": "text",
+              "width": 300
+            }
+          ]
+        },
+        "card": {
+          "template": "card-default",
+          "title_field": "name",
+          "subtitle_field": "description",
+          "badge_field": "category",
+          "fields": [
+            "name",
+            "description",
+            "category",
+            "scope",
+            "group"
+          ]
+        },
+        "form": {
+          "template": "form-default",
+          "title_field": "name",
+          "sections": [
+            {
+              "title": "Feature",
+              "columns": 2,
+              "fields": [
+                "name",
+                "category",
+                "scope",
+                "group"
+              ]
+            },
+            {
+              "title": "Details",
+              "columns": 1,
+              "fields": [
+                "description",
+                "depends_on",
+                "api_endpoints",
+                "notes"
+              ]
+            }
+          ]
+        },
+        "compact": {
+          "template": "list-item",
+          "title_field": "name",
+          "badge_field": "category",
+          "fields": [
+            "name",
+            "category",
+            "scope"
+          ]
+        }
+      }
     },
     {
       "id": "@app_feature",
@@ -377,7 +582,96 @@
           "display_order": 6,
           "class_id": "@prop_string"
         }
-      ]
+      ],
+      "icon": "check-circle",
+      "color": "#10b981",
+      "contexts": {
+        "grid": {
+          "fields": [
+            "feature_id",
+            "application_id",
+            "progress",
+            "implemented_in"
+          ],
+          "sort_by": "feature_id",
+          "page_size": 50,
+          "title_field": "feature_id",
+          "badge_field": "progress",
+          "template": "list-item",
+          "columns": [
+            {
+              "field": "feature_id",
+              "label": "Feature",
+              "type": "relation",
+              "width": 220
+            },
+            {
+              "field": "application_id",
+              "label": "App",
+              "type": "relation",
+              "width": 150
+            },
+            {
+              "field": "progress",
+              "label": "Progress",
+              "type": "badge",
+              "width": 130
+            },
+            {
+              "field": "notes",
+              "label": "Notes",
+              "type": "text",
+              "width": 250
+            }
+          ]
+        },
+        "card": {
+          "template": "card-default",
+          "title_field": "feature_id",
+          "badge_field": "progress",
+          "fields": [
+            "feature_id",
+            "application_id",
+            "progress",
+            "notes",
+            "implemented_in"
+          ]
+        },
+        "form": {
+          "template": "form-default",
+          "title_field": "feature_id",
+          "sections": [
+            {
+              "title": "Feature",
+              "columns": 2,
+              "fields": [
+                "feature_id",
+                "application_id",
+                "progress"
+              ]
+            },
+            {
+              "title": "Implementation",
+              "columns": 1,
+              "fields": [
+                "implemented_in",
+                "server_endpoints",
+                "notes"
+              ]
+            }
+          ]
+        },
+        "compact": {
+          "template": "list-item",
+          "title_field": "feature_id",
+          "badge_field": "progress",
+          "fields": [
+            "feature_id",
+            "application_id",
+            "progress"
+          ]
+        }
+      }
     }
   ],
   "seed": [

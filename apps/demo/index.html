@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>arc3d — Live Demo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#f6f8fa;color:#1f2328;line-height:1.5}
+
+/* Header */
+.header{background:#fff;border-bottom:1px solid #d1d9e0;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.header-left{display:flex;align-items:center;gap:12px}
+.logo{font-size:1.4em;font-weight:800;color:#0550ae;text-decoration:none}
+.logo span{color:#1f2328}
+.demo-badge{background:#dafbe1;color:#1a7f37;font-size:0.72em;font-weight:700;padding:2px 10px;border-radius:10px;letter-spacing:0.3px}
+.header nav{display:flex;gap:8px}
+.nav-btn{padding:7px 16px;border-radius:7px;text-decoration:none;font-weight:600;font-size:0.88em;transition:all .15s}
+.nav-btn.primary{background:#0550ae;color:#fff}
+.nav-btn.primary:hover{background:#0969da}
+.nav-btn.secondary{background:#f6f8fa;color:#0550ae;border:1.5px solid #d1d9e0}
+.nav-btn.secondary:hover{background:#e8f0fe;border-color:#0550ae}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,#f0f4ff 0%,#e8f0fe 60%,#f6f8fa 100%);padding:40px 24px 32px;text-align:center;border-bottom:1px solid #d1d9e0}
+.hero h1{font-size:2.2em;font-weight:800;color:#1f2328;margin-bottom:8px}
+.hero h1 em{color:#0550ae;font-style:normal}
+.hero p{color:#59636e;font-size:1.05em;max-width:560px;margin:0 auto 20px}
+.hero-ctas{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.hero-cta{padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.95em;transition:all .2s}
+.hero-cta.primary{background:#0550ae;color:#fff}
+.hero-cta.primary:hover{background:#0969da}
+.hero-cta.outline{background:#fff;color:#0550ae;border:2px solid #0550ae}
+.hero-cta.outline:hover{background:#f0f4ff}
+
+/* Stats bar */
+.stats-bar{display:flex;gap:0;border-bottom:1px solid #d1d9e0;background:#fff;overflow-x:auto}
+.stat{flex:1;padding:14px 20px;text-align:center;border-right:1px solid #d1d9e0;min-width:100px}
+.stat:last-child{border-right:none}
+.stat .num{font-size:1.6em;font-weight:800;color:#0550ae;display:block}
+.stat .label{font-size:0.75em;color:#59636e;text-transform:uppercase;letter-spacing:0.5px}
+
+/* Content layout */
+.content{max-width:1100px;margin:0 auto;padding:28px 24px}
+.section{margin-bottom:32px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.section-title{font-size:1.1em;font-weight:700;color:#1f2328;display:flex;align-items:center;gap:8px}
+.section-title .icon{font-size:1.2em}
+.section-subtitle{font-size:0.82em;color:#59636e}
+.view-all{font-size:0.82em;color:#0550ae;text-decoration:none}
+.view-all:hover{text-decoration:underline}
+
+/* Cards grid */
+.cards{display:grid;gap:12px}
+.cards.cols-3{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.cards.cols-4{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.cards.cols-2{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+
+.card{background:#fff;border:1px solid #d1d9e0;border-radius:10px;padding:16px;transition:box-shadow .15s,border-color .15s}
+.card:hover{box-shadow:0 3px 12px rgba(0,0,0,.07);border-color:#0550ae44}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.card-title{font-weight:600;font-size:0.95em;color:#1f2328}
+.card-sub{font-size:0.8em;color:#59636e;margin-top:2px}
+.card-body{font-size:0.84em;color:#59636e}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:0.72em;font-weight:600}
+.badge-green{background:#dafbe1;color:#1a7f37}
+.badge-yellow{background:#fff8c5;color:#9a6700}
+.badge-red{background:#ffebe9;color:#cf222e}
+.badge-blue{background:#dbeafe;color:#1d4ed8}
+.badge-purple{background:#ede9fe;color:#7c3aed}
+.badge-gray{background:#f6f8fa;color:#59636e;border:1px solid #d1d9e0}
+.badge-orange{background:#fff3e0;color:#e65100}
+
+/* Server card specific */
+.server-metrics{display:flex;gap:12px;margin-top:10px}
+.metric{flex:1;text-align:center}
+.metric-bar{height:4px;border-radius:2px;background:#d1d9e0;margin:4px 0 2px;overflow:hidden}
+.metric-fill{height:100%;border-radius:2px;background:#0550ae;transition:width .3s}
+.metric-fill.warn{background:#d29922}
+.metric-fill.danger{background:#cf222e}
+.metric-label{font-size:0.68em;color:#59636e;text-align:center}
+.metric-value{font-size:0.78em;font-weight:700;color:#1f2328}
+
+/* Product card */
+.product-stats{display:flex;gap:16px;margin-top:10px;font-size:0.8em}
+.product-stat{display:flex;flex-direction:column}
+.product-stat .v{font-weight:700;color:#1f2328;font-size:1em}
+.product-stat .k{color:#59636e;font-size:0.85em}
+.uptime-bar{margin-top:8px}
+
+/* Task card */
+.task-meta{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.labels{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.label-tag{background:#f6f8fa;border:1px solid #d1d9e0;color:#59636e;padding:1px 6px;border-radius:6px;font-size:0.7em}
+
+/* Team card */
+.skills{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+
+/* Loading */
+.loading{text-align:center;padding:40px;color:#59636e;font-size:0.9em}
+.loading .spinner{display:inline-block;width:20px;height:20px;border:2px solid #d1d9e0;border-top-color:#0550ae;border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Env card */
+.env-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f6f8fa}
+.env-row:last-child{border-bottom:none}
+.env-name{font-weight:600;font-size:0.9em}
+.env-url{font-size:0.78em;color:#0550ae;font-family:monospace}
+.env-version{font-size:0.75em;color:#59636e;font-family:monospace}
+
+/* Footer */
+footer{background:#f6f8fa;border-top:1px solid #d1d9e0;padding:24px;text-align:center;color:#59636e;font-size:0.82em;margin-top:48px}
+footer a{color:#0550ae;text-decoration:none}
+footer a:hover{text-decoration:underline}
+
+/* Explore CTA section */
+.explore-cta{background:linear-gradient(135deg,#0550ae,#1a7f37);border-radius:14px;padding:32px;text-align:center;color:#fff;margin:32px 0}
+.explore-cta h2{font-size:1.6em;margin-bottom:8px}
+.explore-cta p{opacity:0.85;margin-bottom:20px;font-size:1em}
+.explore-cta .ctas{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.explore-cta .cta{padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.9em}
+.explore-cta .cta.white{background:#fff;color:#0550ae}
+.explore-cta .cta.white:hover{background:#e8f0fe}
+.explore-cta .cta.ghost{background:rgba(255,255,255,0.15);color:#fff;border:1.5px solid rgba(255,255,255,0.4)}
+.explore-cta .cta.ghost:hover{background:rgba(255,255,255,0.25)}
+
+@media(max-width:600px){.hero h1{font-size:1.6em}.stats-bar{flex-wrap:wrap}.cards.cols-3,.cards.cols-4{grid-template-columns:1fr}.header nav{gap:4px}.nav-btn{padding:6px 10px;font-size:0.8em}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <a href="/" class="logo"><span>arc</span>3d</a>
+    <span class="demo-badge">LIVE DEMO</span>
+  </div>
+  <nav>
+    <a href="/elementStore/admin/" class="nav-btn secondary">Admin</a>
+    <a href="/architect" class="nav-btn primary">Try Architect →</a>
+  </nav>
+</div>
+
+<div class="hero">
+  <h1>Live Demo Tenant — <em>arc3d</em></h1>
+  <p>Real data, live API, no sign-up needed. Explore the schema-driven platform: classes, objects, actions, and relationships — all in one place.</p>
+  <div class="hero-ctas">
+    <a href="/architect" class="hero-cta primary">🏗️ Try Architect</a>
+    <a href="/elementStore/admin/" class="hero-cta outline">📦 Explore Objects</a>
+    <a href="/elementStore/admin/#/classes" class="hero-cta outline">🧩 View Classes</a>
+  </div>
+</div>
+
+<div class="stats-bar" id="stats-bar">
+  <div class="stat"><span class="num" id="stat-classes">—</span><span class="label">Classes</span></div>
+  <div class="stat"><span class="num" id="stat-objects">—</span><span class="label">Demo Objects</span></div>
+  <div class="stat"><span class="num" id="stat-servers">7</span><span class="label">Servers</span></div>
+  <div class="stat"><span class="num" id="stat-projects">4</span><span class="label">Projects</span></div>
+  <div class="stat"><span class="num" id="stat-tasks">7</span><span class="label">Tasks</span></div>
+  <div class="stat"><span class="num" id="stat-team">5</span><span class="label">Team Members</span></div>
+</div>
+
+<div class="content">
+
+  <!-- Servers -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">🖥️</span> Infrastructure <span class="section-subtitle" id="server-count"></span></div>
+      <a href="/elementStore/admin/#/class/demo:server" class="view-all">View all in Admin →</a>
+    </div>
+    <div class="cards cols-3" id="servers"><div class="loading"><span class="spinner"></span>Loading servers...</div></div>
+  </div>
+
+  <!-- Projects + Tasks -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px" id="proj-task-grid">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">📁</span> Projects</div>
+      <a href="/elementStore/admin/#/class/demo:project" class="view-all">View all →</a>
+    </div>
+    <div class="cards" id="projects"><div class="loading"><span class="spinner"></span></div></div>
+  </div>
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">✅</span> Tasks</div>
+      <a href="/elementStore/admin/#/class/demo:task" class="view-all">View all →</a>
+    </div>
+    <div class="cards" id="tasks"><div class="loading"><span class="spinner"></span></div></div>
+  </div>
+  </div>
+
+  <!-- Team + Environments -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px" id="team-env-grid">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">👥</span> Team</div>
+      <a href="/elementStore/admin/#/class/demo:team_member" class="view-all">View all →</a>
+    </div>
+    <div class="cards" id="team"><div class="loading"><span class="spinner"></span></div></div>
+  </div>
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">🌍</span> Environments</div>
+      <a href="/elementStore/admin/#/class/demo:environment" class="view-all">View all →</a>
+    </div>
+    <div class="card" id="environments"><div class="loading"><span class="spinner"></span></div></div>
+  </div>
+  </div>
+
+  <!-- Products -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">📦</span> Products</div>
+      <a href="/elementStore/admin/#/class/demo:product" class="view-all">View all →</a>
+    </div>
+    <div class="cards cols-4" id="products"><div class="loading"><span class="spinner"></span></div></div>
+  </div>
+
+  <!-- Explore CTA -->
+  <div class="explore-cta">
+    <h2>Everything is an Object</h2>
+    <p>Classes, properties, actions, events — all stored as regular objects and queryable through the same REST API you're looking at right now.</p>
+    <div class="ctas">
+      <a href="/architect" class="cta white">🏗️ Try Architect</a>
+      <a href="/elementStore/admin/" class="cta ghost">Explore Admin UI</a>
+      <a href="/elementStore/store/@class" class="cta ghost">REST API →</a>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  This is a <strong>live demo tenant</strong> — arc3d.ai &middot; Powered by <a href="/">elementStore</a>
+  &middot; <a href="/elementStore/admin/">Admin UI</a>
+  &middot; <a href="/architect">Architect</a>
+</footer>
+
+<script>
+(function(){
+  var API = location.origin + '/elementStore';
+
+  // Status helpers
+  var statusColors = {
+    running: 'badge-green', active: 'badge-green', healthy: 'badge-green', done: 'badge-green', ga: 'badge-green',
+    stopped: 'badge-red', down: 'badge-red', deleted: 'badge-red', blocked: 'badge-red',
+    rebooting: 'badge-yellow', paused: 'badge-yellow', degraded: 'badge-yellow', review: 'badge-yellow', beta: 'badge-yellow', in_progress: 'badge-yellow',
+    open: 'badge-blue', planned: 'badge-purple', maintenance: 'badge-orange', deprecated: 'badge-gray',
+  };
+  function badgeFor(val) {
+    var cls = statusColors[val] || 'badge-gray';
+    return '<span class="badge ' + cls + '">' + val + '</span>';
+  }
+
+  function pct(v){ return Math.min(100, Math.max(0, parseFloat(v)||0)); }
+  function metricClass(v){ return v >= 80 ? 'danger' : v >= 60 ? 'warn' : ''; }
+
+  function fetchJSON(path, cb) {
+    fetch(API + path)
+      .then(function(r){ return r.json(); })
+      .then(cb)
+      .catch(function(e){ console.warn('fetch failed', path, e); });
+  }
+
+  // Load stats
+  fetchJSON('/health', function(h){
+    // Get class count
+    fetchJSON('/store/@class', function(classes){
+      document.getElementById('stat-classes').textContent = classes.length || '—';
+    });
+  });
+
+  // Count total demo objects
+  var demoClasses = ['demo:server','demo:project','demo:task','demo:team_member','demo:environment','demo:product'];
+  var totalObjs = 0, loaded = 0;
+  demoClasses.forEach(function(cls){
+    fetchJSON('/store/' + cls, function(items){
+      totalObjs += (items||[]).length;
+      loaded++;
+      if(loaded === demoClasses.length){
+        document.getElementById('stat-objects').textContent = totalObjs;
+      }
+    });
+  });
+
+  // ── SERVERS ──────────────────────────────────────────────
+  fetchJSON('/store/demo:server', function(servers){
+    document.getElementById('stat-servers').textContent = servers.length;
+    var html = servers.map(function(s){
+      var cpu = pct(s.cpu_usage), ram = pct(s.ram_usage);
+      return '<div class="card">' +
+        '<div class="card-header">' +
+          '<div><div class="card-title">' + s.name + '</div>' +
+          '<div class="card-sub">' + (s.ip||'') + ' &middot; ' + (s.type||'') + ' &middot; ' + (s.region||'') + '</div></div>' +
+          badgeFor(s.status||'') +
+        '</div>' +
+        '<div class="server-metrics">' +
+          '<div class="metric"><div class="metric-value">' + cpu.toFixed(1) + '%</div>' +
+            '<div class="metric-bar"><div class="metric-fill ' + metricClass(cpu) + '" style="width:' + cpu + '%"></div></div>' +
+            '<div class="metric-label">CPU</div></div>' +
+          '<div class="metric"><div class="metric-value">' + ram.toFixed(1) + '%</div>' +
+            '<div class="metric-bar"><div class="metric-fill ' + metricClass(ram) + '" style="width:' + ram + '%"></div></div>' +
+            '<div class="metric-label">RAM</div></div>' +
+        '</div>' +
+        '<div class="labels" style="margin-top:8px">' + (s.tags||[]).map(function(t){ return '<span class="label-tag">' + t + '</span>'; }).join('') + '</div>' +
+      '</div>';
+    }).join('');
+    document.getElementById('servers').innerHTML = html || '<p style="color:#59636e;font-size:.85em">No servers found.</p>';
+  });
+
+  // ── PROJECTS ─────────────────────────────────────────────
+  fetchJSON('/store/demo:project', function(projects){
+    document.getElementById('stat-projects').textContent = projects.length;
+    var html = projects.map(function(p){
+      return '<div class="card">' +
+        '<div class="card-header"><div class="card-title">' + p.name + '</div>' + badgeFor(p.status||'') + '</div>' +
+        '<div class="card-sub">' + (p.description||'') + '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-top:10px">' +
+          '<div style="flex:1;background:#d1d9e0;height:6px;border-radius:3px;overflow:hidden">' +
+            '<div style="width:' + (p.progress||0) + '%;height:100%;background:#0550ae;border-radius:3px"></div></div>' +
+          '<span style="font-size:.8em;font-weight:700;color:#0550ae">' + (p.progress||0) + '%</span>' +
+        '</div>' +
+        '<div class="task-meta"><span class="badge badge-gray">' + (p.priority||'') + '</span>' +
+          (p.deadline ? '<span style="font-size:.75em;color:#59636e">📅 ' + p.deadline.slice(0,10) + '</span>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+    document.getElementById('projects').innerHTML = html || '<p style="color:#59636e;font-size:.85em">No projects.</p>';
+  });
+
+  // ── TASKS ────────────────────────────────────────────────
+  fetchJSON('/store/demo:task', function(tasks){
+    document.getElementById('stat-tasks').textContent = tasks.length;
+    var html = tasks.map(function(t){
+      return '<div class="card">' +
+        '<div class="card-header"><div class="card-title" style="font-size:.88em">' + t.name + '</div>' + badgeFor(t.status||'') + '</div>' +
+        '<div class="labels">' + (t.labels||[]).map(function(l){ return '<span class="label-tag">' + l + '</span>'; }).join('') + '</div>' +
+        '<div style="font-size:.75em;color:#59636e;margin-top:6px">' + (t.assignee ? '👤 ' + t.assignee.replace('demo-team-','') : '') +
+          (t.estimate_h ? ' &middot; ' + t.estimate_h + 'h' : '') + '</div>' +
+      '</div>';
+    }).join('');
+    document.getElementById('tasks').innerHTML = html || '<p style="color:#59636e;font-size:.85em">No tasks.</p>';
+  });
+
+  // ── TEAM ─────────────────────────────────────────────────
+  fetchJSON('/store/demo:team_member', function(members){
+    document.getElementById('stat-team').textContent = members.length;
+    var roleColors = {CTO:'badge-purple','Backend Engineer':'badge-blue','Frontend Engineer':'badge-yellow',DevOps:'badge-red','Product Manager':'badge-green','QA Engineer':'badge-gray','Designer':'badge-orange'};
+    var html = members.map(function(m){
+      return '<div class="card">' +
+        '<div class="card-header"><div><div class="card-title">' + m.name + '</div>' +
+          '<div class="card-sub">' + (m.team||'') + ' &middot; ' + (m.timezone||'') + '</div></div>' +
+          '<span class="badge ' + (roleColors[m.role]||'badge-gray') + '">' + (m.role||'') + '</span>' +
+        '</div>' +
+        '<div class="skills">' + (m.skills||[]).map(function(s){ return '<span class="label-tag">' + s + '</span>'; }).join('') + '</div>' +
+      '</div>';
+    }).join('');
+    document.getElementById('team').innerHTML = html || '<p style="color:#59636e;font-size:.85em">No team members.</p>';
+  });
+
+  // ── ENVIRONMENTS ─────────────────────────────────────────
+  fetchJSON('/store/demo:environment', function(envs){
+    var healthColors = { healthy:'badge-green', degraded:'badge-yellow', down:'badge-red' };
+    var html = '<div style="padding:4px 8px">' + envs.map(function(e){
+      return '<div class="env-row">' +
+        '<div><div class="env-name">' + e.name + '</div>' +
+          '<div class="env-url">' + (e.url||'') + '</div></div>' +
+        '<div style="text-align:right">' +
+          '<span class="badge ' + (healthColors[e.health]||'badge-gray') + '">' + (e.health||'') + '</span>' +
+          '<div class="env-version">' + (e.version||'') + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+    document.getElementById('environments').innerHTML = html;
+  });
+
+  // ── PRODUCTS ─────────────────────────────────────────────
+  fetchJSON('/store/demo:product', function(products){
+    var html = products.map(function(p){
+      var uptime = pct(p.uptime);
+      return '<div class="card">' +
+        '<div class="card-header"><div class="card-title">' + p.name + '</div>' + badgeFor(p.status||'') + '</div>' +
+        '<div class="card-sub" style="font-size:.78em">' + (p.tagline||'') + '</div>' +
+        '<div class="product-stats">' +
+          '<div class="product-stat"><span class="v">' + (p.users||0).toLocaleString() + '</span><span class="k">users</span></div>' +
+          '<div class="product-stat"><span class="v">$' + ((p.mrr||0)/1000).toFixed(1) + 'k</span><span class="k">MRR</span></div>' +
+          '<div class="product-stat"><span class="v">' + (p.uptime||0) + '%</span><span class="k">uptime</span></div>' +
+        '</div>' +
+        '<div class="uptime-bar"><div style="background:#d1d9e0;height:3px;border-radius:2px;margin-top:8px;overflow:hidden">' +
+          '<div style="width:' + uptime + '%;height:100%;background:#1a7f37;border-radius:2px"></div></div></div>' +
+      '</div>';
+    }).join('');
+    document.getElementById('products').innerHTML = html || '<p style="color:#59636e;font-size:.85em">No products.</p>';
+  });
+
+  // Responsive: stack grids on mobile
+  if(window.innerWidth < 700){
+    document.getElementById('proj-task-grid').style.gridTemplateColumns = '1fr';
+    document.getElementById('team-env-grid').style.gridTemplateColumns = '1fr';
+  }
+
+})();
+</script>
+</body>
+</html>

@@ -1919,6 +1919,88 @@
           "class_id": "@prop"
         }
       ]
+    },
+    {
+      "id": "ai:prompt_proposal",
+      "class_id": "@class",
+      "name": "Prompt Proposal",
+      "description": "Agent-proposed improvement to a prompt file. Goes through CEO approval before being applied.",
+      "category": "ai",
+      "icon": "💡",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "agent_id",
+          "description": "Which agent is proposing the improvement",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:prompt_proposal.agent_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "prompt_file",
+          "description": "Prompt file to modify (e.g. developer.md)",
+          "is_array": "false",
+          "display_order": 1,
+          "id": "ai:prompt_proposal.prompt_file",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "proposed_addition",
+          "description": "The text to append to the prompt",
+          "is_array": "false",
+          "display_order": 2,
+          "id": "ai:prompt_proposal.proposed_addition",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "rationale",
+          "description": "Why this improvement is needed",
+          "is_array": "false",
+          "display_order": 3,
+          "id": "ai:prompt_proposal.rationale",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "task_id",
+          "description": "Task that triggered this proposal",
+          "is_array": "false",
+          "display_order": 4,
+          "id": "ai:prompt_proposal.task_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "status",
+          "description": "pending | approved | rejected",
+          "is_array": "false",
+          "display_order": 5,
+          "id": "ai:prompt_proposal.status",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "reviewed_by",
+          "description": "Who reviewed it",
+          "is_array": "false",
+          "display_order": 6,
+          "id": "ai:prompt_proposal.reviewed_by",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "reviewed_at",
+          "description": "When it was reviewed",
+          "is_array": "false",
+          "display_order": 7,
+          "id": "ai:prompt_proposal.reviewed_at",
+          "class_id": "@prop"
+        }
+      ]
     }
   ]
 }

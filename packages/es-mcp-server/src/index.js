@@ -29,8 +29,10 @@ import {
   CallToolRequestSchema,
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
+  ListResourceTemplatesRequestSchema,
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
+  CompleteRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { EsClient } from './es-client.js';
 import { generateClassTools, generateGenericTools } from './tool-generator.js';
@@ -70,8 +72,8 @@ function registerTool(def) {
 // ── Fetch agent and its tools ──
 async function fetchAgent() {
   try {
-    // Fetch the agent object
-    agentData = await client.findObject(agentId);
+    // Fetch the agent object — use direct store access (find can miss it)
+    agentData = await client.getObject('ai:agent', agentId);
     console.error(`[es-mcp] Agent: ${agentData.id} — ${agentData.title || agentData.name}`);
 
     // Fetch all agents (for reference in the prompt)
@@ -206,7 +208,7 @@ async function executeTool(name, params) {
 // ── Create MCP server ──
 const server = new Server(
   { name: 'elementStore', version: '0.1.0' },
-  { capabilities: { tools: {}, resources: {}, prompts: {} } }
+  { capabilities: { tools: {}, resources: {}, prompts: {}, completions: {} } }
 );
 
 // Handle tools/list
@@ -241,44 +243,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// Handle resources/list — class catalog, agents, per-namespace groups
-server.setRequestHandler(ListResourcesRequestSchema, async () => {
-  // Group classes by namespace for per-namespace resources
-  const namespaces = {};
+// ── URI normalization ──
+// Accept: es://path, es:/path, es:path — all resolve to the same resource
+function normalizeUri(uri) {
+  return uri.replace(/^es:\/\//, '').replace(/^es:\//, '').replace(/^es:/, '');
+}
+
+function getNamespaces() {
+  const ns = {};
   for (const c of discoveredClasses) {
-    const ns = c.id.includes(':') ? c.id.split(':')[0] : 'core';
-    if (!namespaces[ns]) namespaces[ns] = [];
-    namespaces[ns].push(c);
+    const key = c.id.includes(':') ? c.id.split(':')[0] : 'core';
+    if (!ns[key]) ns[key] = [];
+    ns[key].push(c);
   }
+  return ns;
+}
+
+// Handle resources/list — static resources (well-known paths)
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  const namespaces = getNamespaces();
 
   const resources = [
     {
       uri: 'es://classes',
       name: 'All Classes',
-      description: `All ${discoveredClasses.length} classes grouped by namespace. Reference with @elementStore:es://classes`,
+      description: `All ${discoveredClasses.length} classes grouped by namespace`,
       mimeType: 'application/json',
     },
     {
       uri: 'es://agent',
       name: `Agent: ${agentData?.title || agentId}`,
-      description: `Active agent prompt, tools, and behavior. Reference with @elementStore:es://agent`,
+      description: `Active agent prompt, tools, and behavior`,
       mimeType: 'application/json',
     },
     {
       uri: 'es://agents',
       name: 'All Agents',
-      description: `${allAgents.length} registered agents. Reference with @elementStore:es://agents`,
+      description: `${allAgents.length} registered agents`,
       mimeType: 'application/json',
     },
   ];
 
-  // Per-namespace resources — so @elementStore:es://ns/ai shows all ai:* classes
+  // Per-namespace: es://ns/ai, es://ns/core, etc.
   for (const [ns, classes] of Object.entries(namespaces).sort()) {
-    const classIds = classes.map(c => c.id).join(', ');
     resources.push({
       uri: `es://ns/${ns}`,
-      name: `${ns}: namespace (${classes.length} classes)`,
-      description: `Classes: ${classIds}`,
+      name: `${ns} (${classes.length} classes)`,
+      description: classes.map(c => c.id).join(', '),
       mimeType: 'application/json',
     });
   }
@@ -286,34 +297,95 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
   return { resources };
 });
 
-// Handle resources/read
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  const { uri } = request.params;
+// Handle resource templates — dynamic completion for @es:class/{id} and @es:obj/{id}
+server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
+  return {
+    resourceTemplates: [
+      {
+        uriTemplate: 'es://class/{class_id}',
+        name: 'Class schema',
+        description: 'Get property definitions for a class. e.g. @es class/ai:agent',
+        mimeType: 'application/json',
+      },
+      {
+        uriTemplate: 'es://obj/{object_id}',
+        name: 'Object by ID',
+        description: 'Get any object by its ID. e.g. @es obj/agent:owner',
+        mimeType: 'application/json',
+      },
+      {
+        uriTemplate: 'es://ns/{namespace}',
+        name: 'Namespace classes',
+        description: 'List all classes in a namespace. e.g. @es ns/ai',
+        mimeType: 'application/json',
+      },
+    ],
+  };
+});
 
-  // es://classes
-  if (uri === 'es://classes') {
+// Handle completion — suggest values as user types
+server.setRequestHandler(CompleteRequestSchema, async (request) => {
+  const { ref, argument } = request.params;
+  const partial = argument.value || '';
+
+  // Completion for class_id
+  if (argument.name === 'class_id') {
+    const matches = discoveredClasses
+      .map(c => c.id)
+      .filter(id => id.startsWith(partial) || id.includes(partial))
+      .slice(0, 50);
+    return { completion: { values: matches, hasMore: matches.length >= 50 } };
+  }
+
+  // Completion for object_id — suggest agents, tools, features
+  if (argument.name === 'object_id') {
+    const knownIds = [
+      ...allAgents.map(a => a.id),
+      ...agentTools.map(t => t.id),
+    ].filter(id => id.startsWith(partial) || id.includes(partial))
+     .slice(0, 50);
+    return { completion: { values: knownIds, hasMore: knownIds.length >= 50 } };
+  }
+
+  // Completion for namespace
+  if (argument.name === 'namespace') {
+    const nsList = Object.keys(getNamespaces())
+      .filter(ns => ns.startsWith(partial))
+      .sort();
+    return { completion: { values: nsList } };
+  }
+
+  return { completion: { values: [] } };
+});
+
+// Handle resources/read — accepts es://, es:/, es: prefixes
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const path = normalizeUri(request.params.uri);
+
+  // classes
+  if (path === 'classes') {
     const catalog = discoveredClasses.map(c => ({
       id: c.id, name: c.name, description: c.description,
     }));
-    return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(catalog, null, 2) }] };
+    return { contents: [{ uri: request.params.uri, mimeType: 'application/json', text: JSON.stringify(catalog, null, 2) }] };
   }
 
-  // es://agent
-  if (uri === 'es://agent') {
-    return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(agentData, null, 2) }] };
+  // agent
+  if (path === 'agent') {
+    return { contents: [{ uri: request.params.uri, mimeType: 'application/json', text: JSON.stringify(agentData, null, 2) }] };
   }
 
-  // es://agents
-  if (uri === 'es://agents') {
+  // agents
+  if (path === 'agents') {
     const summary = allAgents.map(a => ({
       id: a.id, name: a.name, title: a.title, is_active: a.is_active,
       domain: a.domain, tools: a.tools,
     }));
-    return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(summary, null, 2) }] };
+    return { contents: [{ uri: request.params.uri, mimeType: 'application/json', text: JSON.stringify(summary, null, 2) }] };
   }
 
-  // es://ns/<namespace> — per-namespace class list with props summary
-  const nsMatch = uri.match(/^es:\/\/ns\/(.+)$/);
+  // ns/<namespace>
+  const nsMatch = path.match(/^ns\/(.+)$/);
   if (nsMatch) {
     const ns = nsMatch[1];
     const classes = discoveredClasses.filter(c => {
@@ -321,14 +393,58 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       return cns === ns;
     });
     if (classes.length === 0) throw new Error(`No classes in namespace: ${ns}`);
-
-    const catalog = classes.map(c => ({
-      id: c.id, name: c.name, description: c.description,
-    }));
-    return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(catalog, null, 2) }] };
+    return { contents: [{ uri: request.params.uri, mimeType: 'application/json', text: JSON.stringify(classes.map(c => ({ id: c.id, name: c.name, description: c.description })), null, 2) }] };
   }
 
-  throw new Error(`Unknown resource: ${uri}`);
+  // class/<class_id> — get class schema (props)
+  const classMatch = path.match(/^class\/(.+)$/);
+  if (classMatch) {
+    const classId = classMatch[1];
+    const props = await client.getClassProps(classId);
+    return { contents: [{ uri: request.params.uri, mimeType: 'application/json', text: JSON.stringify(props, null, 2) }] };
+  }
+
+  // obj/<object_id> or obj/<class_id>/<object_id> — find object by ID
+  const objMatch = path.match(/^obj\/(.+)$/);
+  if (objMatch) {
+    const fullPath = objMatch[1];
+    let obj = null;
+
+    // If path has 2+ colons, first segment might be class_id: obj/ai:agent/agent:owner
+    const parts = fullPath.split('/');
+    if (parts.length === 2) {
+      obj = await client.getObject(parts[0], parts[1]);
+    } else {
+      // Single ID — try to find by querying likely classes based on ID prefix
+      const objectId = fullPath;
+
+      // Try direct /find first
+      try { obj = await client.findObject(objectId); } catch {}
+
+      // Fallback: infer classes from ID prefix (agent:* → ai:agent, feat:* → @feature, etc.)
+      if (!obj) {
+        const prefix = objectId.includes(':') ? objectId.split(':')[0] : '';
+        const candidates = discoveredClasses.filter(c => {
+          // Match by: class name contains prefix, or class ID namespace matches
+          const cns = c.id.includes(':') ? c.id.split(':')[0] : '';
+          const cname = (c.id.includes(':') ? c.id.split(':')[1] : c.id).toLowerCase();
+          return cname === prefix || cns === prefix;
+        }).slice(0, 5); // limit search to 5 candidates
+
+        for (const cls of candidates) {
+          try {
+            obj = await client.getObject(cls.id, objectId);
+            if (obj) break;
+          } catch {}
+        }
+      }
+    }
+
+    if (!obj) throw new Error(`Object not found: ${fullPath}`);
+    return { contents: [{ uri: request.params.uri, mimeType: 'application/json', text: JSON.stringify(obj, null, 2) }] };
+  }
+
+  throw new Error(`Unknown resource: ${request.params.uri} (resolved path: ${path})`);
 });
 
 // Handle prompts/list

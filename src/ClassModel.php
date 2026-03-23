@@ -819,6 +819,7 @@ class ClassModel
 
         if ($deleted) {
             BroadcastService::emitDelete($class_id, $id, $oldData, $this->userId);
+            EventDispatcher::dispatch('after_delete', $class_id, ['id' => $id, 'class_id' => $class_id], $oldData, $this->userId);
 
             // Seed write-back on delete
             if ($this->genesisLoader !== null && $this->hasSeedWritePermission()) {
@@ -1815,6 +1816,7 @@ class ClassModel
 
         // Broadcast change to WS subscribers (skip sender by user_id)
         BroadcastService::emitChange($result, $oldData, $this->userId);
+        EventDispatcher::dispatch($oldData ? 'after_update' : 'after_create', $class_id, $result, $oldData, $this->userId);
 
         // Handle class meta changes (renames)
         if ($class_id === Constants::K_CLASS && !empty($changes)) {

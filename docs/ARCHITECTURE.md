@@ -1,6 +1,12 @@
 # ElementStore Architecture
 
-This document describes the core architecture of the ElementStore JavaScript client (`element-store.js`), including the storage resolution system, object lifecycle, relation management, and multi-app design.
+This document describes the core architecture of the **`@es-client` TypeScript package** (`packages/es-client/`), which compiles to `admin/dist/element-store.js` (IIFE bundle used by the Admin UI) and to ESM for npm consumers.
+
+> **Source**: `elementStore/packages/es-client/src/` — TypeScript
+> **Compiled**: `elementStore/admin/dist/element-store.js` — IIFE bundle (loaded by Admin)
+> **NPM**: `@agura/es-client` — ESM module for external consumers
+
+The API surface (class names, methods, patterns) described here matches the TypeScript source. Class names like `ElementStore`, `AtomStorage`, `AtomObj`, `AtomElement`, `AtomCollection` are the same in source and compiled output.
 
 ## Client Initialization Flow
 
@@ -17,7 +23,7 @@ This creates the store and seeds core system definitions:
 - `@prop` — property definition (field schemas)
 - `@storage` — storage provider definition
 - All `@class` props (`name`, `extends_id`, `storage_id`, `props`)
-- All `@prop` props (`key`, `data_type`, `field_type`, `options`, etc.)
+- All `@prop` props (`key`, `data_type`, `label`, `description`, `is_array`, `flags`, `editor`, `options`, etc.)
 - All `@storage` props (`url`, `type`)
 - Built-in `local` storage (memory-only, no remote persistence)
 
@@ -373,7 +379,7 @@ System classes (`@class`, `@prop`, `@storage`) are shared across all application
 
 ### What Genesis Is
 
-Genesis files (`.es/genesis/*.json`) are the **canonical clean state** for an application's schema and seed data. They define classes, properties, storage configurations, and initial objects.
+Genesis files (`.es/*.genesis.json`) are the **canonical clean state** for an application's schema and seed data. They define classes, properties, storage configurations, and initial objects.
 
 ### Genesis Flow
 
@@ -388,7 +394,7 @@ Genesis files (`.es/genesis/*.json`) are the **canonical clean state** for an ap
    Schema can be modified at runtime (add classes, props, etc.).
 
 3. EXPORT (snapshot)
-   DB → export to .es/genesis/ format
+   DB → export to .es/*.genesis.json format
    Creates a clean snapshot of the current state.
    This becomes the new canonical genesis for the next deployment.
 ```

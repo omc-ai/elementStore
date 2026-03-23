@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "namespace": "events",
+  "description": "Standard CRUD event subscriptions — audit log events for all object operations. These @event objects are seed data for the event system. PHP ClassModel wiring required (see finding: php-event-dispatch).",
+  "classes": [],
+  "seed": [
+    {
+      "storage": "./@event.json"
+    }
+  ]
+}

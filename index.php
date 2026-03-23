@@ -58,6 +58,7 @@ use ElementStore\ClassMeta;
 use ElementStore\StorageException;
 use ElementStore\AuthService;
 use ElementStore\RateLimiter;
+use ElementStore\ResponseFormatter;
 
 if (!extension_loaded('phalcon')) {
     http_response_code(500);
@@ -127,7 +128,7 @@ $app->before(function () use ($app, $isDev) {
         }
     }
     $app->response->setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    $allowHeaders = 'Content-Type, Authorization, X-Tenant-Id';
+    $allowHeaders = 'Content-Type, Authorization, X-Tenant-Id, X-Response-Format, X-Fields';
     if ($isDev) {
         $allowHeaders .= ', X-User-Id, X-Disable-Ownership, X-Allow-Custom-Ids';
     }
@@ -183,9 +184,14 @@ $app->before(function () use ($model) {
     return true;
 });
 
-// Response helpers - return data directly
+// Response helpers - return data directly, with format negotiation
+// Supports: Accept: text/plain, X-Response-Format: text, X-Fields: id,name,status
 function json($data, $code = 200): Response
 {
+    $format = ResponseFormatter::detectFormat();
+    if ($format !== 'json') {
+        return ResponseFormatter::format($data, $code);
+    }
     return (new Response())->setStatusCode($code)->setJsonContent($data);
 }
 

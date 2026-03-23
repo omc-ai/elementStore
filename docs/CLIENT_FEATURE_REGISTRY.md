@@ -1,7 +1,7 @@
 # ElementStore — Client Feature Registry
 
 > **Canonical spec** — all clients must comply with every ✅ row.
-> Updated: 2026-03-09
+> Updated: 2026-03-23
 >
 > **Source of truth**: Live server registry — query via `es-cli.sh`, never read `.es/*.json` directly.
 > ```bash
@@ -412,7 +412,7 @@ These exist only on the server and don't need client parity:
 
 ## 17. Seed Data Parity
 
-| Seed entry | Server SystemClasses.php | editors.seed.json | Admin seed-data.js | @es-client | Status |
+| Seed entry | Server SystemClasses.php | editors.seed.json | Admin (from API) | @es-client | Status |
 |---|:-:|:-:|:-:|:-:|--------|
 | `@class` meta + 10 props | ✅ | — | ✅ | ✅ | Done |
 | `@prop` meta + 21 props | ✅ | — | ✅ | ✅ | Done |

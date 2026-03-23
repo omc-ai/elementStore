@@ -373,11 +373,19 @@ export interface ActionDef extends Element {
   params?: Prop[];
   returns?: 'object' | 'list' | 'void';
 
+  // ── Universal pipeline fields (apply to all action types) ─────────────────
+  /** Rename input param keys before dispatch: { from_key: to_key } */
+  input_mapping?: Record<string, string>;
+  /** Rename result keys after execution:      { from_key: to_key } */
+  output_mapping?: Record<string, string>;
+
   // api type
   method?: HttpMethod;
   endpoint?: string;                      // URL path, may contain {id} etc.
   headers?: Record<string, string>;
-  mapping?: Record<string, string>;       // api_field → es_field
+  mapping?: Record<string, string>;       // api_field → es_field (request body + response)
+  request_mapping?: Record<string, string>;  // api_field → es_field (request body override)
+  response_mapping?: Record<string, string>; // api_field → es_field (response override)
 
   // function type
   function?: string;                      // FunctionRegistry key, e.g. 'billing.calculate'

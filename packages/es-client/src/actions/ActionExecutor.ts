@@ -67,6 +67,17 @@ export class ActionExecutor {
   /**
    * Execute an action definition.
    *
+   * Universal pipeline — all action types follow the same pattern:
+   *
+   *   input → input_mapping → [execute] → output_mapping → output
+   *
+   *   1. Apply action.input_mapping to params  (rename keys before dispatch)
+   *   2. Dispatch to the type-specific executor
+   *   3. Apply action.output_mapping to result (rename keys after execution)
+   *
+   * input_mapping / output_mapping format: { from_key: to_key }
+   * Keys present in the map are renamed; unmapped keys pass through unchanged.
+   *
    * @param action   @action element data
    * @param params   Runtime parameter values (e.g. { id: '42' })
    * @param context  The ES object this action is running on (optional)
@@ -79,15 +90,60 @@ export class ActionExecutor {
   ): Promise<unknown> {
     const type = action.type ?? 'ui';
 
+    // ── STEP 1: Map input params ─────────────────────────────────────────────
+    const inputMapping = action.input_mapping ?? {};
+    const executionParams = Object.keys(inputMapping).length > 0
+      ? this.applyMapping(inputMapping, params)
+      : params;
+
+    // ── STEP 2: Execute ──────────────────────────────────────────────────────
+    let result: unknown;
     switch (type) {
-      case 'api':       return this.executeApi(action, params, context);
-      case 'function':  return this.executeFunction(action, params);
-      case 'event':     return this.executeEvent(action, params, context);
-      case 'composite': return this.executeComposite(action, params, context);
-      case 'ui':        return null; // UI-only, no-op here
+      case 'api':       result = await this.executeApi(action, executionParams, context); break;
+      case 'function':  result = await this.executeFunction(action, executionParams); break;
+      case 'event':     result = await this.executeEvent(action, executionParams, context); break;
+      case 'composite': result = await this.executeComposite(action, executionParams, context); break;
+      case 'ui':        result = null; break; // UI-only, no-op here
       default:
         throw new ActionExecutorError(`Unknown action type: ${type}`);
     }
+
+    // ── STEP 3: Map output ───────────────────────────────────────────────────
+    const outputMapping = action.output_mapping ?? {};
+    if (Object.keys(outputMapping).length > 0 && result !== null && typeof result === 'object') {
+      result = this.applyMapping(outputMapping, result as Record<string, unknown>);
+    }
+
+    return result;
+  }
+
+  // ==========================================================================
+  // MAPPING HELPER
+  // ==========================================================================
+
+  /**
+   * Apply a key-rename mapping to a flat object.
+   *
+   * Format: { from_key: to_key }
+   * - Keys listed in the map are renamed from → to.
+   * - Keys NOT in the map pass through unchanged.
+   * - If from_key === to_key the value is kept as-is.
+   *
+   * Used for both input_mapping (params → execution params) and
+   * output_mapping (result → returned result).
+   */
+  private applyMapping(
+    mapping: Record<string, string>,
+    data: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const result = { ...data };
+    for (const [from, to] of Object.entries(mapping)) {
+      if (from in data) {
+        result[to] = data[from];
+        if (from !== to) delete result[from];
+      }
+    }
+    return result;
   }
 
   // ==========================================================================

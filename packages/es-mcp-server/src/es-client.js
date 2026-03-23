@@ -2,6 +2,12 @@
  * ElementStore HTTP client — thin wrapper over the REST API.
  * Used by the MCP server to discover classes and execute operations.
  */
+
+// Encode for URL path segments but keep colons (ES IDs use ns:name)
+function encodeES(segment) {
+  return encodeURIComponent(segment).replace(/%3A/gi, ':');
+}
+
 export class EsClient {
   constructor(baseUrl, options = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
@@ -41,51 +47,55 @@ export class EsClient {
   }
 
   async getClass(classId) {
-    return this._fetch(`/class/${encodeURIComponent(classId)}`);
+    return this._fetch(`/class/${encodeES(classId)}`);
   }
 
   async getClassProps(classId) {
-    return this._fetch(`/class/${encodeURIComponent(classId)}/props`);
+    return this._fetch(`/class/${encodeES(classId)}/props`);
   }
 
   // ── Objects ──
   async listObjects(classId, params = {}) {
     const qs = new URLSearchParams(params).toString();
-    const path = `/query/${encodeURIComponent(classId)}${qs ? '?' + qs : ''}`;
+    const path = `/query/${encodeES(classId)}${qs ? '?' + qs : ''}`;
     return this._fetch(path);
   }
 
   async getObject(classId, objectId) {
-    return this._fetch(`/store/${encodeURIComponent(classId)}/${encodeURIComponent(objectId)}`);
+    // Use query with id filter — /store/{class}/{id} route has issues with colons in nginx
+    const results = await this._fetch(`/query/${encodeES(classId)}?id=${encodeES(objectId)}`);
+    const list = Array.isArray(results) ? results : (results.data || []);
+    if (list.length === 0) throw new Error(`Not found: ${classId}/${objectId}`);
+    return list[0];
   }
 
   async createObject(classId, data) {
-    return this._fetch(`/store/${encodeURIComponent(classId)}`, {
+    return this._fetch(`/store/${encodeES(classId)}`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async updateObject(classId, objectId, data) {
-    return this._fetch(`/store/${encodeURIComponent(classId)}/${encodeURIComponent(objectId)}`, {
+    return this._fetch(`/store/${encodeES(classId)}/${encodeES(objectId)}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
   async deleteObject(classId, objectId) {
-    return this._fetch(`/store/${encodeURIComponent(classId)}/${encodeURIComponent(objectId)}`, {
+    return this._fetch(`/store/${encodeES(classId)}/${encodeES(objectId)}`, {
       method: 'DELETE',
     });
   }
 
   async findObject(objectId) {
-    return this._fetch(`/find/${encodeURIComponent(objectId)}`);
+    return this._fetch(`/find/${encodeES(objectId)}`);
   }
 
   // ── Actions ──
   async executeAction(actionId, params = {}) {
-    return this._fetch(`/action/${encodeURIComponent(actionId)}/execute`, {
+    return this._fetch(`/action/${encodeES(actionId)}/execute`, {
       method: 'POST',
       body: JSON.stringify(params),
     });

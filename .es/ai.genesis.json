@@ -1,13 +1,13 @@
 {
   "version": "1.0.0",
   "namespace": "ai",
-  "description": "Shared AI/agent classes — used by aic.sh, cwm-architect, and any application that works with agents, tasks, prompts, decisions.",
+  "description": "Shared AI/agent classes \u2014 used by aic.sh, cwm-architect, and any application that works with agents, tasks, prompts, decisions.",
   "classes": [
     {
       "id": "ai:agent",
       "class_id": "@class",
       "name": "AI Agent",
-      "description": "WHO the agent is — identity, prompt, domain, tools. Runtime behavior in ai:agent_behavior via behavior prop.",
+      "description": "WHO the agent is \u2014 identity, prompt, domain, tools. Runtime behavior in ai:agent_behavior via behavior prop.",
       "props": [
         {
           "data_type": "string",
@@ -48,6 +48,19 @@
           "display_order": 0,
           "id": "ai:agent.tools",
           "class_id": "@prop"
+        },
+        {
+          "data_type": "relation",
+          "key": "action_tools",
+          "label": "Action Tools",
+          "description": "@action IDs this agent can execute directly via es-action-tool.sh during its run",
+          "object_class_id": [
+            "@action"
+          ],
+          "is_array": "indexed",
+          "display_order": 0,
+          "id": "ai:agent.action_tools",
+          "class_id": "@prop_relation"
         },
         {
           "data_type": "string",
@@ -130,14 +143,192 @@
           "display_order": 0,
           "id": "ai:agent.behavior",
           "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "role",
+          "label": "Role",
+          "description": "Agent role code (e.g. CEO, CTO, DEV, QA, DEVOPS, coordinator, developer, reviewer)",
+          "is_array": "false",
+          "display_order": 20,
+          "id": "ai:agent.role",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "layer",
+          "label": "Execution Layer",
+          "description": "Execution layer this agent belongs to (e.g. leadership, foundation, build)",
+          "is_array": "false",
+          "display_order": 21,
+          "id": "ai:agent.layer",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "boundaries",
+          "label": "Boundaries",
+          "description": "What this agent must NOT do (enforced by prompt)",
+          "is_array": "indexed",
+          "display_order": 22,
+          "id": "ai:agent.boundaries",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "rules",
+          "label": "Rules",
+          "description": "Operational rules for this agent",
+          "is_array": "indexed",
+          "display_order": 23,
+          "id": "ai:agent.rules",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "commit_prefix",
+          "label": "Commit Prefix",
+          "description": "Git commit prefix (e.g. [AI-CTO])",
+          "is_array": "false",
+          "display_order": 24,
+          "id": "ai:agent.commit_prefix",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "color",
+          "label": "Terminal Color",
+          "description": "ANSI color code for terminal/UI identification",
+          "is_array": "false",
+          "display_order": 25,
+          "id": "ai:agent.color",
+          "class_id": "@prop"
         }
-      ]
+      ],
+      "icon": "bot",
+      "color": "#6366f1",
+      "contexts": {
+        "grid": {
+          "fields": [
+            "name",
+            "role",
+            "layer",
+            "domain",
+            "is_active",
+            "model"
+          ],
+          "sort_by": "name",
+          "page_size": 25,
+          "title_field": "name",
+          "badge_field": "role",
+          "template": "list-item",
+          "columns": [
+            {
+              "field": "name",
+              "label": "Agent",
+              "type": "text",
+              "width": 200
+            },
+            {
+              "field": "role",
+              "label": "Role",
+              "type": "badge",
+              "width": 120
+            },
+            {
+              "field": "layer",
+              "label": "Layer",
+              "type": "badge",
+              "width": 100
+            },
+            {
+              "field": "domain",
+              "label": "Domain",
+              "type": "text",
+              "width": 150
+            },
+            {
+              "field": "is_active",
+              "label": "Active",
+              "type": "boolean",
+              "width": 80
+            },
+            {
+              "field": "model",
+              "label": "Model",
+              "type": "text",
+              "width": 140
+            }
+          ]
+        },
+        "card": {
+          "template": "card-default",
+          "title_field": "name",
+          "subtitle_field": "description",
+          "badge_field": "role",
+          "image_field": "avatar",
+          "fields": [
+            "name",
+            "description",
+            "role",
+            "layer",
+            "domain",
+            "is_active"
+          ]
+        },
+        "form": {
+          "template": "form-default",
+          "title_field": "name",
+          "sections": [
+            {
+              "title": "Identity",
+              "columns": 2,
+              "fields": [
+                "name",
+                "role",
+                "layer",
+                "domain",
+                "is_active"
+              ]
+            },
+            {
+              "title": "Configuration",
+              "columns": 1,
+              "fields": [
+                "model",
+                "prompt",
+                "description"
+              ]
+            },
+            {
+              "title": "Runtime",
+              "collapsed": true,
+              "fields": [
+                "last_run",
+                "run_count",
+                "sessions"
+              ]
+            }
+          ]
+        },
+        "compact": {
+          "template": "list-item",
+          "title_field": "name",
+          "badge_field": "role",
+          "image_field": "avatar",
+          "fields": [
+            "name",
+            "role",
+            "is_active"
+          ]
+        }
+      }
     },
     {
       "id": "ai:task",
       "class_id": "@class",
       "name": "Task",
-      "description": "An actionable work item — assigned to agents, tracked through lifecycle.",
+      "description": "An actionable work item \u2014 assigned to agents, tracked through lifecycle.",
       "props": [
         {
           "key": "name",
@@ -306,8 +497,157 @@
             "readonly": true
           },
           "class_id": "@prop_string"
+        },
+        {
+          "id": "ai:task.depends_on",
+          "class_id": "@prop",
+          "key": "depends_on",
+          "data_type": "string",
+          "is_array": "true",
+          "name": "Depends On",
+          "description": "F1: Task IDs this task depends on (must complete first)"
+        },
+        {
+          "id": "ai:task.dag_id",
+          "class_id": "@prop",
+          "key": "dag_id",
+          "data_type": "string",
+          "name": "DAG",
+          "description": "F1: ID of the parent ai:dag if this task is part of a DAG"
+        },
+        {
+          "id": "ai:task.self_critique_note",
+          "class_id": "@prop",
+          "key": "self_critique_note",
+          "data_type": "string",
+          "name": "Self-Critique Note",
+          "description": "F5: Issue found during self-critique pass that blocked completion"
+        },
+        {
+          "id": "ai:task.artifact_ids",
+          "class_id": "@prop",
+          "key": "artifact_ids",
+          "data_type": "string",
+          "is_array": "true",
+          "name": "Artifacts",
+          "description": "F2: IDs of ai:artifact objects produced for this task"
         }
-      ]
+      ],
+      "icon": "check-square",
+      "color": "#f59e0b",
+      "contexts": {
+        "grid": {
+          "fields": [
+            "name",
+            "status",
+            "priority",
+            "project",
+            "agent_id",
+            "updated_at"
+          ],
+          "sort_by": "updated_at",
+          "page_size": 25,
+          "title_field": "name",
+          "badge_field": "status",
+          "template": "list-item",
+          "columns": [
+            {
+              "field": "name",
+              "label": "Task",
+              "type": "text",
+              "width": 300
+            },
+            {
+              "field": "status",
+              "label": "Status",
+              "type": "badge",
+              "width": 120
+            },
+            {
+              "field": "priority",
+              "label": "Priority",
+              "type": "badge",
+              "width": 90
+            },
+            {
+              "field": "project",
+              "label": "Project",
+              "type": "text",
+              "width": 120
+            },
+            {
+              "field": "agent_id",
+              "label": "Agent",
+              "type": "relation",
+              "width": 150
+            },
+            {
+              "field": "updated_at",
+              "label": "Updated",
+              "type": "datetime",
+              "width": 140
+            }
+          ]
+        },
+        "card": {
+          "template": "card-default",
+          "title_field": "name",
+          "subtitle_field": "description",
+          "badge_field": "status",
+          "color_field": "priority",
+          "fields": [
+            "name",
+            "description",
+            "status",
+            "priority",
+            "project",
+            "agent_id"
+          ]
+        },
+        "form": {
+          "template": "form-default",
+          "title_field": "name",
+          "sections": [
+            {
+              "title": "Task",
+              "columns": 2,
+              "fields": [
+                "name",
+                "priority",
+                "status",
+                "project"
+              ]
+            },
+            {
+              "title": "Assignment",
+              "columns": 1,
+              "fields": [
+                "agent_id",
+                "description"
+              ]
+            },
+            {
+              "title": "Result",
+              "collapsed": true,
+              "fields": [
+                "result",
+                "created_at",
+                "updated_at"
+              ]
+            }
+          ]
+        },
+        "compact": {
+          "template": "list-item",
+          "title_field": "name",
+          "badge_field": "status",
+          "fields": [
+            "name",
+            "status",
+            "priority"
+          ]
+        }
+      }
     },
     {
       "id": "ai:prompt",
@@ -573,7 +913,7 @@
       "id": "ai:round",
       "class_id": "@class",
       "name": "Round",
-      "description": "An execution round — one cycle of agents running sequentially.",
+      "description": "An execution round \u2014 one cycle of agents running sequentially.",
       "props": [
         {
           "key": "name",
@@ -648,7 +988,7 @@
       "extends_id": "core:atomObj",
       "is_system": true,
       "is_seed": true,
-      "description": "Tool that can be assigned to agents — binds to ElementStore classes and actions",
+      "description": "Tool that can be assigned to agents \u2014 binds to ElementStore classes and actions",
       "storage": "storage_ai",
       "props": [
         {
@@ -688,7 +1028,7 @@
       "extends_id": "core:atomObj",
       "is_system": true,
       "storage": "storage_ai",
-      "description": "Persistent memory entry — generic data field for AI to store anything",
+      "description": "Persistent memory entry \u2014 generic data field for AI to store anything",
       "props": [
         {
           "key": "key",
@@ -699,7 +1039,7 @@
         {
           "key": "data",
           "data_type": "object",
-          "description": "Generic data payload — AI stores whatever it needs"
+          "description": "Generic data payload \u2014 AI stores whatever it needs"
         },
         {
           "key": "agent_id",
@@ -732,7 +1072,7 @@
       "extends_id": "core:atomObj",
       "is_system": true,
       "storage": "@storage:none",
-      "description": "Real-time debug trace entry — fire-and-forget via WebSocket, not persisted",
+      "description": "Real-time debug trace entry \u2014 fire-and-forget via WebSocket, not persisted",
       "props": [
         {
           "key": "conversation_id",
@@ -771,7 +1111,7 @@
         {
           "key": "data",
           "data_type": "object",
-          "description": "Step payload — provider, tokens, params, results, errors"
+          "description": "Step payload \u2014 provider, tokens, params, results, errors"
         },
         {
           "key": "duration",
@@ -788,7 +1128,7 @@
       "extends_id": "core:atomObj",
       "is_system": true,
       "storage": "storage_ai",
-      "description": "Scheduled or triggered job — schema, events, and execution rules declared in object",
+      "description": "Scheduled or triggered job \u2014 schema, events, and execution rules declared in object",
       "props": [
         {
           "key": "type",
@@ -937,7 +1277,7 @@
       "extends_id": "core:atomObj",
       "is_system": true,
       "is_seed": true,
-      "description": "Embedded chunk within ai:message — not independently stored",
+      "description": "Embedded chunk within ai:message \u2014 not independently stored",
       "props": [
         {
           "key": "seq",
@@ -989,7 +1329,7 @@
       "namespace_id": "ai",
       "extends_id": "core:atomObj",
       "is_system": true,
-      "description": "Generic user-input request from AI — rendered as inline widget in conversation. Types: confirm, alert, password, number, text, options",
+      "description": "Generic user-input request from AI \u2014 rendered as inline widget in conversation. Types: confirm, alert, password, number, text, options",
       "props": [
         {
           "key": "action_id",
@@ -1082,7 +1422,7 @@
       "namespace_id": "ai",
       "extends_id": "core:atomObj",
       "is_system": true,
-      "description": "User response to an ai:prompt-request — includes confirm token for backend verification",
+      "description": "User response to an ai:prompt-request \u2014 includes confirm token for backend verification",
       "props": [
         {
           "key": "request_id",
@@ -1221,7 +1561,104 @@
           "id": "ai:conversation.last_message",
           "class_id": "@prop"
         }
-      ]
+      ],
+      "icon": "messages-square",
+      "color": "#0ea5e9",
+      "contexts": {
+        "grid": {
+          "fields": [
+            "title",
+            "agent_id",
+            "status",
+            "task_id",
+            "created_at"
+          ],
+          "sort_by": "created_at",
+          "page_size": 25,
+          "title_field": "title",
+          "badge_field": "status",
+          "template": "list-item",
+          "columns": [
+            {
+              "field": "title",
+              "label": "Title",
+              "type": "text",
+              "width": 280
+            },
+            {
+              "field": "agent_id",
+              "label": "Agent",
+              "type": "relation",
+              "width": 150
+            },
+            {
+              "field": "status",
+              "label": "Status",
+              "type": "badge",
+              "width": 100
+            },
+            {
+              "field": "task_id",
+              "label": "Task",
+              "type": "relation",
+              "width": 150
+            },
+            {
+              "field": "created_at",
+              "label": "Created",
+              "type": "datetime",
+              "width": 140
+            }
+          ]
+        },
+        "card": {
+          "template": "card-default",
+          "title_field": "title",
+          "badge_field": "status",
+          "fields": [
+            "title",
+            "agent_id",
+            "status",
+            "task_id",
+            "created_at"
+          ]
+        },
+        "form": {
+          "template": "form-default",
+          "title_field": "title",
+          "sections": [
+            {
+              "title": "Conversation",
+              "columns": 2,
+              "fields": [
+                "title",
+                "agent_id",
+                "status",
+                "task_id"
+              ]
+            },
+            {
+              "title": "Meta",
+              "collapsed": true,
+              "fields": [
+                "user_id",
+                "project_ids",
+                "created_at"
+              ]
+            }
+          ]
+        },
+        "compact": {
+          "template": "list-item",
+          "title_field": "title",
+          "badge_field": "status",
+          "fields": [
+            "title",
+            "agent_id",
+            "status"
+          ]
+        }
+      }
     },
     {
       "id": "ai:message",
@@ -1325,7 +1762,7 @@
         {
           "data_type": "object",
           "key": "results",
-          "description": "Array of results — each has result_type + type-specific fields. One message can produce multiple questions, decisions, tasks, etc.",
+          "description": "Array of results \u2014 each has result_type + type-specific fields. One message can produce multiple questions, decisions, tasks, etc.",
           "is_array": "indexed",
           "display_order": 0,
           "id": "ai:message.results",
@@ -1365,13 +1802,118 @@
           "id": "ai:message.created",
           "class_id": "@prop"
         }
-      ]
+      ],
+      "icon": "message-square",
+      "color": "#10b981",
+      "contexts": {
+        "grid": {
+          "fields": [
+            "content",
+            "role",
+            "agent_id",
+            "status",
+            "created_at"
+          ],
+          "sort_by": "created_at",
+          "page_size": 50,
+          "title_field": "content",
+          "badge_field": "status",
+          "template": "list-item",
+          "columns": [
+            {
+              "field": "content",
+              "label": "Message",
+              "type": "text",
+              "width": 400
+            },
+            {
+              "field": "role",
+              "label": "Role",
+              "type": "badge",
+              "width": 100
+            },
+            {
+              "field": "agent_id",
+              "label": "Agent",
+              "type": "relation",
+              "width": 150
+            },
+            {
+              "field": "status",
+              "label": "Status",
+              "type": "badge",
+              "width": 100
+            },
+            {
+              "field": "created_at",
+              "label": "Time",
+              "type": "datetime",
+              "width": 140
+            }
+          ]
+        },
+        "card": {
+          "template": "card-default",
+          "title_field": "content",
+          "badge_field": "role",
+          "fields": [
+            "content",
+            "role",
+            "agent_id",
+            "status",
+            "created_at"
+          ]
+        },
+        "form": {
+          "template": "form-default",
+          "title_field": "content",
+          "sections": [
+            {
+              "title": "Message",
+              "columns": 2,
+              "fields": [
+                "role",
+                "agent_id",
+                "status"
+              ]
+            },
+            {
+              "title": "Content",
+              "columns": 1,
+              "fields": [
+                "content",
+                "results"
+              ]
+            },
+            {
+              "title": "Meta",
+              "collapsed": true,
+              "fields": [
+                "user_id",
+                "to_agents",
+                "references",
+                "created_at"
+              ]
+            }
+          ]
+        },
+        "compact": {
+          "template": "list-item",
+          "title_field": "content",
+          "badge_field": "role",
+          "fields": [
+            "content",
+            "role",
+            "status"
+          ]
+        }
+      }
     },
     {
       "id": "ai:agent_behavior",
       "class_id": "@class",
       "name": "Agent Behavior",
-      "description": "Runtime behavior config — session, triggers, approval, cooldown, budget",
+      "description": "Runtime behavior config \u2014 session, triggers, approval, cooldown, budget",
       "props": [
         {
           "data_type": "string",
@@ -1462,6 +2004,22 @@
           "display_order": 0,
           "id": "ai:agent_behavior.on_error",
           "class_id": "@prop"
+        },
+        {
+          "id": "ai:agent_behavior.self_critique",
+          "class_id": "@prop",
+          "key": "self_critique",
+          "data_type": "boolean",
+          "name": "Self-Critique",
+          "description": "F5: Run self-critique pass before TASK_COMPLETE"
+        },
+        {
+          "id": "ai:agent_behavior.max_context_tokens",
+          "class_id": "@prop",
+          "key": "max_context_tokens",
+          "data_type": "integer",
+          "name": "Max Context Tokens",
+          "description": "F4: Max context tokens for this agent (default 8000)"
         }
       ]
     },
@@ -1573,7 +2131,7 @@
       "id": "ai:agent_session",
       "class_id": "@class",
       "name": "Agent Session",
-      "description": "A session belonging to an agent — type identifies the runtime (claude, openai, etc.)",
+      "description": "A session belonging to an agent \u2014 type identifies the runtime (claude, openai, etc.)",
       "props": [
         {
           "data_type": "string",
@@ -1917,6 +2475,210 @@
           "display_order": 0,
           "id": "ai:result_approval.reference_id",
           "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:prompt_proposal",
+      "class_id": "@class",
+      "name": "Prompt Proposal",
+      "description": "Agent-proposed improvement to a prompt file. Goes through CEO approval before being applied.",
+      "category": "ai",
+      "icon": "\ud83d\udca1",
+      "props": [
+        {
+          "data_type": "string",
+          "key": "agent_id",
+          "description": "Which agent is proposing the improvement",
+          "is_array": "false",
+          "display_order": 0,
+          "id": "ai:prompt_proposal.agent_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "prompt_file",
+          "description": "Prompt file to modify (e.g. developer.md)",
+          "is_array": "false",
+          "display_order": 1,
+          "id": "ai:prompt_proposal.prompt_file",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "proposed_addition",
+          "description": "The text to append to the prompt",
+          "is_array": "false",
+          "display_order": 2,
+          "id": "ai:prompt_proposal.proposed_addition",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "rationale",
+          "description": "Why this improvement is needed",
+          "is_array": "false",
+          "display_order": 3,
+          "id": "ai:prompt_proposal.rationale",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "task_id",
+          "description": "Task that triggered this proposal",
+          "is_array": "false",
+          "display_order": 4,
+          "id": "ai:prompt_proposal.task_id",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "status",
+          "description": "pending | approved | rejected",
+          "is_array": "false",
+          "display_order": 5,
+          "id": "ai:prompt_proposal.status",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "reviewed_by",
+          "description": "Who reviewed it",
+          "is_array": "false",
+          "display_order": 6,
+          "id": "ai:prompt_proposal.reviewed_by",
+          "class_id": "@prop"
+        },
+        {
+          "data_type": "string",
+          "key": "reviewed_at",
+          "description": "When it was reviewed",
+          "is_array": "false",
+          "display_order": 7,
+          "id": "ai:prompt_proposal.reviewed_at",
+          "class_id": "@prop"
+        }
+      ]
+    },
+    {
+      "id": "ai:artifact",
+      "class_id": "@class",
+      "name": "AI Artifact",
+      "description": "F2 Typed Artifact \u2014 structured typed output produced by an agent during task execution. Agents emit ARTIFACT: <type> | <content> signals which are parsed and stored here.",
+      "props": [
+        {
+          "id": "ai:artifact.artifact_type",
+          "class_id": "@prop",
+          "key": "artifact_type",
+          "data_type": "string",
+          "name": "Type",
+          "description": "code|plan|document|data|analysis|image_prompt"
+        },
+        {
+          "id": "ai:artifact.content",
+          "class_id": "@prop",
+          "key": "content",
+          "data_type": "string",
+          "name": "Content",
+          "description": "Artifact content (JSON string or plain text)"
+        },
+        {
+          "id": "ai:artifact.agent_id",
+          "class_id": "@prop",
+          "key": "agent_id",
+          "data_type": "string",
+          "name": "Agent"
+        },
+        {
+          "id": "ai:artifact.task_id",
+          "class_id": "@prop",
+          "key": "task_id",
+          "data_type": "string",
+          "name": "Task"
+        },
+        {
+          "id": "ai:artifact.status",
+          "class_id": "@prop",
+          "key": "status",
+          "data_type": "string",
+          "name": "Status",
+          "description": "created|validated|rejected"
+        },
+        {
+          "id": "ai:artifact.validation_errors",
+          "class_id": "@prop",
+          "key": "validation_errors",
+          "data_type": "string",
+          "name": "Validation Errors"
+        },
+        {
+          "id": "ai:artifact.created",
+          "class_id": "@prop",
+          "key": "created",
+          "data_type": "datetime",
+          "name": "Created"
+        }
+      ]
+    },
+    {
+      "id": "ai:dag",
+      "class_id": "@class",
+      "name": "AI Task DAG",
+      "description": "F1 DAG Planning \u2014 directed acyclic graph of tasks with dependency tracking. Coordinator creates DAGs for complex multi-step work.",
+      "props": [
+        {
+          "id": "ai:dag.name",
+          "class_id": "@prop",
+          "key": "name",
+          "data_type": "string",
+          "name": "Name"
+        },
+        {
+          "id": "ai:dag.description",
+          "class_id": "@prop",
+          "key": "description",
+          "data_type": "string",
+          "name": "Description"
+        },
+        {
+          "id": "ai:dag.task_ids",
+          "class_id": "@prop",
+          "key": "task_ids",
+          "data_type": "string",
+          "is_array": "true",
+          "name": "Tasks",
+          "description": "All task IDs in this DAG"
+        },
+        {
+          "id": "ai:dag.root_task_ids",
+          "class_id": "@prop",
+          "key": "root_task_ids",
+          "data_type": "string",
+          "is_array": "true",
+          "name": "Root Tasks",
+          "description": "Tasks with no dependencies"
+        },
+        {
+          "id": "ai:dag.status",
+          "class_id": "@prop",
+          "key": "status",
+          "data_type": "string",
+          "name": "Status",
+          "description": "active|completed|failed|cancelled"
+        },
+        {
+          "id": "ai:dag.progress_pct",
+          "class_id": "@prop",
+          "key": "progress_pct",
+          "data_type": "integer",
+          "name": "Progress %"
+        },
+        {
+          "id": "ai:dag.created",
+          "class_id": "@prop",
+          "key": "created",
+          "data_type": "datetime",
+          "name": "Created"
         }
       ]
     }

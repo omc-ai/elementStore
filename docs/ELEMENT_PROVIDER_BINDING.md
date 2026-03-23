@@ -39,10 +39,10 @@ A class declares **what the element is** (props) and **what you can do with it**
     { "key": "memory",     "data_type": "integer", "default_value": 4096 },
     { "key": "disk",       "data_type": "integer", "default_value": 40 },
     { "key": "os",         "data_type": "string",  "default_value": "ubuntu-22.04" },
-    { "key": "power",      "data_type": "string",  "readonly": true },
-    { "key": "ips",        "data_type": "string",  "is_array": true, "readonly": true },
-    { "key": "datacenter", "data_type": "string",  "readonly": true },
-    { "key": "status",     "data_type": "string",  "readonly": true }
+    { "key": "power",      "data_type": "string",  "flags": {"readonly": true} },
+    { "key": "ips",        "data_type": "string",  "is_array": "indexed", "flags": {"readonly": true} },
+    { "key": "datacenter", "data_type": "string",  "flags": {"readonly": true} },
+    { "key": "status",     "data_type": "string",  "flags": {"readonly": true} }
   ],
 
   "actions": ["vm:powerOn", "vm:powerOff", "vm:restart", "vm:resize", "vm:refresh"]
@@ -196,8 +196,8 @@ changing to "stopping" after a power-off), the response mapping captures those t
   "confirm": "Resize {name}? The server may need to restart.",
 
   "params": [
-    { "key": "cpu",    "data_type": "integer", "label": "CPU Cores",   "required": true },
-    { "key": "memory", "data_type": "integer", "label": "Memory (MB)", "required": true }
+    { "key": "cpu",    "data_type": "integer", "label": "CPU Cores",   "flags": {"required": true} },
+    { "key": "memory", "data_type": "integer", "label": "Memory (MB)", "flags": {"required": true} }
   ],
 
   "provider_id": "kamatera_vm",
@@ -242,7 +242,7 @@ Each action declares `params` as an array of @prop-shaped objects:
 
 ```
 params: [
-  { key, data_type, label, required, default_value, hidden, options }
+  { key, data_type, label, flags: {required, hidden}, default_value, options }
 ]
 ```
 
@@ -447,9 +447,9 @@ The same pattern works for any element that connects to an external system:
   "id": "infra:network",
   "providers": ["kamatera_network"],
   "props": [
-    { "key": "subnet", "data_type": "string", "readonly": true },
-    { "key": "vlan",   "data_type": "integer", "readonly": true },
-    { "key": "gateway","data_type": "string", "readonly": true }
+    { "key": "subnet", "data_type": "string",  "flags": {"readonly": true} },
+    { "key": "vlan",   "data_type": "integer", "flags": {"readonly": true} },
+    { "key": "gateway","data_type": "string",  "flags": {"readonly": true} }
   ],
   "actions": ["network:refresh"]
 }
@@ -463,8 +463,8 @@ The same pattern works for any element that connects to an external system:
   "providers": ["kamatera_k8s"],
   "props": [
     { "key": "version",    "data_type": "string" },
-    { "key": "totalNodes", "data_type": "integer", "readonly": true },
-    { "key": "status",     "data_type": "string",  "readonly": true }
+    { "key": "totalNodes", "data_type": "integer", "flags": {"readonly": true} },
+    { "key": "status",     "data_type": "string",  "flags": {"readonly": true} }
   ],
   "actions": ["k8s:scale", "k8s:upgrade", "k8s:refresh"]
 }
@@ -477,9 +477,9 @@ The same pattern works for any element that connects to an external system:
   "id": "app:deployment",
   "providers": ["argocd_provider"],
   "props": [
-    { "key": "revision",  "data_type": "string",  "readonly": true },
-    { "key": "syncStatus","data_type": "string",  "readonly": true },
-    { "key": "health",    "data_type": "string",  "readonly": true }
+    { "key": "revision",  "data_type": "string", "flags": {"readonly": true} },
+    { "key": "syncStatus","data_type": "string", "flags": {"readonly": true} },
+    { "key": "health",    "data_type": "string", "flags": {"readonly": true} }
   ],
   "actions": ["deploy:sync", "deploy:rollback", "deploy:refresh"]
 }
