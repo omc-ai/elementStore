@@ -117,6 +117,7 @@ export function buildAgentInstructions(agent, allAgents, aiTools, classes) {
   sections.push('5. **Task lifecycle** — create ai:task objects for work items (open → in_progress → done).');
   sections.push('6. **Feature tracking** — every feature tracked as @feature + @app_feature objects.');
   sections.push('7. **Agent awareness** — check which agent handles a domain before acting outside yours.');
+  sections.push('8. **Display with field selection** — when showing query results, use `X-Response-Format: text` header and `X-Fields` to select only relevant columns. Never dump full schema.');
   sections.push('');
 
   return sections.join('\n');
