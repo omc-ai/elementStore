@@ -33,6 +33,12 @@ class GenesisLoader
     private ?string $genesisUrl;
     private string $genesisMode;
 
+    /** @var ClassModel|null ClassModel for phase 2 loading (through ES validation) */
+    private ?ClassModel $classModel = null;
+
+    /** @var bool Whether system bootstrap (phase 1) is complete */
+    private bool $bootstrapped = false;
+
     /** @var array<string, array{file: string, dir: string}> classId → seed file mapping */
     private array $seedFileMap = [];
 
@@ -55,6 +61,38 @@ class GenesisLoader
         $this->esDir = rtrim($esDir, '/');
         $this->genesisUrl = $genesisUrl ? rtrim($genesisUrl, '/') : null;
         $this->genesisMode = $genesisMode;
+    }
+
+    /**
+     * Set ClassModel for phase 2 loading.
+     * After system classes are bootstrapped (phase 1), all subsequent
+     * loads go through ClassModel with full validation, events, and versioning.
+     */
+    public function setClassModel(ClassModel $classModel): void
+    {
+        $this->classModel = $classModel;
+    }
+
+    /**
+     * Save object through ClassModel (phase 2) or direct storage (phase 1 bootstrap).
+     * Phase 1: system classes (@class, @prop, etc.) → direct storage (no validation yet)
+     * Phase 2: everything else → ClassModel with validation, events, broadcast
+     */
+    private function saveObject(string $classId, array $data): array
+    {
+        // Phase 2: use ClassModel if available and bootstrap is done
+        if ($this->bootstrapped && $this->classModel !== null) {
+            try {
+                $obj = $this->classModel->setObject($classId, $data);
+                return $obj->toArray();
+            } catch (\Throwable $e) {
+                // Fall back to direct storage on validation errors during genesis
+                error_log("[GenesisLoader] ClassModel save failed for {$classId}/{$data['id']}: {$e->getMessage()}, falling back to direct storage");
+            }
+        }
+
+        // Phase 1 (bootstrap) or fallback: direct storage
+        return $this->storage->setobj($classId, $data);
     }
 
     /**

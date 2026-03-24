@@ -10,10 +10,10 @@
  * receive its own changes as echo.
  *
  * Message protocol:
- *   { type: "changes", items: [ { id, class_id, ...data, _old: {...} }, ... ] }
+ *   { type: "changes", items: [ { id, class_id, ...data, old_values: {...} }, ... ] }
  *
  * Each item IS the object data (id, class_id, all fields).
- * _old contains the previous values (optional, omitted for new objects).
+ * old_values contains the previous values (optional, omitted for new objects).
  * _deleted: true marks a deletion.
  *
  * PERFORMANCE NOTE:
@@ -120,7 +120,7 @@ class BroadcastService
                 }
             }
             if (!empty($changed)) {
-                $item['_old'] = $changed;
+                $item['old_values'] = $changed;
             }
         }
         self::send([$item], $senderUserId);
@@ -177,7 +177,7 @@ class BroadcastService
             '_deleted'            => true,
         ];
         if ($oldData !== null) {
-            $item['_old'] = $oldData;
+            $item['old_values'] = $oldData;
         }
         self::send([$item], $senderUserId);
     }

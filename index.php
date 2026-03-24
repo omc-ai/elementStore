@@ -174,11 +174,28 @@ $app->before(AuthService::getMiddleware($model));
 // Runs after the main auth middleware so we only process valid tokens.
 // Used by ClassModel::setObject() to enforce role-based guards (e.g. CLI action type).
 $app->before(function () use ($model) {
+    // System secret bypass — grants admin+system roles for internal tools (MCP, CLI, agents)
+    // Set ES_SYSTEM_SECRET env var and send as X-System-Secret header
+    $systemSecret = getenv('ES_SYSTEM_SECRET') ?: null;
+    $headerSecret = $_SERVER['HTTP_X_SYSTEM_SECRET'] ?? null;
+    if ($systemSecret && $headerSecret && hash_equals($systemSecret, $headerSecret)) {
+        $model->setUserRoles(['admin', 'system']);
+        $model->setUserId('system');
+        return true;
+    }
+
+    // JWT token — extract roles from verified token
     $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
     if (preg_match('/^Bearer\s+(.+)$/i', $authHeader, $matches)) {
         $result = AuthService::verifyLocal($matches[1]);
         if ($result['valid'] && $result['claims'] !== null) {
-            $model->setUserRoles((array)($result['claims']->roles ?? []));
+            // Support both 'roles' (array) and 'role' (single string) from JWT
+            $roles = (array)($result['claims']->roles ?? []);
+            $singleRole = $result['claims']->role ?? null;
+            if ($singleRole && !in_array($singleRole, $roles, true)) {
+                $roles[] = $singleRole;
+            }
+            $model->setUserRoles($roles);
         }
     }
     return true;

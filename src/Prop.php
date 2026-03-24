@@ -144,6 +144,7 @@ class Prop extends EntityObj
     public function isCreateOnly(): bool { return !empty($this->flags['create_only']); }
     public function isServerOnly(): bool { return !empty($this->flags['server_only']); }
     public function isMasterOnly(): bool { return !empty($this->flags['master_only']); }
+    public function isFromParent(): bool { return !empty($this->flags['from_parent']); }
 
     /**
      * Constructor with data normalization

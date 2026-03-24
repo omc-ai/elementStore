@@ -215,9 +215,9 @@ function _wsLogEntry(item, type) {
 
         // Format changed fields from _old
         var changedHtml = '';
-        if (item._old && typeof item._old === 'object') {
-            var changes = Object.keys(item._old).map(function (k) {
-                var oldVal = JSON.stringify(item._old[k]);
+        if (item.old_values && typeof item.old_values === 'object') {
+            var changes = Object.keys(item.old_values).map(function (k) {
+                var oldVal = JSON.stringify(item.old_values[k]);
                 var newVal = JSON.stringify(item[k]);
                 if (oldVal.length > 30) oldVal = oldVal.slice(0, 30) + '…';
                 if (newVal.length > 30) newVal = newVal.slice(0, 30) + '…';

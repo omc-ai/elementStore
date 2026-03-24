@@ -610,17 +610,35 @@ class ClassModel
                 );
             }
 
+            // @state.readonly guard — sealed objects cannot be modified
+            if ($oldData !== null) {
+                $state = $oldData['@state'] ?? [];
+                if (!empty($state['readonly'])) {
+                    $canOverride = in_array('admin', $this->userRoles, true)
+                        || in_array('system', $this->userRoles, true);
+                    if (!$canOverride) {
+                        throw new StorageException(
+                            "Object is read-only (sealed). Cannot modify {$class_id}/{$id}.",
+                            'forbidden'
+                        );
+                    }
+                }
+            }
+
             // Immutability guard: prevent modification of system/seed class definitions
+            // Admin role can modify system classes (needed for genesis updates via ES API)
             if ($class_id === Constants::K_CLASS && $oldData !== null) {
-                if (!empty($oldData['is_system'])) {
+                $canModifySystem = in_array('admin', $this->userRoles, true)
+                    || in_array('system', $this->userRoles, true);
+                if (!empty($oldData['is_system']) && !$canModifySystem) {
                     throw new StorageException(
-                        "Cannot modify system class: {$id}",
+                        "Cannot modify system class: {$id}. Admin or system role required.",
                         'forbidden'
                     );
                 }
-                if (!empty($oldData['is_seed']) && $this->isSystemClass((string)$id)) {
+                if (!empty($oldData['is_seed']) && $this->isSystemClass((string)$id) && !$canModifySystem) {
                     throw new StorageException(
-                        "Cannot modify seed system class: {$id}",
+                        "Cannot modify seed system class: {$id}. Admin or system role required.",
                         'forbidden'
                     );
                 }
@@ -697,6 +715,17 @@ class ClassModel
             }
         }
 
+        // Protect @state — server-managed, preserve from old data, strip user input
+        $isSystemRole = in_array('system', $this->userRoles, true);
+        if (!$isSystemRole) {
+            // Non-system users: preserve old @state, ignore user input
+            if ($oldData !== null && isset($oldData['@state'])) {
+                $data['@state'] = $oldData['@state'];
+            } else {
+                unset($data['@state']);
+            }
+        }
+
         // Step 3: Stamp security fields for new objects (non-system classes)
         if ($oldData === null && !$this->isSystemClass($class_id)) {
             if ($this->userId !== null) {
@@ -713,12 +742,88 @@ class ClassModel
             }
         }
 
+        // Step 3b: Handle from_parent flags
+        // On create: auto-populate from parent. On update: reject direct writes.
+        if ($meta !== null) {
+            $props = $this->getClassProps($class_id);
+            $parentId = $data['primary_id'] ?? ($oldData['primary_id'] ?? null);
+            $parentData = null;
+
+            foreach ($props as $prop) {
+                if (!$prop->isFromParent()) continue;
+                $key = $prop->key;
+
+                if ($oldData === null) {
+                    // CREATE: auto-populate from parent object
+                    if ($parentId !== null && !isset($data[$key])) {
+                        if ($parentData === null) {
+                            // Lazy-load parent — detect parent class from primary_id or same class
+                            $parentData = $this->storage->getobj($class_id, $parentId);
+                            if ($parentData === null) {
+                                // Try finding parent in any class by ID
+                                $parentData = $this->findObjectById($parentId);
+                            }
+                        }
+                        if ($parentData !== null && isset($parentData[$key])) {
+                            $data[$key] = $parentData[$key];
+                        }
+                    }
+                } else {
+                    // UPDATE: reject direct writes to from_parent fields
+                    if (array_key_exists($key, $data) && isset($oldData[$key])) {
+                        if ($data[$key] !== $oldData[$key]) {
+                            // Silently keep old value — don't allow override
+                            $data[$key] = $oldData[$key];
+                        }
+                    }
+                }
+            }
+        }
+
         // Step 4: Detect changes
         $changes = $this->detectChanges($data, $oldData);
 
         // Step 5: No changes - return existing object
         if (empty($changes) && $oldData !== null) {
             return $this->factory($class_id, $oldData);
+        }
+
+        // Step 5b: Create @changes version record
+        // Each save creates a @changes object with the full data + _old changed fields.
+        // object.version = @changes ID (linked chain: _old.version = previous @changes ID)
+        // Skipped if class has track_changes: false (e.g. @changes itself, logs)
+        $metaArr = $meta ? $meta->toArray() : [];
+        $trackChanges = ($metaArr['track_changes'] ?? true) && $class_id !== '@changes';
+        if ($trackChanges) {
+            $changeItem = $data;
+            if ($oldData !== null) {
+                $old = [];
+                foreach ($oldData as $k => $v) {
+                    if (!array_key_exists($k, $data) || $data[$k] !== $v) {
+                        $old[$k] = $v;
+                    }
+                }
+                if (!empty($old)) {
+                    $changeItem['old_values'] = $old;
+                }
+            }
+
+            try {
+                $changeObj = $this->setObject('@changes', [
+                    Constants::F_CLASS_ID => '@changes',
+                    'items' => [$changeItem],
+                    'sender_id' => $this->userId ?? 'system',
+                ]);
+                $changeId = $changeObj->id ?? null;
+                if ($changeId) {
+                    // Store version in @state (server-managed object state)
+                    $state = $data['@state'] ?? [];
+                    $state['version'] = $changeId;
+                    $data['@state'] = $state;
+                }
+            } catch (\Throwable $e) {
+                error_log("[ES] @changes creation failed: " . $e->getMessage());
+            }
         }
 
         // Step 6: Save and handle side effects
@@ -802,32 +907,44 @@ class ClassModel
      */
     public function deleteObject(string $class_id, mixed $id): bool
     {
-        // Load existing data (for security check + broadcast _old)
+        // Load existing data (for security check)
         $oldData = $this->storage->getobj($class_id, $id);
+        if ($oldData === null) return false;
 
         // Verify security access before delete
         if (!$this->isSystemClass($class_id) && $this->enforceOwnership) {
-            if ($oldData !== null && !$this->checkSecurityAccess($oldData)) {
-                return false; // Security mismatch
+            if (!$this->checkSecurityAccess($oldData)) {
+                return false;
             }
+        }
+
+        // @state.readonly guard
+        $state = $oldData['@state'] ?? [];
+        if (!empty($state['readonly'])) {
+            $canOverride = in_array('admin', $this->userRoles, true)
+                || in_array('system', $this->userRoles, true);
+            if (!$canOverride) return false;
+        }
+
+        // Soft delete: set @state.deleted = true (object stays in DB)
+        // The @changes record serves as the deletion notification
+        $oldData['@state'] = array_merge($state, ['deleted' => true]);
+        try {
+            $this->setObject($class_id, $oldData);
+        } catch (\Throwable $e) {
+            error_log("[ES] Soft delete failed for {$class_id}/{$id}: " . $e->getMessage());
+            return false;
         }
 
         // Remove from cache
         unset($this->objectCache[$class_id][$id]);
 
-        $deleted = $this->storage->delobj($class_id, $id);
-
-        if ($deleted) {
-            BroadcastService::emitDelete($class_id, $id, $oldData, $this->userId);
-            EventDispatcher::dispatch('after_delete', $class_id, ['id' => $id, 'class_id' => $class_id], $oldData, $this->userId);
-
-            // Seed write-back on delete
-            if ($this->genesisLoader !== null && $this->hasSeedWritePermission()) {
-                $this->seedDeleteBack($class_id, $id);
-            }
+        // Seed write-back on delete
+        if ($this->genesisLoader !== null && $this->hasSeedWritePermission()) {
+            $this->seedDeleteBack($class_id, $id);
         }
 
-        return $deleted;
+        return true;
     }
 
     /**
@@ -852,6 +969,16 @@ class ClassModel
         }
 
         $results = $this->storage->query($class_id, $filters, $options);
+
+        // Filter out @state.deleted objects (unless explicitly querying for them)
+        $includeDeleted = $filters['@state.deleted'] ?? null;
+        if ($includeDeleted === null) {
+            $results = array_filter($results, function ($data) {
+                $state = $data['@state'] ?? [];
+                return empty($state['deleted']);
+            });
+            $results = array_values($results); // re-index
+        }
 
         // Convert to AtomObj array
         return array_map(
@@ -1814,9 +1941,21 @@ class ClassModel
         // Save the object
         $result = $this->storage->setobj($class_id, $data);
 
-        // Broadcast change to WS subscribers (skip sender by user_id)
-        BroadcastService::emitChange($result, $oldData, $this->userId);
+        // Broadcast: only classes with track_changes=false broadcast directly to WS.
+        // Classes with track_changes=true (default) broadcast via their @changes record
+        // which is created in Step 5b and goes through setObject('@changes') → here.
+        $classMeta = $this->getClass($class_id);
+        $classArr = $classMeta ? $classMeta->toArray() : [];
+        $classTrackChanges = $classArr['track_changes'] ?? true;
+        if (!$classTrackChanges) {
+            BroadcastService::emitChange($result, $oldData, $this->userId);
+        }
         EventDispatcher::dispatch($oldData ? 'after_update' : 'after_create', $class_id, $result, $oldData, $this->userId);
+
+        // Cascade from_parent fields to children when parent is updated
+        if ($oldData !== null && !empty($changes)) {
+            $this->cascadeFromParentFields($class_id, $result, $changes);
+        }
 
         // Handle class meta changes (renames)
         if ($class_id === Constants::K_CLASS && !empty($changes)) {
@@ -2185,9 +2324,11 @@ class ClassModel
             return true;
         }
 
-        // In authenticated mode, seed write-back requires the custom IDs flag
-        // (set via X-Allow-Custom-Ids header during seeding operations)
-        return $this->allowCustomIds;
+        // In authenticated mode, seed write-back requires custom IDs flag or system/admin role
+        if ($this->allowCustomIds) return true;
+        if (in_array('system', $this->userRoles, true)) return true;
+        if (in_array('admin', $this->userRoles, true)) return true;
+        return false;
     }
 
     /**
@@ -2595,5 +2736,96 @@ class ClassModel
             'deleted' => count($deleted),
             'ids' => $deleted,
         ];
+    }
+
+    /**
+     * Find an object by ID across all classes (used for parent resolution).
+     * Checks the ID prefix to guess the class, or falls back to scanning.
+     *
+     * @param mixed $id Object ID
+     * @return array|null Object data or null
+     */
+    private function findObjectById(mixed $id): ?array
+    {
+        if ($id === null) return null;
+        $idStr = (string) $id;
+
+        // If ID contains ':', the prefix before ':' might be the class
+        if (str_contains($idStr, ':')) {
+            $prefix = substr($idStr, 0, strpos($idStr, ':'));
+            // Try common class patterns
+            $candidates = [$prefix, "ai:$prefix", "es:$prefix", "core:$prefix"];
+            foreach ($candidates as $cls) {
+                $data = $this->storage->getobj($cls, $idStr);
+                if ($data !== null) return $data;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Cascade from_parent field changes to child objects.
+     * When a parent object is updated, find all children with primary_id = this object's ID,
+     * and update their from_parent fields to match.
+     *
+     * @param string $class_id Parent's class
+     * @param array  $data     Updated parent data
+     * @param array  $changes  Changed fields
+     */
+    private function cascadeFromParentFields(string $class_id, array $data, array $changes): void
+    {
+        $parentId = $data[Constants::F_ID] ?? null;
+        if ($parentId === null) return;
+
+        // Find which from_parent fields changed
+        $meta = $this->getClass($class_id);
+        if ($meta === null) return;
+
+        $props = $this->getClassProps($class_id);
+        $changedParentFields = [];
+        foreach ($props as $prop) {
+            if (isset($changes[$prop->key])) {
+                $changedParentFields[$prop->key] = $data[$prop->key] ?? null;
+            }
+        }
+
+        if (empty($changedParentFields)) return;
+
+        // Find children: objects of same class (or child classes) where primary_id = this ID
+        try {
+            $children = $this->storage->find($class_id, ['primary_id' => $parentId], 100);
+        } catch (\Throwable $e) {
+            return; // No primary_id field or no children — skip silently
+        }
+
+        if (empty($children)) return;
+
+        // Get child class props to check which have from_parent flag
+        foreach ($children as $child) {
+            $childClassId = $child[Constants::F_CLASS_ID] ?? $class_id;
+            $childProps = $this->getClassProps($childClassId);
+            $updates = [];
+
+            foreach ($childProps as $prop) {
+                if ($prop->isFromParent() && isset($changedParentFields[$prop->key])) {
+                    $currentVal = $child[$prop->key] ?? null;
+                    $newVal = $changedParentFields[$prop->key];
+                    if ($currentVal !== $newVal) {
+                        $updates[$prop->key] = $newVal;
+                    }
+                }
+            }
+
+            if (!empty($updates)) {
+                $childId = $child[Constants::F_ID];
+                $updates[Constants::F_ID] = $childId;
+                $updates[Constants::F_CLASS_ID] = $childClassId;
+                // Direct storage update to avoid recursive validation
+                $merged = array_merge($child, $updates);
+                $this->storage->setobj($childClassId, $merged);
+                BroadcastService::emitChange($merged, $child, $this->userId);
+            }
+        }
     }
 }

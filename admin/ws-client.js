@@ -207,7 +207,7 @@ ElementStoreWS.prototype._onMessage = function (msg) {
 
 /**
  * Process a batch of change items.
- * Each item = { id, class_id, ...data, _old: {...}, _deleted: true|undefined }
+ * Each item = { id, class_id, ...data, old_values: {...}, _deleted: true|undefined }
  */
 ElementStoreWS.prototype._onChanges = function (items) {
     for (var i = 0; i < items.length; i++) {
@@ -224,7 +224,7 @@ ElementStoreWS.prototype._onChanges = function (items) {
             // Merge into local store (strip internal fields before applying)
             var data = {};
             for (var k in item) {
-                if (k !== '_old' && k !== '_deleted' && k !== '_scope_id' && item.hasOwnProperty(k)) {
+                if (k !== 'old_values' && k !== '_deleted' && k !== '_scope_id' && item.hasOwnProperty(k)) {
                     data[k] = item[k];
                 }
             }

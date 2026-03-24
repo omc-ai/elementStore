@@ -1671,13 +1671,26 @@
       "storage": "storage_ai",
       "props": [
         {
+          "data_type": "relation",
+          "key": "primary_id",
+          "description": "Primary creator — the message this belongs to. Child inherits context (task_id, user_id, agent_id, conversation_id) via from_parent flag.",
+          "is_array": "false",
+          "display_order": -1,
+          "id": "ai:message.primary_id",
+          "class_id": "@prop_relation",
+          "options": {
+            "class_id": "ai:message"
+          }
+        },
+        {
           "data_type": "string",
           "key": "user_id",
           "description": "Person who sent this (server-set from JWT, or system for AI)",
           "is_array": "false",
           "display_order": 0,
           "id": "ai:message.user_id",
-          "class_id": "@prop"
+          "class_id": "@prop",
+          "flags": { "from_parent": true }
         },
         {
           "data_type": "string",
@@ -1686,7 +1699,8 @@
           "is_array": "false",
           "display_order": 0,
           "id": "ai:message.agent_id",
-          "class_id": "@prop"
+          "class_id": "@prop",
+          "flags": { "from_parent": true }
         },
         {
           "data_type": "string",
@@ -1704,7 +1718,8 @@
           "is_array": "false",
           "display_order": 0,
           "id": "ai:message.conversation_id",
-          "class_id": "@prop"
+          "class_id": "@prop",
+          "flags": { "from_parent": true }
         },
         {
           "data_type": "string",
@@ -1713,7 +1728,8 @@
           "is_array": "false",
           "display_order": 0,
           "id": "ai:message.task_id",
-          "class_id": "@prop"
+          "class_id": "@prop",
+          "flags": { "from_parent": true }
         },
         {
           "data_type": "string",

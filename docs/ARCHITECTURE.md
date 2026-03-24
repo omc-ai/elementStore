@@ -24,6 +24,30 @@ This creates the store and seeds core system definitions:
 - `@storage` — storage provider definition
 - All `@class` props (`name`, `extends_id`, `storage_id`, `props`)
 - All `@prop` props (`key`, `data_type`, `label`, `description`, `is_array`, `flags`, `editor`, `options`, etc.)
+
+#### Property Flags (`@prop_flags`)
+
+Boolean behavior flags on `@prop`. All default to `false`.
+
+| Flag | Description | Server Behavior |
+|------|-------------|-----------------|
+| `required` | Field must have a value | Reject create/update if empty |
+| `readonly` | Field cannot be edited | Reject any write after creation |
+| `hidden` | Hide from default UI views | Client-side only |
+| `create_only` | Only writable on create | Reject updates to this field |
+| `server_only` | Backend-only, stripped from API responses | Never sent to client |
+| `master_only` | Only visible on admin interface | Client-side only |
+| `from_parent` | Value auto-populated from parent object | On create: copy from parent via `parent_id`. On update: reject direct writes. On parent change: cascade to all children. Value IS stored for queryability. |
+
+Example usage:
+```json
+{
+  "key": "task_id",
+  "data_type": "string",
+  "flags": { "from_parent": true }
+}
+```
+When this object is created with a `parent_id`, the `task_id` is automatically copied from the parent. Direct writes to `task_id` on update are silently ignored. If the parent's `task_id` changes, all children are updated.
 - All `@storage` props (`url`, `type`)
 - Built-in `local` storage (memory-only, no remote persistence)
 
