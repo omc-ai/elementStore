@@ -12,6 +12,7 @@ export class EsClient {
   constructor(baseUrl, options = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.token = options.token || null;
+    this.systemSecret = options.systemSecret || null;
     this.appId = options.appId || 'mcp-server';
   }
 
@@ -22,7 +23,8 @@ export class EsClient {
       'X-App-Id': this.appId,
       ...options.headers,
     };
-    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+    if (this.systemSecret) headers['X-System-Secret'] = this.systemSecret;
+    else if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
 
     const res = await fetch(url, { ...options, headers });
     const text = await res.text();

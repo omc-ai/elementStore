@@ -18,7 +18,8 @@
   },
   "genesis": {
     "mode": "local",
-    "url": null,
-    "auto_load": true
+    "url": "https://raw.githubusercontent.com/omc-ai/elementStore/main",
+    "auto_load": true,
+    "_note": "mode: 'local' uses .es/ files, 'remote' fetches from url/.es/*.genesis.json with local fallback"
   }
 }

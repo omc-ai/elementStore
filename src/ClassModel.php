@@ -87,6 +87,9 @@ class ClassModel
     /** @var bool Allow custom IDs when creating objects (for seeding/testing) */
     private bool $allowCustomIds = false;
 
+    /** @var bool Skip auth (set by system secret or dev mode bypass in index.php) */
+    public bool $skipAuth = false;
+
     /** @var bool Cast object structure on read (normalize arrays, fill defaults) */
     private bool $castOnRead = true;
 
@@ -964,7 +967,10 @@ class ClassModel
         $filters[Constants::F_CLASS_ID] = $class_id;
 
         // Add security filters for non-system classes
-        if (!$this->isSystemClass($class_id) && $this->enforceOwnership) {
+        // Admin/system roles bypass ownership filtering (see all objects)
+        $isPrivileged = in_array('admin', $this->userRoles, true)
+            || in_array('system', $this->userRoles, true);
+        if (!$this->isSystemClass($class_id) && $this->enforceOwnership && !$isPrivileged) {
             $this->injectSecurityFilters($filters);
         }
 
@@ -2093,6 +2099,17 @@ class ClassModel
         }
 
         $data[Constants::F_PROPS] = $props;
+
+        // Compute schema_hash — MD5 of props keys+types for schema change detection
+        $hashParts = [];
+        foreach ($props as $prop) {
+            if (is_array($prop) && isset($prop['key'])) {
+                $hashParts[] = $prop['key'] . ':' . ($prop['data_type'] ?? '') . ':' . ($prop['is_array'] ?? 'false');
+            }
+        }
+        sort($hashParts); // deterministic order
+        $data['schema_hash'] = md5(implode('|', $hashParts));
+
         return $data;
     }
 

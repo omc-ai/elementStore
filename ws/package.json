@@ -9,6 +9,9 @@
   },
   "dependencies": {
     "jsonwebtoken": "^9.0.3",
-    "ws": "^8.16.0"
+    "ws": "^8.16.0",
+    "@anthropic-ai/sdk": "^0.52.0",
+    "openai": "^4.0.0",
+    "@huggingface/inference": "^3.0.0"
   }
 }

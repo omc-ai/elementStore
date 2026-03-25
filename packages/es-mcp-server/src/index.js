@@ -53,9 +53,10 @@ const agentId = getArg('agent') || process.env.ES_AGENT_ID || 'agent:owner';
 const includeSystem = hasFlag('system-classes') || process.env.ES_INCLUDE_SYSTEM === '1';
 const classFilter = (getArg('classes') || process.env.ES_MCP_CLASSES || '').split(',').filter(Boolean);
 const token = getArg('token') || process.env.ES_TOKEN || null;
+const systemSecret = process.env.ES_SYSTEM_SECRET || null;
 
 // ── Init client ──
-const client = new EsClient(esUrl, { token });
+const client = new EsClient(esUrl, { token, systemSecret });
 
 // ── State ──
 const tools = new Map();           // name → { definition, meta }

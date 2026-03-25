@@ -166,23 +166,40 @@ if ($rateLimitMax > 0) {
     });
 }
 
-// Auth middleware — verify JWT Bearer token and inject user/app/domain into model.
-// Skipped automatically if no auth_config object exists in the store.
-$app->before(AuthService::getMiddleware($model));
-
-// Role-injection middleware — extract roles from the verified JWT and store in model.
-// Runs after the main auth middleware so we only process valid tokens.
-// Used by ClassModel::setObject() to enforce role-based guards (e.g. CLI action type).
+// Pre-auth bypass middleware — system secret and dev mode checked BEFORE JWT auth
+// This must run first so internal tools and dev mode skip the auth requirement entirely.
 $app->before(function () use ($model) {
     // System secret bypass — grants admin+system roles for internal tools (MCP, CLI, agents)
-    // Set ES_SYSTEM_SECRET env var and send as X-System-Secret header
     $systemSecret = getenv('ES_SYSTEM_SECRET') ?: null;
     $headerSecret = $_SERVER['HTTP_X_SYSTEM_SECRET'] ?? null;
     if ($systemSecret && $headerSecret && hash_equals($systemSecret, $headerSecret)) {
         $model->setUserRoles(['admin', 'system']);
         $model->setUserId('system');
+        $model->skipAuth = true;  // Flag to skip JWT auth middleware
         return true;
     }
+
+    // Dev mode bypass — grants admin+system roles when ES_ALLOW_UNAUTHENTICATED=true
+    $allowUnauth = strtolower((string)(getenv('ES_ALLOW_UNAUTHENTICATED') ?: $_SERVER['ES_ALLOW_UNAUTHENTICATED'] ?? '')) === 'true';
+    if ($allowUnauth) {
+        $model->setUserRoles(['admin', 'system']);
+        $model->setUserId('dev-admin');
+        $model->skipAuth = true;
+        return true;
+    }
+    return true;
+});
+
+// Auth middleware — verify JWT Bearer token and inject user/app/domain into model.
+// Skipped if system secret or dev mode already authenticated above.
+$app->before(function () use ($model) {
+    if (!empty($model->skipAuth)) return true;
+    return AuthService::getMiddleware($model)();
+});
+
+// Role-injection middleware — extract roles from verified JWT.
+$app->before(function () use ($model) {
+    if (!empty($model->skipAuth)) return true;
 
     // JWT token — extract roles from verified token
     $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';

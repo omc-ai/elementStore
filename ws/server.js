@@ -23,6 +23,8 @@ const { WebSocketServer } = require('ws');
 const url = require('url');
 const jwt = require('jsonwebtoken');
 
+var conversationHandler = require('./llm/conversation-handler.js');
+
 const PORT = parseInt(process.env.WS_PORT || '3100', 10);
 // ES API URL — must go through nginx (PHP-FPM is FastCGI, not HTTP)
 // Local dev: agura_web_1, Production: arc3d_nginx
@@ -184,8 +186,14 @@ wss.on('connection', function (ws, req) {
     var earlyToken = parsed.query.token || null;
     var earlyUserId = null;
     if (earlyToken) {
-        var earlyPayload = decodeJwtPayload(earlyToken);
-        if (earlyPayload) earlyUserId = earlyPayload.sub || earlyPayload.user_id || null;
+        // Quick decode without full verification — just for per-user limit check
+        try {
+            var parts = earlyToken.split('.');
+            if (parts.length >= 2) {
+                var earlyPayload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+                if (earlyPayload) earlyUserId = earlyPayload.sub || earlyPayload.user_id || null;
+            }
+        } catch (_e) { /* ignore decode errors in pre-parse */ }
     }
     if (!earlyUserId) earlyUserId = parsed.query.user_id || null;
 
@@ -221,12 +229,16 @@ wss.on('connection', function (ws, req) {
             console.log('[WS] rejected connection ' + connId + ' — invalid JWT');
             return;
         }
-    } else {
-        // No token provided — reject connection
+    } else if (JWT_SECRET) {
+        // No token provided and JWT is required — reject connection
         wsSend(ws, { event: 'error', message: 'Authentication required.' });
         ws.terminate();
         console.log('[WS] rejected connection ' + connId + ' — no token');
         return;
+    } else {
+        // No JWT_SECRET configured — allow unauthenticated (dev mode)
+        userId = parsed.query.user_id || 'anonymous';
+        console.log('[WS] dev mode — accepting unauthenticated connection ' + connId + ' user=' + userId);
     }
 
     ws._userId = userId;
@@ -314,6 +326,19 @@ function handleClientMessage(ws, msg) {
         case 'ping':
             ws._lastActivity = Date.now();
             wsSend(ws, { event: 'pong' });
+            break;
+
+        // ── LLM Conversation Actions ────────────────────────
+        case 'chat':
+            conversationHandler.handleChat(ws, msg, wsSend);
+            break;
+
+        case 'chat_stop':
+            conversationHandler.handleChatStop(ws);
+            break;
+
+        case 'chat_providers':
+            conversationHandler.handleChatProviders(ws, wsSend);
             break;
 
         default:

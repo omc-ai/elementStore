@@ -1,0 +1,2466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Company v2 — ASI Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#f0f2f5;color:#1f2328;line-height:1.5;display:flex;flex-direction:column}
+header{background:#075e54;border-bottom:none;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:100}
+header h1{font-size:1.1em;color:#fff}
+.hdr-status{display:flex;gap:10px;align-items:center;font-size:0.82em;color:rgba(255,255,255,.85)}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:3px}
+.dot.ok{background:#1a7f37}.dot.err{background:#cf222e}.dot.load{background:#9a6700}
+.layout{flex:1;display:grid;grid-template-columns:250px 1fr 300px;gap:8px;padding:8px;overflow:hidden}
+@media(max-width:1100px){.layout{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}}
+.col{display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.card{background:#fff;border:1px solid #d1d9e0;border-radius:6px;overflow:hidden;min-height:0}
+.card-hdr{padding:6px 10px;font-weight:600;font-size:0.82em;border-bottom:1px solid #d1d9e0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.card-body{padding:8px 10px}
+.card-hdr .count{background:#ddf4ff;color:#0550ae;border-radius:8px;padding:0 6px;font-size:0.75em}
+
+/* Agent cards */
+.agent{padding:8px 10px;border-bottom:1px solid #f0f2f5;cursor:pointer;display:flex;gap:8px;align-items:center;transition:background .1s}
+.agent:hover{background:#f6f8fa}
+.agent:last-child{border-bottom:none}
+.agent .ord{width:22px;height:22px;border-radius:50%;background:#ddf4ff;color:#0550ae;font-size:0.7em;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.agent .info{flex:1;min-width:0}
+.agent .name{font-weight:600;font-size:0.85em}
+.agent .meta{font-size:0.72em;color:#59636e}
+.agent.active{background:#f0fff4;border-left:2px solid #1a7f37}
+.agent .prompt-len{font-size:0.68em;color:#1a7f37}
+
+/* Tasks */
+.task{padding:6px 10px;border-bottom:1px solid #f0f2f5;font-size:0.85em}
+.task:last-child{border-bottom:none}
+.task .t-name{font-weight:500}
+.task .t-meta{font-size:0.75em;color:#59636e;display:flex;gap:6px}
+.badge{display:inline-block;padding:0 6px;border-radius:8px;font-size:0.72em;font-weight:600}
+.b-p1{background:#ffebe9;color:#cf222e}.b-p2{background:#fff8c5;color:#9a6700}.b-p3{background:#f0f2f5;color:#59636e}
+.b-open{background:#ddf4ff;color:#0550ae}.b-done{background:#dafbe1;color:#1a7f37}.b-progress{background:#fff8c5;color:#9a6700}
+
+/* Worker log */
+.log-box{background:#1f2328;color:#c9d1d9;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:0.72em;padding:8px;max-height:250px;overflow-y:auto;line-height:1.6}
+.log-box .ok{color:#3fb950}.log-box .err{color:#f85149}.log-box .q{color:#58a6ff}
+
+/* Questions */
+.question{padding:8px 10px;border-bottom:1px solid #f0f2f5;font-size:0.85em}
+.question:last-child{border-bottom:none}
+.question .q-from{font-size:0.72em;color:#0550ae;font-weight:600}
+.question .q-text{margin:2px 0}
+.question .q-to{font-size:0.72em;color:#59636e}
+
+/* Actions */
+.actions{display:flex;gap:6px;padding:8px 12px}
+.act-btn{padding:5px 12px;border-radius:5px;border:none;cursor:pointer;font-size:0.8em;font-weight:500;color:#fff}
+
+/* Modal */
+.modal-bg{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.35);z-index:200;justify-content:center;align-items:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:10px;max-width:600px;width:92%;max-height:80vh;overflow-y:auto;padding:20px}
+.modal h2{font-size:1em;margin-bottom:8px}
+.modal .close{float:right;cursor:pointer;font-size:1.1em;color:#59636e;background:none;border:none;padding:4px}
+.modal pre{background:#f6f8fa;border:1px solid #d1d9e0;border-radius:6px;padding:8px;font-size:0.78em;max-height:300px;overflow-y:auto;white-space:pre-wrap}
+.modal .meta-row{display:flex;gap:8px;flex-wrap:wrap;font-size:0.8em;color:#59636e;margin:8px 0}
+.modal .meta-row span{background:#f6f8fa;padding:1px 6px;border-radius:3px}
+.modal textarea{width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.88em;font-family:inherit;resize:vertical}
+.modal select{padding:5px 8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.85em}
+
+/* Agent modal tabs */
+.m-tab{padding:5px 12px;border:none;background:none;cursor:pointer;font-size:0.8em;font-weight:500;color:#59636e;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .1s}
+.m-tab.active{color:#0550ae;border-bottom-color:#0550ae}
+.m-tab:hover{color:#0550ae}
+.m-tab-bar{display:flex;gap:0;border-bottom:1px solid #d1d9e0;margin:8px 0 10px}
+
+/* Rich q-card for agent-to-agent questions */
+.q-card-agent{padding:8px 10px;border-bottom:1px solid #f0f2f5;cursor:pointer;transition:background .1s}
+.q-card-agent:hover{background:#f6f8fa}
+.q-card-agent:last-child{border-bottom:none}
+.q-card-agent .q-hdr{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:3px}
+.q-card-agent .q-body{font-size:0.82em;color:#1f2328;line-height:1.4}
+.q-card-agent .q-more{font-size:0.72em;color:#0550ae;margin-top:2px}
+
+/* Worker bar */
+.worker-bar{display:flex;gap:10px;align-items:center;padding:8px 12px;font-size:0.82em}
+.w-st{font-weight:700}.w-st.running{color:#1a7f37}.w-st.idle{color:#0550ae}.w-st.stopped{color:#59636e}
+.w-info{color:#59636e;font-size:0.78em}
+
+/* Decisions mini */
+.dec{padding:6px 10px;border-bottom:1px solid #f0f2f5;font-size:0.82em}
+.dec:last-child{border-bottom:none}
+.dec .d-topic{font-weight:500}
+
+/* Channel tabs */
+.ch-tabs{display:flex;gap:0;overflow-x:auto;flex-shrink:0;background:#085f56}
+.ch-tab{padding:6px 12px;font-size:0.78em;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;color:rgba(255,255,255,.65);font-weight:500;transition:all .15s}
+.ch-tab:hover{color:rgba(255,255,255,.9)}
+.ch-tab.active{color:#fff;border-bottom-color:#25d366;font-weight:600}
+.ch-tab .ch-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:4px}
+.ch-tab .ch-dot.running{background:#1a7f37;animation:blink-green 1.2s ease-in-out infinite}
+.ch-tab .ch-dot.idle{background:#d1d9e0}
+.ch-tab .ch-unread{background:#cf222e;color:#fff;border-radius:8px;padding:0 5px;font-size:0.8em;margin-left:4px}
+
+/* Chat feed — message-focused */
+.feed{overflow-y:auto;padding:0;min-height:0}
+.conv-title{padding:6px 12px;font-size:0.75em;color:#59636e;background:#f6f8fa;border-bottom:1px solid #e8e8e8;font-weight:500;position:sticky;top:0;z-index:2}
+
+/* Chat feed — WhatsApp-style */
+.feed{background:#eae6df;padding:10px 14px !important}
+
+/* Message bubble — shared */
+.msg{max-width:72%;padding:5px 8px 3px;margin:2px 0;border-radius:7px;cursor:pointer;position:relative;word-break:break-word;box-shadow:0 1px 0.5px rgba(0,0,0,.13);display:block}
+
+/* User messages — right side, light green, fit content width */
+.msg.user-msg{background:#d9fdd3;margin-left:auto;border-top-right-radius:0;width:fit-content;max-width:65%}
+
+/* Agent/assistant messages — left side, white */
+.msg:not(.user-msg):not(.system-msg){background:#fff;margin-right:auto;border-top-left-radius:0}
+
+/* System messages — center, pill */
+.msg.system-msg{background:rgba(255,255,255,0.92);max-width:fit-content;margin:6px auto;text-align:center;border-radius:7px;padding:4px 12px;font-size:0.75em;color:#667781;box-shadow:0 1px 0.5px rgba(0,0,0,.1)}
+.msg.system-msg .msg-hdr{display:none}
+.msg.system-msg .msg-content{font-size:1em}
+
+/* Header row */
+.msg-hdr{display:flex;align-items:center;gap:4px;margin-bottom:1px}
+.msg-avatar{display:none}
+.msg-name{font-weight:600;font-size:0.8em}
+.msg.user-msg .msg-name{display:none}
+/* Color-code agent names */
+.msg:not(.user-msg) .msg-name{color:#53bdeb}
+.msg-time{font-size:0.65em;color:#667781;margin-left:auto;white-space:nowrap;align-self:flex-end}
+.msg-status{font-size:0.58em;padding:1px 4px;border-radius:3px;font-weight:600}
+.msg-status.pending{background:#fef3cd;color:#856404}
+.msg-status.processing{background:#d1ecf1;color:#0c5460}
+.msg-status.streaming{color:#1a7f37;background:none;animation:blink-green 1.2s ease-in-out infinite}
+.msg-status.streaming::after{content:'typing...';font-style:italic}
+.msg-status.complete{display:none}
+.msg-status.answered{display:none}
+.msg-status.error{background:#f8d7da;color:#721c24}
+
+/* Time + status on same line at bottom-right (WhatsApp style) */
+.msg-footer{display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:1px}
+
+/* Message content */
+.msg-content{font-size:0.87em;line-height:1.45;color:#111b21;word-break:break-word}
+.msg-content p:first-child{margin-top:0}
+.msg-content p:last-child{margin-bottom:0}
+.msg.collapsed .msg-content{max-height:140px;overflow:hidden;-webkit-mask-image:linear-gradient(180deg,#000 75%,transparent);mask-image:linear-gradient(180deg,#000 75%,transparent)}
+.msg.streaming .msg-content{opacity:0.85}
+.msg-expand{font-size:0.78em;color:#53bdeb;cursor:pointer;margin-top:3px;font-weight:500;user-select:none}
+.msg-expand:hover{text-decoration:underline}
+
+/* Rendered markdown in messages */
+.msg-content h1,.msg-content h2,.msg-content h3{margin:6px 0 3px;font-size:1em;color:#111b21;font-weight:700}
+.msg-content h1{font-size:1.05em}.msg-content h2{font-size:1em}.msg-content h3{font-size:0.95em}
+.msg-content ul,.msg-content ol{margin:3px 0 3px 18px}
+.msg-content li{margin:1px 0}
+.msg-content code{background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px;font-size:0.88em;font-family:'SF Mono',Monaco,Consolas,monospace}
+.msg-content pre{background:#111b21;color:#e9edef;padding:8px 10px;border-radius:6px;overflow-x:auto;margin:4px 0;font-size:0.84em}
+.msg-content pre code{background:none;padding:0;color:inherit}
+.msg-content p{margin:3px 0}
+.msg-content blockquote{border-left:3px solid #d1d9e0;padding-left:8px;color:#667781;margin:3px 0}
+.msg-content table{border-collapse:collapse;font-size:0.88em;margin:4px 0;width:100%}
+.msg-content th,.msg-content td{border:1px solid #e2e8f0;padding:4px 8px;text-align:left}
+.msg-content th{background:rgba(0,0,0,.04);font-weight:600}
+.msg-content strong{font-weight:600}
+.msg-content a{color:#027eb5}
+
+/* Expanded logs — click bubble to see metadata */
+.msg-logs{margin-top:6px;padding:6px 8px;background:rgba(0,0,0,.03);border-top:1px solid rgba(0,0,0,.06);font-size:0.72em;display:none}
+.msg.expanded .msg-logs{display:block}
+.msg-log-row{display:flex;gap:8px;padding:1px 0;color:#667781}
+.msg-log-row .label{font-weight:600;min-width:60px;color:#111b21}
+.msg-log-row a{color:#027eb5;text-decoration:none}
+
+/* Question cards for owner */
+.q-card{padding:10px;border-bottom:1px solid #f0f2f5}
+.q-card:last-child{border-bottom:none}
+.q-card .q-from{font-size:0.78em;font-weight:600;color:#0550ae}
+.q-card .q-text{margin:3px 0;font-size:0.85em}
+.q-card .q-actions{display:flex;gap:4px;margin-top:6px}
+.q-card .q-actions button{padding:3px 10px;border-radius:4px;border:1px solid #d1d9e0;background:#fff;cursor:pointer;font-size:0.78em}
+.q-card .q-actions button.approve{background:#1a7f37;color:#fff;border-color:#1a7f37}
+.q-card .q-actions button.reject{background:#fff;color:#cf222e;border-color:#cf222e}
+.q-card .q-answer-box{margin-top:6px;display:none}
+.q-card .q-answer-box textarea{width:100%;padding:4px 6px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.82em;font-family:inherit;resize:vertical;min-height:40px}
+.q-card.answered{background:#f0fff4;opacity:0.8}
+.q-card.for-me{border-left:3px solid #cf222e}
+
+/* Workers list */
+.wk{padding:6px 10px;border-bottom:1px solid #f0f2f5;font-size:0.82em;display:flex;align-items:center;gap:6px}
+.wk:last-child{border-bottom:none}
+.wk .wk-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.wk .wk-dot.running{background:#1a7f37}.wk .wk-dot.stopped{background:#59636e}.wk .wk-dot.idle{background:#0550ae}.wk .wk-dot.error{background:#cf222e}
+@keyframes blink-green{0%,100%{box-shadow:0 0 0 0 rgba(26,127,55,.6)}50%{box-shadow:0 0 6px 2px rgba(26,127,55,.6)}}
+.wk .wk-dot.running{animation:blink-green 1.2s ease-in-out infinite}
+.agent .agent-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.agent .agent-dot.running{background:#1a7f37;animation:blink-green 1.2s ease-in-out infinite}
+.agent .agent-dot.idle{background:#d1d9e0}
+.wk .wk-info{flex:1;min-width:0}
+.wk .wk-name{font-weight:600;font-size:0.88em}
+.wk .wk-meta{font-size:0.75em;color:#59636e}
+
+/* Agent modal sessions */
+.modal-sessions{margin-top:12px}
+.modal-sessions h3{font-size:0.85em;color:#59636e;margin-bottom:6px}
+.sess-item{padding:4px 8px;background:#f6f8fa;border-radius:4px;margin:3px 0;font-size:0.78em;display:flex;justify-content:space-between}
+.sess-item .s-status{font-weight:600}
+.sess-item .s-status.active{color:#1a7f37}.sess-item .s-status.closed{color:#59636e}
+
+/* Data panel tabs */
+.dp-tab{padding:6px 10px;font-size:0.78em;cursor:pointer;color:rgba(255,255,255,.6);font-weight:500;white-space:nowrap;border-bottom:2px solid transparent;transition:all .15s}
+.dp-tab:hover{color:rgba(255,255,255,.85)}
+.dp-tab.active{color:#fff;border-bottom-color:#25d366;font-weight:600}
+.dp-tab.has-activity::after{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#25d366;margin-left:5px;vertical-align:middle;animation:dp-pulse 1.4s ease-in-out infinite}
+@keyframes dp-pulse{0%,100%{box-shadow:0 0 0 0 rgba(37,211,102,.7);opacity:1}50%{box-shadow:0 0 0 4px rgba(37,211,102,0);opacity:.7}}
+.dp-panel{display:none;min-height:0}
+.dp-panel.active{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.dp-panel>#tasks,.dp-panel>#findings-list,.dp-panel>#q-others{overflow-y:auto;flex:1;min-height:0}
+/* Browse items */
+.browse-item{padding:6px 10px;border-bottom:1px solid #f0f2f5;cursor:pointer;font-size:0.82em;transition:background .1s}
+.browse-item:hover{background:#f6f8fa}
+.browse-item .bi-id{font-family:monospace;font-size:0.85em;color:#0550ae}
+.browse-item .bi-fields{color:#667781;font-size:0.9em;margin-top:2px}
+.browse-detail{padding:8px;background:#f6f8fa;border:1px solid #e8e8e8;margin:0 6px 6px;border-radius:4px;font-size:0.78em;white-space:pre-wrap;font-family:monospace;max-height:300px;overflow-y:auto}
+/* Findings list */
+.finding-item{padding:8px 10px;border-bottom:1px solid #f0f2f5;cursor:pointer;transition:background .1s}
+.finding-item:hover{background:#f6f8fa}
+.finding-item .f-sev{font-size:0.68em;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:0.3px}
+.finding-item .f-sev.critical{background:#cf222e;color:#fff}
+.finding-item .f-sev.high{background:#ffebe9;color:#cf222e}
+.finding-item .f-sev.medium{background:#fff8c5;color:#9a6700}
+.finding-item .f-sev.low{background:#f0f2f5;color:#667781}
+.finding-item code{background:#f0f2f5;padding:1px 4px;border-radius:3px;font-size:0.9em}
+
+/* Activity bar */
+.activity-bar{background:#064e45;display:flex;gap:0;overflow-x:auto;flex-shrink:0;padding:0 8px;border-bottom:1px solid rgba(255,255,255,.1)}
+.ab-agent{display:flex;align-items:center;gap:5px;padding:5px 10px;font-size:0.76em;color:rgba(255,255,255,.5);white-space:nowrap;border-right:1px solid rgba(255,255,255,.08);flex-shrink:0}
+.ab-agent:last-child{border-right:none}
+.ab-agent.working{color:#25d366;font-weight:600}
+.ab-agent.working .ab-dot{background:#25d366;animation:blink-green 1.2s ease-in-out infinite}
+.ab-agent.idle .ab-dot{background:rgba(255,255,255,.25)}
+.ab-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ab-task{max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:0.92em;opacity:0.8}
+.ab-agent.working .ab-task{opacity:1}
+
+/* Agent terminal modal */
+.term-bg{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:300;justify-content:center;align-items:center}
+.term-bg.open{display:flex}
+.term-box{background:#1e1e1e;border-radius:8px;width:700px;max-width:90vw;height:500px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.term-hdr{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#323232;border-radius:8px 8px 0 0;flex-shrink:0}
+.term-hdr .term-dot{width:10px;height:10px;border-radius:50%}
+.term-hdr .term-title{color:#ccc;font-size:0.85em;flex:1;font-family:monospace}
+.term-hdr .term-close{background:none;border:none;color:#888;font-size:1.2em;cursor:pointer;padding:0 4px}
+.term-hdr .term-close:hover{color:#fff}
+.term-body{flex:1;overflow-y:auto;padding:10px 14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:0.78em;line-height:1.6;color:#d4d4d4}
+.term-body .t-tool{color:#569cd6}
+.term-body .t-result{color:#6a9955}
+.term-body .t-text{color:#ce9178}
+.term-body .t-info{color:#808080}
+.term-body .t-done{color:#4ec9b0}
+.term-body .t-err{color:#f44747}
+
+/* Voice controls */
+.mic-active{background:#cf222e !important;animation:pulse-red 1s ease-in-out infinite}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(207,34,46,.4)}50%{box-shadow:0 0 8px 4px rgba(207,34,46,.4)}}
+.tts-active{background:#1a7f37 !important}
+#voice-status{display:none;padding:2px 8px;font-size:0.7em;color:#9a6700;background:#fff8c5;border-radius:4px}
+#voice-status.active{display:inline-block}
+
+/* Dark mode toggle button */
+#dark-toggle{background:none;border:1px solid rgba(255,255,255,.35);color:rgba(255,255,255,.85);padding:3px 8px;border-radius:4px;font-size:0.82em;cursor:pointer;transition:all .15s;line-height:1}
+#dark-toggle:hover{background:rgba(255,255,255,.12)}
+
+/* ====== DARK MODE ====== */
+body.dark{background:#0d1117;color:#e6edf3}
+body.dark .card{background:#161b22;border-color:#30363d}
+body.dark .card-hdr{border-bottom-color:#30363d;color:#e6edf3}
+body.dark .card-hdr .count{background:#1f3a5f;color:#79c0ff}
+body.dark .card-body{background:#161b22}
+
+/* Agents sidebar */
+body.dark .agent{border-bottom-color:#21262d}
+body.dark .agent:hover{background:#1c2128}
+body.dark .agent.active{background:#0a2516;border-left-color:#3fb950}
+body.dark .agent .meta{color:#8b949e}
+body.dark .agent .ord{background:#1f3a5f;color:#79c0ff}
+
+/* Worker/wk list */
+body.dark .wk{border-bottom-color:#21262d}
+body.dark .wk .wk-meta{color:#8b949e}
+
+/* Task items */
+body.dark .task{border-bottom-color:#21262d;color:#e6edf3}
+body.dark .task .t-meta{color:#8b949e}
+body.dark .b-p3{background:#21262d;color:#8b949e}
+body.dark .b-open{background:#1f3a5f;color:#79c0ff}
+body.dark .b-done{background:#0a2516;color:#3fb950}
+body.dark .b-progress{background:#2d2000;color:#d29922}
+
+/* Feed / chat area */
+body.dark .feed{background:#0d1117}
+body.dark .msg:not(.user-msg):not(.system-msg){background:#1c2128}
+body.dark .msg.user-msg{background:#0a2516}
+body.dark .msg-content{color:#e6edf3}
+body.dark .msg-content h1,body.dark .msg-content h2,body.dark .msg-content h3{color:#e6edf3}
+body.dark .msg-content code{background:rgba(255,255,255,.08);color:#e6edf3}
+body.dark .msg-content blockquote{border-left-color:#30363d;color:#8b949e}
+body.dark .msg-content th{background:rgba(255,255,255,.06)}
+body.dark .msg-content th,body.dark .msg-content td{border-color:#30363d}
+body.dark .msg-content a{color:#58a6ff}
+body.dark .msg.system-msg{background:rgba(30,36,44,.92);color:#8b949e}
+body.dark .msg-logs{background:rgba(255,255,255,.04);border-top-color:rgba(255,255,255,.08)}
+body.dark .msg-log-row{color:#8b949e}
+body.dark .msg-log-row .label{color:#e6edf3}
+body.dark .msg-expand{color:#58a6ff}
+
+/* Channel tabs bar */
+body.dark .ch-tabs{background:#0d1117}
+body.dark .ch-tab{color:rgba(255,255,255,.5)}
+body.dark .ch-tab:hover{color:rgba(255,255,255,.85)}
+body.dark .ch-tab.active{color:#fff}
+
+/* Data panel tabs */
+body.dark .dp-tab{color:rgba(255,255,255,.5)}
+body.dark .dp-tab:hover{color:rgba(255,255,255,.85)}
+body.dark .dp-tab.active{color:#fff}
+
+/* Message input bar */
+body.dark #feed-input{background:#1c2128;color:#e6edf3}
+body.dark #feed-input::placeholder{color:#8b949e}
+
+/* Questions */
+body.dark .question{border-bottom-color:#21262d}
+body.dark .question .q-to{color:#8b949e}
+body.dark .q-card{border-bottom-color:#21262d}
+body.dark .q-card .q-text{color:#e6edf3}
+body.dark .q-card .q-actions button{background:#161b22;border-color:#30363d;color:#e6edf3}
+body.dark .q-card .q-answer-box textarea{background:#0d1117;border-color:#30363d;color:#e6edf3}
+body.dark .q-card.answered{background:#0a2516}
+body.dark .q-card-agent:hover{background:#1c2128}
+body.dark .q-card-agent{border-bottom-color:#21262d}
+body.dark .q-card-agent .q-body{color:#e6edf3}
+
+/* Modal */
+body.dark .modal-bg{background:rgba(0,0,0,.6)}
+body.dark .modal{background:#161b22;color:#e6edf3}
+body.dark .modal pre{background:#0d1117;border-color:#30363d;color:#e6edf3}
+body.dark .modal .meta-row span{background:#21262d;color:#8b949e}
+body.dark .modal textarea,body.dark .modal select{background:#0d1117;border-color:#30363d;color:#e6edf3}
+body.dark .modal h2{color:#e6edf3}
+body.dark .modal .close{color:#8b949e}
+
+/* m-tab (agent modal tabs) */
+body.dark .m-tab{color:#8b949e}
+body.dark .m-tab-bar{border-bottom-color:#30363d}
+body.dark .m-tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+body.dark .m-tab:hover{color:#58a6ff}
+body.dark .sess-item{background:#21262d;color:#e6edf3}
+
+/* Browse panel */
+body.dark .browse-item{border-bottom-color:#21262d}
+body.dark .browse-item:hover{background:#1c2128}
+body.dark .browse-item .bi-id{color:#58a6ff}
+body.dark .browse-item .bi-fields{color:#8b949e}
+body.dark .browse-detail{background:#0d1117;border-color:#21262d;color:#e6edf3}
+body.dark #browse-class,body.dark #browse-class option{background:#161b22;border-color:#30363d;color:#e6edf3}
+body.dark select,body.dark input[type=text],body.dark textarea{background:#161b22;border-color:#30363d;color:#e6edf3}
+
+/* Findings */
+body.dark .finding-item{border-bottom-color:#21262d}
+body.dark .finding-item:hover{background:#1c2128}
+body.dark .finding-item code{background:#21262d}
+
+/* Decisions */
+body.dark .dec{border-bottom-color:#21262d;color:#e6edf3}
+
+/* Worker bar area at top of feed */
+body.dark .worker-bar{background:transparent}
+body.dark .w-info{color:#8b949e}
+
+/* Bottom input bar */
+body.dark #feed + div,body.dark [style*="background:#f0f2f5"]{background:#161b22 !important}
+
+/* Activity bar */
+body.dark .activity-bar{background:#0d1117;border-bottom-color:#21262d}
+
+/* Separator lines */
+body.dark hr{border-color:#21262d}
+
+/* Convtitle */
+body.dark .conv-title{background:#161b22;border-bottom-color:#21262d;color:#8b949e}
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="aic-login" style="display:none;position:fixed;inset:0;background:#075e54;z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:8px;padding:32px;width:360px;box-shadow:0 4px 24px rgba(0,0,0,.3)">
+    <h2 style="margin-bottom:4px;font-size:1.3em">AI Company</h2>
+    <p style="color:#59636e;font-size:0.85em;margin-bottom:20px">Select environment and sign in</p>
+    <form onsubmit="handleAicLogin(event)">
+      <div id="aic-login-error" style="display:none;background:#ffebe9;color:#cf222e;padding:8px;border-radius:4px;font-size:0.85em;margin-bottom:12px"></div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-env">Environment</label>
+        <select id="aic-env" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em;background:#fff"></select>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-email">Email</label>
+        <input type="email" id="aic-email" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em" required autocomplete="username">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-password">Password</label>
+        <input type="password" id="aic-password" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em" required autocomplete="current-password">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.82em;font-weight:600;margin-bottom:4px" for="aic-machine">Machine <span style="font-weight:400;color:#59636e">(optional — sets elementStore target)</span></label>
+        <input type="text" id="aic-machine" style="width:100%;padding:8px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.9em" placeholder="e.g. ai-office" autocomplete="off">
+      </div>
+      <button type="submit" id="aic-login-btn" style="width:100%;padding:10px;background:#075e54;color:#fff;border:none;border-radius:4px;font-size:0.95em;font-weight:600;cursor:pointer">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<header>
+  <h1>AI Company v2</h1>
+  <div class="hdr-status">
+    <button id="btn-start" onclick="aicStart()" style="background:#25d366;color:#fff;border:none;padding:4px 14px;border-radius:4px;font-size:0.82em;font-weight:600;cursor:pointer">Start</button>
+    <button id="btn-stop" onclick="aicStop()" style="background:#cf222e;color:#fff;border:none;padding:4px 14px;border-radius:4px;font-size:0.82em;font-weight:600;cursor:pointer;display:none">Stop</button>
+    <button id="btn-clear" onclick="aicClear()" style="background:transparent;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.3);padding:4px 10px;border-radius:4px;font-size:0.78em;cursor:pointer" title="Clear all messages">Clear</button>
+    <span id="ws-status"><span class="dot load"></span>connecting</span>
+    <span id="class-count"></span>
+    <span id="aic-es-url" style="opacity:0.6;font-size:0.7em;font-family:monospace"></span>
+    <span id="aic-env-label" style="opacity:0.7;font-size:0.75em"></span>
+    <span id="aic-user" style="font-weight:600"></span>
+    <button onclick="aicLogout()" style="background:transparent;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.3);padding:4px 10px;border-radius:4px;font-size:0.78em;cursor:pointer">Logout</button>
+    <button id="dark-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">🌙</button>
+  </div>
+</header>
+<div class="activity-bar" id="activity-bar"></div>
+
+<div class="layout">
+
+<!-- LEFT: Team sidebar -->
+<div class="col" style="overflow-y:auto;gap:6px">
+  <div class="card" style="flex-shrink:0">
+    <div class="card-hdr" style="background:#075e54;color:#fff;border-bottom:none">Team <span class="count" id="agent-count" style="background:rgba(255,255,255,.2);color:#fff">0</span> <label style="font-weight:400;font-size:0.85em;margin-left:auto;cursor:pointer"><input type="checkbox" id="ag-only-active" onchange="load()" style="margin-right:3px">active</label></div>
+    <div class="card-body" id="agents" style="padding:0"></div>
+  </div>
+  <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0">
+    <div class="card-hdr" style="font-size:0.78em;color:#667781;flex-shrink:0">Workers <span class="count" id="worker-count">0</span> <label style="font-weight:400;font-size:0.85em;margin-left:auto;cursor:pointer"><input type="checkbox" id="wk-only-active" onchange="load()" style="margin-right:3px">active only</label></div>
+    <div class="card-body" id="workers-list" style="padding:0;overflow-y:auto;flex:1"></div>
+  </div>
+</div>
+
+<!-- CENTER: Activity feed + Tasks -->
+<div class="col">
+  <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+    <div class="card-hdr" style="flex-shrink:0;padding:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:0 10px 0 0">
+        <div class="worker-bar" style="flex-shrink:0">
+          <span class="w-st stopped" id="w-st">STOPPED</span>
+          <span class="w-info" id="w-info"></span>
+        </div>
+      </div>
+    </div>
+    <div class="feed" id="feed" style="flex:1;overflow-y:auto;position:relative"></div>
+    <div id="feed-ff" onclick="document.getElementById('feed').scrollTop=document.getElementById('feed').scrollHeight;this.style.display='none'" style="display:none;position:absolute;bottom:50px;left:50%;transform:translateX(-50%);background:#0550ae;color:#fff;padding:4px 12px;border-radius:12px;font-size:0.75em;cursor:pointer;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.2)">↓ new</div>
+    <div style="flex-shrink:0;border-top:1px solid #e1e4e8">
+      <div class="ch-tabs" id="ch-tabs" style="padding:0 8px;border-bottom:1px solid #e9ecef">
+        <div class="ch-tab active" data-channel="general" onclick="switchChannel('general')">#general</div>
+      </div>
+      <div style="padding:6px 8px;background:#f0f2f5;display:flex;gap:6px;align-items:flex-end">
+        <button id="mic-btn" onclick="toggleMic()" style="background:none;border:none;cursor:pointer;font-size:1.2em;padding:4px;color:#54656f;flex-shrink:0" title="Voice input">&#127908;</button>
+        <textarea id="feed-input" placeholder="Type a message... (Ctrl+Enter to send)" rows="3" style="flex:1;padding:8px 14px;border:none;border-radius:12px;font-size:0.88em;font-family:inherit;background:#fff;outline:none;resize:none;line-height:1.4" onkeydown="handleFeedKeydown(event)"></textarea>
+        <button id="tts-btn" onclick="toggleTTS()" style="background:none;border:none;cursor:pointer;font-size:1.1em;padding:4px;color:#54656f;flex-shrink:0" title="Toggle voice responses">&#128264;</button>
+        <button onclick="sendFeedMessage()" style="background:#075e54;border:none;cursor:pointer;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1em;flex-shrink:0">&#10148;</button>
+        <span id="ch-label" style="display:none">#general</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT: Data Panel -->
+<div class="col" style="gap:0">
+  <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+    <!-- Tabs -->
+    <div style="display:flex;background:#085f56;flex-shrink:0">
+      <div class="dp-tab active" data-tab="tasks" onclick="switchDataTab('tasks')">Tasks <span class="count" id="task-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
+      <div class="dp-tab" data-tab="findings" onclick="switchDataTab('findings')">Findings <span class="count" id="finding-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
+      <div class="dp-tab" data-tab="questions" onclick="switchDataTab('questions')">Questions <span class="count" id="q-count" style="background:rgba(255,255,255,.2);color:#fff">0</span></div>
+      <div class="dp-tab" data-tab="usage" onclick="switchDataTab('usage')">Usage</div>
+      <div class="dp-tab" data-tab="browse" onclick="switchDataTab('browse')">Browse</div>
+    </div>
+
+    <!-- Tasks panel -->
+    <div class="dp-panel active" id="dp-tasks" style="flex:1;overflow-y:auto;padding:0">
+      <div id="tasks"></div>
+      <div style="padding:6px 10px;border-top:1px solid #e8e8e8">
+        <button class="act-btn" style="background:#9a6700;width:100%;padding:5px" onclick="openAction('directive')">+ New Task</button>
+      </div>
+    </div>
+
+    <!-- Findings panel -->
+    <div class="dp-panel" id="dp-findings" style="flex:1;overflow-y:auto;padding:0">
+      <div id="findings-list"></div>
+      <div style="padding:6px 10px;border-top:1px solid #e8e8e8">
+        <button class="act-btn" style="background:#cf222e;width:100%;padding:5px" onclick="openAction('finding')">+ Report Finding</button>
+      </div>
+    </div>
+
+    <!-- Questions panel -->
+    <div class="dp-panel" id="dp-questions" style="flex:1;overflow-y:auto;padding:0">
+      <div id="q-mine" style="padding:0;border-bottom:1px solid #d1d9e0;flex-shrink:0"></div>
+      <div class="card-body" id="q-others" style="padding:0;flex:1;overflow-y:auto"></div>
+      <span id="q-mine-count" style="display:none">0</span>
+      <span id="dec-count" style="display:none">0</span>
+      <div id="decisions" style="display:none"></div>
+      <div id="q-all-wrap" style="display:none"><table><thead><tr><th>From</th><th>To</th><th>Question</th><th>Status</th><th></th></tr></thead><tbody id="q-all-body"></tbody></table></div>
+    </div>
+
+    <!-- Usage panel -->
+    <div class="dp-panel" id="dp-usage" style="flex:1;overflow-y:auto;padding:0">
+      <div id="usage-list"></div>
+    </div>
+
+    <!-- Data Browser panel -->
+    <div class="dp-panel" id="dp-browse" style="flex:1;overflow:hidden;display:none;flex-direction:column">
+      <div style="padding:6px 8px;border-bottom:1px solid #e8e8e8;display:flex;gap:4px;flex-shrink:0">
+        <select id="browse-class" onchange="browseLoad()" style="flex:1;padding:4px 6px;border:1px solid #d1d9e0;border-radius:4px;font-size:0.82em;font-family:inherit">
+          <option value="ai:task">ai:task</option>
+          <option value="ai:message">ai:message</option>
+          <option value="ai:agent">ai:agent</option>
+          <option value="es:finding">es:finding</option>
+          <option value="ai:question">ai:question</option>
+          <option value="ai:decision">ai:decision</option>
+          <option value="ai:conversation">ai:conversation</option>
+          <option value="ai:worker">ai:worker</option>
+          <option value="ai:round">ai:round</option>
+          <option value="@class">@class</option>
+          <option value="@feature">@feature</option>
+          <option value="@app_feature">@app_feature</option>
+        </select>
+        <button onclick="browseLoad()" style="padding:4px 10px;border:1px solid #d1d9e0;border-radius:4px;background:#f6f8fa;cursor:pointer;font-size:0.82em">Load</button>
+      </div>
+      <div id="browse-results" style="flex:1;overflow-y:auto;padding:0;font-size:0.78em"></div>
+    </div>
+  </div>
+
+  <!-- Quick actions bar -->
+  <div style="padding:6px 8px;background:#f0f2f5;display:flex;gap:4px;flex-shrink:0">
+    <button class="act-btn" style="background:#075e54;flex:1;padding:4px" onclick="openAction('question')">Ask</button>
+    <button class="act-btn" style="background:#9a6700;flex:1;padding:4px" onclick="openAction('directive')">Task</button>
+    <button class="act-btn" style="background:#cf222e;flex:1;padding:4px" onclick="openAction('finding')">Finding</button>
+  </div>
+</div>
+
+</div>
+
+<!-- Agent modal -->
+<div class="modal-bg" id="agent-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <button class="close" onclick="document.getElementById('agent-modal').classList.remove('open')">&times;</button>
+    <h2 id="m-name"></h2>
+    <div class="meta-row" id="m-meta"></div>
+    <div class="m-tab-bar">
+      <button class="m-tab active" onclick="switchAgentTab('prompt')">Prompt</button>
+      <button class="m-tab" onclick="switchAgentTab('tasks')">Tasks</button>
+      <button class="m-tab" onclick="switchAgentTab('feed')">Feed</button>
+    </div>
+    <div id="m-pane-prompt">
+      <div class="modal-sessions" id="m-sessions"></div>
+      <h3 style="font-size:0.85em;color:#59636e;margin:0 0 4px">Prompt</h3>
+      <pre id="m-prompt">No prompt</pre>
+    </div>
+    <div id="m-pane-tasks" style="display:none">
+      <div id="m-tasks" style="font-size:0.85em"></div>
+    </div>
+    <div id="m-pane-feed" style="display:none">
+      <div id="m-feed" style="font-size:0.85em;color:#59636e">Switch to agent channel in feed to view messages.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Action modal -->
+<div class="modal-bg" id="action-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:450px">
+    <button class="close" onclick="document.getElementById('action-modal').classList.remove('open')">&times;</button>
+    <h2 id="a-title">Action</h2>
+    <p id="a-desc" style="color:#59636e;font-size:0.82em;margin-bottom:10px"></p>
+    <div id="a-pri-row" style="margin-bottom:8px">
+      <select id="a-pri"><option value="P1">P1</option><option value="P2" selected>P2</option><option value="P3">P3</option></select>
+    </div>
+    <textarea id="a-text" rows="5" placeholder=""></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+      <span id="a-result" style="font-size:0.8em;color:#59636e"></span>
+      <button id="a-submit" class="act-btn" style="background:#0550ae" onclick="sendAction()">Send</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="/elementStore/admin/dist/element-store.js"></script>
+<script src="/elementStore/admin/ws-client.js"></script>
+<script src="/elementStore/admin/js/auth.js"></script>
+<script>
+(function(){
+  var AIC_PROJECT = 'elementStore';
+  var AIC_ENVIRONMENTS = [];
+  var LS_ENV_KEY = 'aic_env';
+  var activeEnv = null;
+  var API = location.origin + '/elementStore';
+  window.API = API;
+  var WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/elementStore/ws';
+  var _bootstrapApi = API;
+  store.storage.data.url = API;
+
+  // ─── Environment / Auth ──────────────────────────────────
+  function envBaseUrl(env) {
+    var hosts = env.hostnames || [];
+    var arc3d = hosts.find(function(h){ return h.indexOf('arc3d') >= 0 });
+    var host = arc3d || hosts[0] || '';
+    if (!host) return '';
+    var proto = (env.ssl_enabled || location.protocol === 'https:') ? 'https://' : 'http://';
+    return proto + host;
+  }
+
+  async function loadEnvironments() {
+    try {
+      var res = await fetch(_bootstrapApi + '/store/@environment');
+      var envs = await res.json();
+      AIC_ENVIRONMENTS = envs
+        .filter(function(e){
+          return e.status === 'active' && envBaseUrl(e)
+            && Array.isArray(e.repositories_deployed)
+            && e.repositories_deployed.indexOf(AIC_PROJECT) >= 0;
+        })
+        .map(function(e){ e.base = envBaseUrl(e); return e });
+    } catch(e) {
+      console.warn('[AIC] Could not load environments:', e.message);
+      AIC_ENVIRONMENTS = [{ id: 'current', name: 'Current', base: location.origin, type: 'local', hostnames: [location.host] }];
+    }
+
+    var savedEnvId = localStorage.getItem(LS_ENV_KEY);
+    activeEnv = AIC_ENVIRONMENTS.find(function(e){ return e.id === savedEnvId }) || AIC_ENVIRONMENTS[0];
+    AUTH_BASE = (activeEnv.base || envBaseUrl(activeEnv)) + '/api/auth';
+    store.storage.authUrl = AUTH_BASE;
+
+    var sel = document.getElementById('aic-env');
+    if (sel) {
+      sel.innerHTML = '';
+      AIC_ENVIRONMENTS.forEach(function(env) {
+        var opt = document.createElement('option');
+        opt.value = env.id;
+        opt.textContent = env.name + ' — ' + (env.base || '').replace(/^https?:\/\//, '');
+        if (env.id === activeEnv.id) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', function() {
+        localStorage.setItem(LS_ENV_KEY, sel.value);
+      });
+    }
+  }
+
+  function applyEnv(envId) {
+    activeEnv = AIC_ENVIRONMENTS.find(function(e){ return e.id === envId }) || AIC_ENVIRONMENTS[0];
+    localStorage.setItem(LS_ENV_KEY, activeEnv.id);
+    AUTH_BASE = (activeEnv.base || envBaseUrl(activeEnv)) + '/api/auth';
+    store.storage.authUrl = AUTH_BASE;
+  }
+
+  function showAicLogin() {
+    document.getElementById('aic-login').style.display = 'flex';
+    document.querySelector('.layout').style.display = 'none';
+    document.querySelector('header').style.display = 'none';
+  }
+
+  function hideAicLogin() {
+    document.getElementById('aic-login').style.display = 'none';
+    document.querySelector('.layout').style.display = 'grid';
+    document.querySelector('header').style.display = 'flex';
+  }
+
+  window.handleAicLogin = async function(e) {
+    e.preventDefault();
+    var form = e.target;
+    var envId = form.querySelector('#aic-env').value;
+    var email = form.querySelector('#aic-email').value.trim();
+    var password = form.querySelector('#aic-password').value;
+    var machineName = (form.querySelector('#aic-machine').value || '').trim();
+    var errorEl = form.querySelector('#aic-login-error');
+    var btn = form.querySelector('#aic-login-btn');
+
+    errorEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+
+    applyEnv(envId);
+
+    try {
+      var loginBody = { email: email, password: password };
+      if (machineName) loginBody.machineName = machineName;
+
+      var res = await fetch(AUTH_BASE + '/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loginBody)
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || 'Login failed');
+
+      store.storage.setAuth(data);
+
+      // If auth returned an esUrl (from machine config), redirect API calls there
+      if (data.esUrl) {
+        API = data.esUrl;
+        store.storage.data.url = API;
+        WS_URL = API.replace(/^http/, 'ws') + '/ws';
+        console.log('[AIC] Using machine esUrl:', API);
+      }
+
+      // Persist machine name for next login
+      if (machineName) localStorage.setItem('aic_machine_name', machineName);
+
+      // Show connected ES URL in header
+      var esLabel = document.getElementById('aic-es-url');
+      if (esLabel) esLabel.textContent = API.replace(/^https?:\/\//, '');
+
+      hideAicLogin();
+      window._aicStartApp();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  };
+
+  window.aicLogout = async function() {
+    try { await logout(); } catch(e) { /* ignore logout API errors */ }
+    // Also clear directly in case logout() failed
+    if (store.storage.clearAuth) store.storage.clearAuth();
+    // Reset API to current origin
+    API = location.origin + '/elementStore';
+    store.storage.data.url = API;
+    showAicLogin();
+  };
+
+  // Wrap fetch to inject auth header for elementStore calls
+  var _origFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    opts = opts || {};
+    if (typeof url === 'string' && url.indexOf('/elementStore') >= 0) {
+      var token = store.storage.getToken ? store.storage.getToken() : null;
+      if (token) {
+        opts.headers = Object.assign({}, opts.headers || {}, { 'Authorization': 'Bearer ' + token });
+      }
+    }
+    return _origFetch.call(window, url, opts);
+  };
+
+  var esws = new ElementStoreWS(store, WS_URL);
+
+  // Override _onChanges — emit raw items without store.applyRemote
+  esws._onChanges = function(items) {
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      if (!item) continue;
+      if (item._deleted) {
+        this._emit('delete', item);
+      } else {
+        this._emit('change', item);
+      }
+    }
+  };
+
+  // Override _onMessage to handle 'initial' event (fetch-on-subscribe)
+  var origOnMessage = esws._onMessage.bind(esws);
+  esws._onMessage = function(msg) {
+    if (msg.event === 'initial' && msg.items) {
+      console.log('[WS] initial:', msg.class_id, msg.items.length, 'items');
+
+      // Cache data by class into window variables for sidebar/panel rendering
+      var cls = msg.class_id;
+      if (cls === 'ai:agent') { window._agents = msg.items; }
+      else if (cls === 'ai:task') { window._tasks = msg.items; }
+      else if (cls === 'ai:question') { window._questions = msg.items; }
+      else if (cls === 'ai:decision') { window._decisions = msg.items; }
+      else if (cls === 'ai:worker') { window._workers = msg.items; }
+      else if (cls === 'ai:agent_session') { window._sessions = msg.items; }
+      else if (cls === 'es:finding') { window._findings = msg.items; }
+      else if (cls === 'ai:conversation') { window._conversations = msg.items; }
+
+      // Store all items in feedItems (messages for feed, others for reference)
+      for (var i = 0; i < msg.items.length; i++) {
+        var item = msg.items[i];
+        if (item && item.id) {
+          feedItems[item.id] = item;
+        }
+      }
+
+      // Trigger UI rebuild from cached data
+      feedDirty = true;
+      renderFeed();
+      sched();
+      return;
+    }
+    origOnMessage(msg);
+  };
+  function bg(t,c){return '<span class="badge b-'+esc(c)+'">'+esc(t)+'</span>'}
+
+  // ─── Render ──────────────────────────────────────────────
+  // Reads from cached window.* variables populated by WS initial/change events.
+  // No REST fetches — all data flows through WebSocket subscriptions.
+  async function load(){
+    try {
+      var agents = window._agents || [];
+      var tasks = window._tasks || [];
+      var questions = window._questions || [];
+      var decisions = window._decisions || [];
+      var workers = window._workers || [];
+      var sessions = window._sessions || [];
+
+      // Build agent → last open task map
+      var agentLastTask = {};
+      tasks.forEach(function(t) {
+        if(t.agent_id && t.status !== 'done' && t.status !== 'completed') {
+          var existing = agentLastTask[t.agent_id];
+          // prefer in_progress over open; then by step
+          var tPriority = t.status === 'in_progress' ? 1 : 0;
+          var ePriority = existing ? (existing.status === 'in_progress' ? 1 : 0) : -1;
+          if(!existing || tPriority > ePriority) agentLastTask[t.agent_id] = t;
+        }
+      });
+      window._agentLastTask = agentLastTask;
+
+      // Workers list — show daemon + all agents as workers
+      var activeWorker = workers[0] || null;
+      var runningAgentIds = {};
+      // Check all workers for running agents (AIC daemon + ASI workers)
+      workers.forEach(function(w) {
+        if((w.status === 'running' || w.status === 'listening') && w.current_agent) {
+          runningAgentIds[w.current_agent] = true;
+        }
+      });
+      if(activeWorker && activeWorker.status === 'running' && activeWorker.current_agent) {
+        runningAgentIds[activeWorker.current_agent] = true;
+      }
+      // Check log for recently spawned agents (parallel execution)
+      if(activeWorker && activeWorker.log) {
+        var logStr = activeWorker.log.join('\n');
+        var spawnMatches = logStr.match(/Spawning .+?\(([^)]+)\)/g) || [];
+        var completeMatch = logStr.match(/All agents completed/);
+        // If there's no "All agents completed" after spawns, agents are still running
+        if(spawnMatches.length > 0) {
+          var lastSpawnIdx = logStr.lastIndexOf('Spawning');
+          var lastCompleteIdx = logStr.lastIndexOf('All agents completed');
+          if(lastSpawnIdx > lastCompleteIdx) {
+            // Agents still running — mark all spawned ones
+            spawnMatches.forEach(function(m) {
+              var id = m.match(/\(([^)]+)\)/);
+              if(id) runningAgentIds[id[1]] = true;
+            });
+          }
+        }
+      }
+      window._runningAgentIds = runningAgentIds;
+
+      // Daemon row
+      var wkh = '';
+      if(activeWorker) {
+        var dst = activeWorker.status || 'stopped';
+        wkh += '<div class="wk"><span class="wk-dot '+(dst==='idle'||dst==='running'?'running':'stopped')+'"></span><div class="wk-info">';
+        wkh += '<div class="wk-name">Daemon</div>';
+        var dp = [dst.toUpperCase()];
+        if(activeWorker.rounds_completed) dp.push('R:'+activeWorker.rounds_completed);
+        if(activeWorker.last_heartbeat) dp.push(activeWorker.last_heartbeat.substring(11,19));
+        wkh += '<div class="wk-meta">'+dp.join(' &middot; ')+'</div>';
+        wkh += '</div></div>';
+      }
+      // Agent rows as workers — click to switch channel
+      var wkOnlyActive = document.getElementById('wk-only-active').checked;
+      var wkVisibleCount = 0;
+      agents.forEach(function(a) {
+        var isRunning = !!runningAgentIds[a.id];
+        var agSt = isRunning ? 'running' : (a.last_run ? 'idle' : 'stopped');
+        if(wkOnlyActive && !isRunning) return;
+        wkVisibleCount++;
+        var isSel = activeChannel === a.id;
+        wkh += '<div class="wk" style="cursor:pointer;'+(isSel?'background:#f0f4ff;border-left:2px solid #0550ae;':'')+'" onclick="switchChannel(\''+a.id+'\')">';
+        wkh += '<span class="wk-dot '+agSt+'"></span><div class="wk-info">';
+        wkh += '<div class="wk-name">'+esc(a.name)+'</div>';
+        var ap = [isRunning ? 'RUNNING' : 'IDLE'];
+        if(a.run_count) ap.push(a.run_count+' runs');
+        if(a.last_run) ap.push(esc(a.last_run.substring(11,19)));
+        var wkTask = agentLastTask[a.id];
+        if(wkTask) ap.push('Task: '+esc((wkTask.name||'?').substring(0,22))+(wkTask.name&&wkTask.name.length>22?'…':''));
+        wkh += '<div class="wk-meta">'+ap.join(' &middot; ')+'</div>';
+        wkh += '</div></div>';
+      });
+      document.getElementById('worker-count').textContent = wkVisibleCount;
+      document.getElementById('workers-list').innerHTML = wkh || '<div style="padding:8px;color:#59636e;font-size:0.82em">No workers</div>';
+
+      agents.sort(function(a,b){return (a.execution_order||99)-(b.execution_order||99)});
+      updateActivityBar();
+
+      // Worker bar update
+      if(activeWorker){
+        var wst=document.getElementById('w-st');
+        var winfo=document.getElementById('w-info');
+        var st=activeWorker.status||'stopped';
+        var runCount = Object.keys(runningAgentIds).length;
+        wst.textContent=st.toUpperCase()+(runCount?' — '+runCount+' agents running':'');
+        wst.className='w-st '+(runCount?'running':st);
+        var wp=[];
+        if(activeWorker.rounds_completed)wp.push('R:'+activeWorker.rounds_completed);
+        if(activeWorker.last_heartbeat)wp.push(activeWorker.last_heartbeat.substring(11,19));
+        winfo.textContent=wp.join(' | ');
+      }
+
+      // Agents
+      var agOnlyActive = document.getElementById('ag-only-active').checked;
+      var agVisibleCount = 0;
+      var ah='';
+      agents.forEach(function(a,i){
+        var isAct=!!runningAgentIds[a.id];
+        if(agOnlyActive && !isAct) return;
+        agVisibleCount++;
+        ah+='<div class="agent'+(isAct?' active':'')+'" onclick="switchChannel(\''+a.id+'\')" ondblclick="showAgent('+i+')">';
+        ah+='<span class="agent-dot '+(isAct?'running':'idle')+'"></span>';
+        ah+='<div class="ord">'+(a.execution_order||'?')+'</div>';
+        ah+='<div class="info"><div class="name">'+esc(a.name)+'</div>';
+        ah+='<div class="meta">'+esc(a.title||'')+(a.run_count?' &middot; '+a.run_count+' runs':'')+'</div>';
+        var agTask = agentLastTask[a.id];
+        if(agTask) ah+='<div class="prompt-len" style="color:'+(agTask.status==='in_progress'?'#9a6700':'#59636e')+'">'+esc(agTask.name.substring(0,28))+(agTask.name.length>28?'…':'')+'</div>';
+        ah+='</div></div>';
+      });
+      document.getElementById('agent-count').textContent=agVisibleCount+'/'+agents.length;
+      document.getElementById('agents').innerHTML=ah||'<div style="padding:12px;color:#59636e">'+(agOnlyActive?'No active agents':'No agents')+'</div>';
+
+      // Tasks
+      var openT=tasks.filter(function(t){return t.status!=='done'});
+      openT.sort(function(a,b){return (a.step||99)-(b.step||99)});
+      document.getElementById('task-count').textContent=openT.length;
+      var th='';
+      openT.forEach(function(t){
+        var pc=(t.priority||'').toLowerCase();
+        var stCls = t.status === 'open' ? 'open' : (t.status === 'done' || t.status === 'verified' ? 'done' : 'progress');
+        th+='<div class="task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')" style="cursor:pointer">';
+        th+='<div class="t-name">'+bg(t.priority||'?',pc)+' '+bg(t.status||'?',stCls)+' '+esc(t.name)+'</div>';
+        th+='<div class="t-meta">';
+        if(t.agent_id)th+='<span>'+esc(agentName(t.agent_id))+'</span>';
+        if(t.step)th+='<span>step:'+t.step+'</span>';
+        th+='</div></div>';
+      });
+      document.getElementById('tasks').innerHTML=th||'<div style="padding:12px;color:#59636e">No open tasks</div>';
+
+      // Findings count — from cached data
+      var findings = window._findings || [];
+      document.getElementById('finding-count').textContent=findings.length;
+
+      // Questions — split into "for me" (owner/all) and "others"
+      var qOpen = questions.filter(function(q){return q.status==='open'});
+      var qForMe = qOpen.filter(function(q){
+        return q.to_title==='owner' || q.to_title==='all' || !q.to_agents || q.to_agents.length===0;
+      });
+      var qForAgents = qOpen.filter(function(q){
+        return q.to_agents && q.to_agents.length > 0 && q.to_title!=='owner' && q.to_title!=='all';
+      });
+
+      qOpen.sort(function(a,b){return (b.created||'').localeCompare(a.created||'')});
+      qForMe.sort(function(a,b){return (a.created||'').localeCompare(b.created||'')});
+
+      document.getElementById('q-count').textContent = qOpen.length;
+      document.getElementById('q-mine-count').textContent = qForMe.length + ' for you';
+      document.getElementById('q-mine-count').style.display = qForMe.length ? '' : 'none';
+
+      // Cards for questions to owner
+      var mh = '';
+      qForMe.forEach(function(q) {
+        mh += '<div class="q-card for-me" id="qc-'+q.id+'">';
+        mh += '<div class="q-from">'+esc(agentName(q.from_agent))+' asks you:</div>';
+        mh += '<div class="q-text">'+esc(q.question)+'</div>';
+        mh += '<div class="q-actions">';
+        mh += '<button class="approve" onclick="answerQ(\''+q.id+'\',\'approved\')">Approve</button>';
+        mh += '<button class="reject" onclick="answerQ(\''+q.id+'\',\'rejected\')">Reject</button>';
+        mh += '<button onclick="toggleAnswerBox(\''+q.id+'\')">Reply...</button>';
+        mh += '</div>';
+        mh += '<div class="q-answer-box" id="qa-'+q.id+'"><textarea placeholder="Type your answer..." id="qat-'+q.id+'"></textarea>';
+        mh += '<button class="act-btn" style="background:#0550ae;margin-top:4px" onclick="answerQ(\''+q.id+'\',document.getElementById(\'qat-'+q.id+'\').value)">Send</button></div>';
+        mh += '</div>';
+      });
+      document.getElementById('q-mine').innerHTML = mh;
+
+      // Compact list for agent-to-agent questions — rich cards
+      var oh = '';
+      qForAgents.forEach(function(q) {
+        var to = q.to_agents ? q.to_agents.map(agentName).join(', ') : '?';
+        var stCls = q.status==='open'?'open':(q.status==='answered'?'done':'p3');
+        var fullText = q.question || '';
+        var shortText = fullText.length > 90 ? fullText.substring(0, 90) + '…' : fullText;
+        var isLong = fullText.length > 90;
+        oh += '<div class="q-card-agent" onclick="toggleQCardAgent(\''+q.id+'\')">';
+        oh += '<div class="q-hdr">';
+        oh += '<span style="font-size:0.78em;font-weight:600;color:#0550ae">'+esc(agentName(q.from_agent))+' → '+esc(to)+'</span>';
+        if(q.project) oh += '<span class="badge b-p3">'+esc(q.project)+'</span>';
+        if(q.priority) oh += '<span class="badge b-'+((q.priority||'').toLowerCase())+'">'+esc(q.priority)+'</span>';
+        oh += '<span class="badge b-'+stCls+'">'+esc(q.status||'open')+'</span>';
+        oh += '</div>';
+        oh += '<div class="q-body" id="qt-'+q.id+'">'+esc(shortText)+'</div>';
+        if(isLong) oh += '<div class="q-more" id="qt-more-'+q.id+'">show more</div>';
+        oh += '</div>';
+      });
+      document.getElementById('q-others').innerHTML = oh || '<div style="padding:8px;color:#59636e;font-size:0.82em">No agent-to-agent questions</div>';
+
+      // Full table (expandable)
+      var allQ = questions.slice().sort(function(a,b){
+        // owner first, then open, then by date
+        var aMe = (a.to_title==='owner'||a.to_title==='all')?0:1;
+        var bMe = (b.to_title==='owner'||b.to_title==='all')?0:1;
+        if(aMe!==bMe) return aMe-bMe;
+        var aOpen = a.status==='open'?0:1;
+        var bOpen = b.status==='open'?0:1;
+        if(aOpen!==bOpen) return aOpen-bOpen;
+        return (b.created||'').localeCompare(a.created||'');
+      });
+      var th = '';
+      allQ.forEach(function(q) {
+        var to = q.to_agents?q.to_agents.map(agentName).join(','):(q.to_title||'all');
+        var stCls = q.status==='open'?'open':(q.status==='answered'?'done':'p3');
+        th += '<tr'+(q.to_title==='owner'||q.to_title==='all'?' style="font-weight:500"':'')+'>';
+        th += '<td>'+esc(agentName(q.from_agent))+'</td>';
+        th += '<td>'+esc(to)+'</td>';
+        th += '<td>'+esc(str(q.question,60))+'</td>';
+        th += '<td>'+bg(q.status||'open',stCls)+'</td>';
+        th += '<td><a href="'+objLink('ai:question',q.id)+'" target="_blank" style="color:#0550ae;text-decoration:none">&#x2197;</a></td>';
+        th += '</tr>';
+      });
+      document.getElementById('q-all-body').innerHTML = th;
+
+      // Decisions
+      document.getElementById('dec-count').textContent=decisions.length;
+      var dh='';
+      decisions.slice(-8).reverse().forEach(function(d){
+        dh+='<div class="dec"><div class="d-topic">'+bg(d.priority||'?',(d.priority||'').toLowerCase())+' '+esc((d.topic||d.name||'?').substring(0,50))+'</div></div>';
+      });
+      document.getElementById('decisions').innerHTML=dh||'<div style="padding:8px;color:#59636e">None</div>';
+
+      // Render channel tabs
+      renderChannelTabs();
+
+      // Map existing conversations to channels — from cached data
+      var allConvs = (window._conversations || []).filter(function(c){ return c.status === 'active'; });
+      allConvs.forEach(function(c) {
+        if(c.agent_id && !channelConversations[c.agent_id]) channelConversations[c.agent_id] = c.id;
+      });
+
+      document.getElementById('ws-status').innerHTML='<span class="dot ok"></span>online';
+      // Class count — fetch once, not on every load
+      if(!window._classCountLoaded) {
+        window._classCountLoaded = true;
+        try {
+          var cls=await fetch(API+'/class').then(function(r){return r.ok?r.json():[]});
+          if(cls && cls.length) document.getElementById('class-count').textContent=cls.length+' classes';
+        } catch(e2) {}
+      }
+
+    }catch(e){
+      console.warn('[load] error:', e.message || e);
+      // Still show online if we got this far (agents/tasks loaded)
+      if(window._agents && window._agents.length) {
+        document.getElementById('ws-status').innerHTML='<span class="dot ok"></span>online';
+      } else {
+        document.getElementById('ws-status').innerHTML='<span class="dot load"></span>loading';
+      }
+    }
+  }
+
+  // ─── Questions: answer + expand ─────────────────────────
+  var qExpanded = false;
+  window.toggleQExpand = function() {
+    qExpanded = !qExpanded;
+    document.getElementById('q-all-wrap').style.display = qExpanded ? '' : 'none';
+    document.getElementById('q-others').style.display = qExpanded ? 'none' : '';
+    document.getElementById('q-expand-icon').innerHTML = qExpanded ? '&#9650;' : '&#9660;';
+  };
+
+  // Toggle expandable agent-to-agent question card
+  window.toggleQCardAgent = function(qid) {
+    var q = (window._questions||[]).find(function(x){return x.id===qid});
+    if(!q) return;
+    var textEl = document.getElementById('qt-'+qid);
+    var moreEl = document.getElementById('qt-more-'+qid);
+    if(!textEl) return;
+    if(textEl.dataset.expanded) {
+      var full = q.question||'';
+      textEl.textContent = full.length > 90 ? full.substring(0,90)+'…' : full;
+      textEl.style.overflow = '';
+      delete textEl.dataset.expanded;
+      if(moreEl) moreEl.textContent = 'show more';
+    } else {
+      textEl.textContent = q.question||'';
+      textEl.style.overflow = 'visible';
+      textEl.dataset.expanded = '1';
+      if(moreEl) moreEl.textContent = 'show less';
+    }
+  };
+
+  window.toggleAnswerBox = function(qid) {
+    var box = document.getElementById('qa-'+qid);
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    if(box.style.display === 'block') box.querySelector('textarea').focus();
+  };
+
+  window.answerQ = async function(qid, answer) {
+    await fetch(API+'/store/ai:question/'+qid, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({status:'answered', answer:answer, answered_by:'owner', answered_at:new Date().toISOString()})
+    });
+    // Visual feedback
+    var card = document.getElementById('qc-'+qid);
+    if(card) { card.classList.add('answered'); card.querySelector('.q-actions').innerHTML = '<span style="color:#1a7f37;font-size:0.82em">Answered: '+esc(str(answer,40))+'</span>'; }
+    setTimeout(load, 500);
+  };
+
+  // ─── Agent modal tabs ────────────────────────────────────
+  window.switchAgentTab = function(tab) {
+    document.querySelectorAll('.m-tab').forEach(function(t) { t.classList.remove('active'); });
+    var activeBtn = document.querySelector('.m-tab-bar .m-tab:nth-child('+(tab==='prompt'?1:tab==='tasks'?2:3)+')');
+    if(activeBtn) activeBtn.classList.add('active');
+    document.getElementById('m-pane-prompt').style.display = tab === 'prompt' ? '' : 'none';
+    document.getElementById('m-pane-tasks').style.display = tab === 'tasks' ? '' : 'none';
+    document.getElementById('m-pane-feed').style.display = tab === 'feed' ? '' : 'none';
+  };
+
+  // ─── Agent modal ────────────────────────────────────────
+  window.showAgent=function(i){
+    var a=window._agents[i];if(!a)return;
+    document.getElementById('m-name').textContent=a.name+' — '+(a.title||a.id);
+    var m='';
+    m+='<span>#'+(a.execution_order||'?')+'</span>';
+    m+='<span>'+((a.run_count||0))+' runs</span>';
+    if(a.model)m+='<span>'+esc(a.model)+'</span>';
+    var beh=a.behavior||{};
+    if(beh.session_mode)m+='<span>session: '+esc(beh.session_mode)+'</span>';
+    if(beh.auto_approve)m+='<span style="color:#1a7f37">auto-approve</span>';
+    if(beh.trigger_on&&beh.trigger_on.length)m+='<span>triggers: '+beh.trigger_on.map(esc).join(', ')+'</span>';
+    if(beh.cooldown)m+='<span>cooldown: '+esc(String(beh.cooldown))+'s</span>';
+    document.getElementById('m-meta').innerHTML=m;
+
+    // Sessions for this agent
+    var agentSessions=(window._sessions||[]).filter(function(s){return s.agent_id===a.id});
+    var sh='';
+    if(agentSessions.length){
+      sh+='<h3>Sessions ('+agentSessions.length+')</h3>';
+      agentSessions.forEach(function(s){
+        var sCls=s.status==='active'?'active':'closed';
+        sh+='<div class="sess-item"><span><span class="s-status '+sCls+'">'+esc(s.status)+'</span> '+esc(s.type||'?')+' &middot; '+(s.rounds||0)+' rounds &middot; '+(s.tokens_used||0)+' tokens</span>';
+        sh+='<span style="color:#59636e">'+esc(s.started?s.started.substring(0,10):'')+'</span></div>';
+      });
+    } else {
+      sh='<h3>Sessions</h3><div style="font-size:0.78em;color:#59636e">No sessions</div>';
+    }
+    document.getElementById('m-sessions').innerHTML=sh;
+
+    document.getElementById('m-prompt').textContent=a.prompt||'(no prompt)';
+
+    // Populate tasks tab
+    var agentTasks = (window._tasks||[]).filter(function(t){return t.agent_id===a.id || t.project===a.id});
+    var tasksByStatus = {in_progress:[], open:[], done:[]};
+    agentTasks.forEach(function(t){ var s=t.status||'open'; tasksByStatus[tasksByStatus[s]?s:'open'].push(t); });
+    if(!tasksByStatus.in_progress) tasksByStatus.in_progress=[];
+    var taskOrder = tasksByStatus.in_progress.concat(tasksByStatus.open||[]).concat(tasksByStatus.done||[]);
+    var tTaskH = taskOrder.length ? '' : '<div style="color:#59636e;padding:8px">No tasks</div>';
+    taskOrder.forEach(function(t) {
+      var pc=(t.priority||'').toLowerCase();
+      var sc=t.status==='in_progress'?'progress':t.status==='done'||t.status==='completed'?'done':'open';
+      tTaskH+='<div style="padding:6px 0;border-bottom:1px solid #f0f2f5">';
+      tTaskH+='<div>'+bg(t.priority||'?',pc)+' '+bg(t.status||'open',sc)+' <span style="font-weight:500">'+esc(t.name||'?')+'</span></div>';
+      if(t.description) tTaskH+='<div style="font-size:0.78em;color:#59636e;margin-top:2px">'+esc(str(t.description,80))+'</div>';
+      tTaskH+='</div>';
+    });
+    document.getElementById('m-tasks').innerHTML = tTaskH;
+
+    // Reset to prompt tab
+    switchAgentTab('prompt');
+    document.getElementById('agent-modal').classList.add('open');
+  };
+
+  // ─── Actions ────────────────────────────────────────────
+  window.openAction=function(type){
+    document.getElementById('a-text').value='';
+    document.getElementById('a-result').textContent='';
+    var t=document.getElementById('a-title');
+    var d=document.getElementById('a-desc');
+    var pr=document.getElementById('a-pri-row');
+    var ta=document.getElementById('a-text');
+    var sub=document.getElementById('a-submit');
+    window._actionType=type;
+
+    if(type==='question'){
+      t.textContent='Ask Question';d.textContent='CEO will route to the right agent.';
+      ta.placeholder='What do you want to know?';pr.style.display='none';
+      sub.textContent='Ask';sub.style.background='#0550ae';
+    }else if(type==='directive'){
+      t.textContent='Create Task';d.textContent='CEO will assign to an agent.';
+      ta.placeholder='Describe the work...';pr.style.display='block';
+      sub.textContent='Create';sub.style.background='#9a6700';
+    }else if(type==='finding'){
+      t.textContent='Report Finding';d.textContent='Report an issue or bug.';
+      ta.placeholder='What did you find?';pr.style.display='block';
+      sub.textContent='Report';sub.style.background='#cf222e';
+    }
+    document.getElementById('action-modal').classList.add('open');
+  };
+
+  window.sendAction=async function(){
+    var type=window._actionType;
+    var text=document.getElementById('a-text').value.trim();
+    var res=document.getElementById('a-result');
+    if(!text){res.textContent='Write something';return;}
+    var now=new Date().toISOString();
+
+    if(type==='question'){
+      await fetch(API+'/store/ai:question',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({class_id:'ai:question',name:text.substring(0,60),question:text,from_agent:'owner',to_title:'all',status:'open',created:now})});
+      res.textContent='Question posted';
+    }else if(type==='directive'){
+      var pri=document.getElementById('a-pri').value;
+      await fetch(API+'/store/ai:task',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({class_id:'ai:task',name:text.substring(0,80),description:text,priority:pri,status:'open',source:'human_request',started:now})});
+      res.textContent='Task created';
+    }else if(type==='finding'){
+      var sev=document.getElementById('a-pri').value==='P1'?'critical':document.getElementById('a-pri').value==='P2'?'high':'medium';
+      await fetch(API+'/store/es:finding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({class_id:'es:finding',name:text.substring(0,60),description:text,severity:sev,category:'missing',status:'open',project:AIC_PROJECT_LABEL,discovered_at:now})});
+      res.textContent='Finding reported';
+    }
+    setTimeout(function(){document.getElementById('action-modal').classList.remove('open');load();},800);
+  };
+
+  // ─── Channels ──────────────────────────────────────────
+  var activeChannel = 'general'; // 'general' or agent_id like 'agent:ceo'
+  var channelConversations = {}; // agent_id → conversation_id
+  var channelMessages = {}; // conversation_id → [messages]
+  var channelUnread = {}; // agent_id → count
+
+  window.switchChannel = function(ch) {
+    activeChannel = ch;
+    // Update tabs UI
+    document.querySelectorAll('.ch-tab').forEach(function(t) {
+      t.classList.toggle('active', t.dataset.channel === ch);
+    });
+    // Update input label
+    var label = ch === 'general' ? '#general' : '#' + agentName(ch).toLowerCase();
+    document.getElementById('ch-label').textContent = label;
+    document.getElementById('feed-input').placeholder = ch === 'general' ? 'Type a message...' : 'Message ' + agentName(ch) + '...';
+    // Clear unread for this channel
+    channelUnread[ch] = 0;
+    renderChannelTabs();
+    // Re-render feed for this channel
+    feedDirty = true;
+    renderFeed();
+  };
+
+  function renderChannelTabs() {
+    var tabs = document.getElementById('ch-tabs');
+    var h = '<div class="ch-tab'+(activeChannel==='general'?' active':'')+'" data-channel="general" onclick="switchChannel(\'general\')">#general</div>';
+    (window._agents||[]).forEach(function(a) {
+      // v2: all agents get their own tab (no more skipping assistant)
+      var isRunning = !!(window._runningAgentIds||{})[a.id];
+      var shortName = a.name.toLowerCase().replace(/\s+/g,'-');
+      var unread = channelUnread[a.id] || 0;
+      h += '<div class="ch-tab'+(activeChannel===a.id?' active':'')+'" data-channel="'+a.id+'" onclick="switchChannel(\''+a.id+'\')">';
+      h += '<span class="ch-dot '+(isRunning?'running':'idle')+'"></span>';
+      h += '#'+shortName;
+      if(unread > 0 && activeChannel !== a.id) h += '<span class="ch-unread">'+unread+'</span>';
+      h += '</div>';
+    });
+    tabs.innerHTML = h;
+  }
+
+  // Get or create conversation for an agent channel
+  async function getChannelConversation(agentId) {
+    if(channelConversations[agentId]) return channelConversations[agentId];
+    // Find existing active conversation for this agent
+    try {
+      var convs = await fetch(API+'/query/ai:conversation?agent_id='+encodeURIComponent(agentId)+'&status=active&_sort=updated_at&_order=desc&_limit=1').then(function(r){return r.json()});
+      if(convs.length > 0) {
+        channelConversations[agentId] = convs[0].id;
+        return convs[0].id;
+      }
+    } catch(e) {}
+    // Create new conversation
+    try {
+      var resp = await fetch(API+'/store/ai:conversation', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({class_id:'ai:conversation', agent_id:agentId, user_id:'owner', title:agentName(agentId)+' Channel', status:'active', created:new Date().toISOString()})
+      });
+      var created = await resp.json();
+      if(created.id) {
+        channelConversations[agentId] = created.id;
+        return created.id;
+      }
+    } catch(e) {}
+    return null;
+  }
+
+  // ─── Activity Feed — data-driven, sorted by date ────────
+  var feedEl=document.getElementById('feed');
+  var MAX_FEED=200;
+  var feedItems={}; // id → item data
+  window._feedItems = feedItems; // expose for external scripts
+  var feedDirty=false;
+  var feedRenderTimer=null;
+
+  // Resolve agent name from ID (cached from last load)
+  function agentName(id) {
+    if (!id) return '?';
+    if (id === 'owner') return 'You';
+    var a = (window._agents||[]).find(function(x){return x.id===id});
+    return a ? a.name : id.replace('agent:','');
+  }
+
+  // Link to admin — opens object in edit mode
+  function objLink(classId, id) {
+    return '/elementStore/admin/?class='+encodeURIComponent(classId)+'&id='+encodeURIComponent(id)+'&action=edit';
+  }
+
+  // Handle keyboard in feed textarea: Ctrl+Enter to send, Enter for newline
+  window.handleFeedKeydown = function(event) {
+    if(event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      sendFeedMessage();
+    }
+  };
+
+  // Send message from feed input
+  window.sendFeedMessage = async function() {
+    var input = document.getElementById('feed-input');
+    var text = input.value.trim();
+    if(!text) return;
+    input.value = '';
+    input.disabled = true;
+
+    try {
+      var targetAgent = activeChannel === 'general' ? 'agent:assistant' : activeChannel;
+      var convId = null;
+      if(activeChannel !== 'general') {
+        convId = await getChannelConversation(activeChannel);
+      }
+      var now = new Date().toISOString();
+      // Smart routing: team commands go to coordinator, questions go to assistant
+      var isTeamCommand = /\b(fix|build|implement|refactor|scan|audit|work on|start|create|deploy|update|improve|upgrade)\b/i.test(text);
+
+      var msgBody = {class_id:'ai:message', user_id:'owner', role:'user', content:text, status:'pending', created:now};
+      if(activeChannel === 'general') {
+        if(isTeamCommand) {
+          // Work commands → both coordinator AND assistant (coordinator acts, assistant confirms)
+          msgBody.to_agents = ['agent:coordinator', 'agent:assistant'];
+        } else {
+          msgBody.to_agents = ['agent:assistant'];
+        }
+      } else {
+        msgBody.to_agents = [targetAgent];
+        msgBody.agent_id = targetAgent;
+        if(convId) msgBody.conversation_id = convId;
+      }
+
+      // Optimistic: show immediately with temp ID
+      var tempId = '_sending_' + Date.now();
+      var optimistic = Object.assign({id: tempId}, msgBody);
+      feedUpsert(optimistic);
+
+      var resp = await fetch(API+'/store/ai:message', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(msgBody)
+      });
+      var created = await resp.json();
+
+      // Replace temp with real
+      delete feedItems[tempId];
+      var tempEl = document.getElementById('fi-' + tempId);
+      if(tempEl) tempEl.remove();
+      if(created.id) {
+        feedUpsert(Object.assign({}, msgBody, created));
+      }
+
+      // Scroll to bottom
+      feedEl.scrollTop = feedEl.scrollHeight;
+    } catch(e) {
+      console.error('[FEED] send error:', e);
+    }
+    input.disabled = false;
+    input.focus();
+  };
+
+  // Add/update item in feed data store
+  function feedUpsert(item) {
+    if(!item || !item.id) return;
+    feedItems[item.id] = item;
+    feedDirty = true;
+    if(!feedRenderTimer) {
+      feedRenderTimer = setTimeout(function() {
+        feedRenderTimer = null;
+        if(feedDirty) { feedDirty = false; renderFeed(); }
+      }, 100); // batch renders within 100ms
+    }
+  }
+
+  function feedRemove(id) {
+    delete feedItems[id];
+    feedDirty = true;
+  }
+
+  // Render the full feed sorted by date — newest at BOTTOM (chat style)
+  var wasAtBottom = true;
+  var unreadCount = 0;
+
+  function renderFeed() {
+    wasAtBottom = (feedEl.scrollTop + feedEl.clientHeight >= feedEl.scrollHeight - 30);
+
+    var items = Object.values(feedItems);
+
+    // Messages + logs — the feed is a group chat
+    var messages = items.filter(function(item) {
+      // Include @log items as system messages in #general
+      if(item.class_id === 'es:log') return true;
+      if(item.class_id !== 'ai:message') return false;
+      // Hide system health/status messages
+      if(item.role === 'system' && item.metadata && item.metadata.type === 'health') return false;
+      if(item.id === '_ws_status') return true;
+      // Hide empty/processing messages
+      if(item.role === 'assistant' && !item.content && item.status === 'streaming') return false;
+      // Hide system finding/task notifications (shown in Findings/Tasks tabs instead)
+      if(item.role === 'user' && item.user_id === 'system' && item.content && (item.content.indexOf('New finding reported') === 0 || item.content.indexOf('New task assigned') === 0 || item.content.indexOf('Task ready for review') === 0 || item.content.indexOf('Task verified') === 0 || item.content.indexOf('Task needs rework') === 0)) return false;
+      // Hide agent-to-agent system routing messages
+      if(item.user_id === 'system' && item.role === 'user' && item.content && item.content.indexOf('Agent agent:') === 0) return false;
+      return true;
+    });
+
+
+    // Filter by active channel
+    if(activeChannel !== 'general') {
+      messages = messages.filter(function(item) {
+        if(item.class_id === 'es:log') return false; // logs only in #general
+        return item.agent_id === activeChannel ||
+          (item.to_agents && item.to_agents.indexOf(activeChannel) >= 0) ||
+          (item.conversation_id && channelConversations[activeChannel] === item.conversation_id);
+      });
+    }
+
+    // Sort oldest → newest (chat style)
+    messages.sort(function(a,b) {
+      var da = a.created || a.created_at || a.updated_at || '';
+      var db = b.created || b.created_at || b.updated_at || '';
+      return da.localeCompare(db);
+    });
+    if(messages.length > MAX_FEED) messages = messages.slice(-MAX_FEED);
+
+    // Check if we need a full rebuild or incremental update
+    var existingMsgCount = feedEl.querySelectorAll('.msg[id]').length;
+
+    if(existingMsgCount === 0 || Math.abs(messages.length - existingMsgCount) > 10) {
+      // Full render — first load or major change
+      var h = '';
+      for(var i = 0; i < messages.length; i++) {
+        h += messageCard(messages[i]);
+      }
+      feedEl.innerHTML = h || '<div style="padding:30px 12px;color:#8b949e;text-align:center;font-size:0.85em">No messages yet. Send one below.</div>';
+    } else {
+      // Incremental update — only touch changed/new messages
+      var existingIds = {};
+      var existingEls = feedEl.querySelectorAll('.msg[id]');
+      for(var e = 0; e < existingEls.length; e++) {
+        existingIds[existingEls[e].id] = existingEls[e];
+      }
+
+      for(var i = 0; i < messages.length; i++) {
+        var m = messages[i];
+        var elId = 'fi-' + m.id;
+        var existing = existingIds[elId];
+        if(existing) {
+          var oldHash = existing.getAttribute('data-hash') || '';
+          var newHash = (m.status||'') + ':' + (m.content||'').length;
+          if(oldHash !== newHash) {
+            var tmp = document.createElement('div');
+            tmp.innerHTML = messageCard(m);
+            existing.replaceWith(tmp.firstChild);
+          }
+          delete existingIds[elId];
+        } else {
+          var tmp = document.createElement('div');
+          tmp.innerHTML = messageCard(m);
+          feedEl.appendChild(tmp.firstChild);
+        }
+      }
+      Object.values(existingIds).forEach(function(el) { el.remove(); });
+    }
+
+    // Add data-hash for change detection
+    feedEl.querySelectorAll('.msg[id]').forEach(function(el) {
+      var mid = el.id.replace('fi-','');
+      var item = feedItems[mid];
+      if(item) el.setAttribute('data-hash', (item.status||'') + ':' + (item.content||'').length);
+    });
+
+    if(wasAtBottom) {
+      feedEl.scrollTop = feedEl.scrollHeight;
+      unreadCount = 0;
+      updateFfBtn();
+    } else {
+      unreadCount++;
+      updateFfBtn();
+    }
+  }
+
+  // Fast-forward button
+  function updateFfBtn() {
+    var btn = document.getElementById('feed-ff');
+    if(!btn) return;
+    if(unreadCount > 0 && !wasAtBottom) {
+      btn.style.display = 'block';
+      btn.textContent = '↓ ' + unreadCount + ' new';
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+
+  feedEl.addEventListener('scroll', function() {
+    var atBottom = (feedEl.scrollTop + feedEl.clientHeight >= feedEl.scrollHeight - 30);
+    if(atBottom) { unreadCount = 0; updateFfBtn(); }
+  });
+
+  // Message card — chat bubble with expandable logs
+  function messageCard(item) {
+    // @log items render as system-style messages
+    if (item.class_id === 'es:log') {
+      var logTime = (item.created || item.created_at || '').substring(11,19);
+      var logLevel = (item.level || 'info').toUpperCase();
+      var logColor = logLevel === 'ERROR' ? '#cf222e' : logLevel === 'WARNING' ? '#9a6700' : '#59636e';
+      var logSource = item.source || 'system';
+      var logMsg = esc(item.message || '');
+      return '<div class="msg system-msg" id="'+esc(item.id)+'" style="border-left:3px solid '+logColor+'">'
+        + '<div class="msg-hdr"><span class="avatar system">L</span>'
+        + '<span class="msg-name" style="color:'+logColor+'">'+esc(logSource)+' ['+logLevel+']</span>'
+        + '<span class="msg-time">'+logTime+'</span></div>'
+        + '<div class="msg-body"><p>'+logMsg+'</p></div></div>';
+    }
+
+    var role = item.role || '?';
+    var status = item.status || '';
+    var isUser = role === 'user';
+    var isSystem = role === 'system';
+    var isStreaming = status === 'streaming';
+    var time = (item.created || item.created_at || item.updated_at || '').substring(11,19);
+    var content = item.content || '';
+    var collapsed = content.length > 300 && !isStreaming ? ' collapsed' : '';
+
+    // Avatar
+    var avatarCls = isUser ? 'user' : (isSystem ? 'system' : 'assistant');
+    var avatarLetter = isUser ? 'U' : (isSystem ? 'S' : (agentName(item.agent_id)||'A').charAt(0));
+    var name = isUser ? agentName(item.user_id || 'owner') : (isSystem ? 'system' : agentName(item.agent_id));
+
+    // Status badge (only show non-final states)
+    var stHtml = '';
+    if(status && status !== 'complete' && status !== 'answered') {
+      var stLabel = status === 'streaming' ? '' : esc(status);
+      stHtml = '<span class="msg-status '+esc(status)+'">'+stLabel+'</span>';
+    }
+
+    // Build logs section (hidden until expanded)
+    var logs = '';
+    if(!isSystem) {
+      logs += '<div class="msg-logs">';
+      logs += '<div class="msg-log-row"><span class="label">ID</span><span>'+esc(item.id)+'</span></div>';
+      if(item.conversation_id) logs += '<div class="msg-log-row"><span class="label">Conv</span><span>'+esc(item.conversation_id)+'</span></div>';
+      if(status) logs += '<div class="msg-log-row"><span class="label">Status</span><span>'+esc(status)+'</span></div>';
+      if(item.metadata) {
+        var md = item.metadata;
+        if(md.provider_id) logs += '<div class="msg-log-row"><span class="label">Provider</span><span>'+esc(md.provider_id)+'</span></div>';
+        if(md.model) logs += '<div class="msg-log-row"><span class="label">Model</span><span>'+esc(md.model)+'</span></div>';
+        if(md.duration_s) logs += '<div class="msg-log-row"><span class="label">Duration</span><span>'+esc(String(md.duration_s))+'s</span></div>';
+        if(md.input_tokens) logs += '<div class="msg-log-row"><span class="label">Tokens in</span><span>'+esc(String(md.input_tokens))+'</span></div>';
+        if(md.output_tokens) logs += '<div class="msg-log-row"><span class="label">Tokens out</span><span>'+esc(String(md.output_tokens))+'</span></div>';
+      }
+      if(item.references && item.references.length) logs += '<div class="msg-log-row"><span class="label">Refs</span><span>'+item.references.map(esc).join(', ')+'</span></div>';
+      if(item.to_agents && item.to_agents.length) logs += '<div class="msg-log-row"><span class="label">To</span><span>'+item.to_agents.map(agentName).map(esc).join(', ')+'</span></div>';
+      logs += '<div class="msg-log-row"><a href="'+objLink('ai:message',item.id)+'" target="_blank">Open in admin ↗</a></div>';
+      logs += '</div>';
+    }
+
+    var extraCls = isUser ? ' user-msg' : (isSystem ? ' system-msg' : '');
+    if(isStreaming) extraCls += ' streaming';
+
+    // Render content: markdown for assistant, plain for user/system
+    var renderedContent = '';
+    if(isUser || isSystem || !content) {
+      // Plain text — convert \n to <br> for readability
+      renderedContent = esc(content).replace(/\n/g, '<br>');
+    } else {
+      // Assistant messages — render as markdown
+      try {
+        // Ensure literal \n sequences are actual newlines for markdown parsing
+        var mdContent = content.replace(/\\n/g, '\n');
+        if(typeof marked !== 'undefined') {
+          renderedContent = marked.parse(mdContent);
+        } else {
+          renderedContent = esc(mdContent).replace(/\n/g, '<br>');
+        }
+      } catch(e) {
+        renderedContent = esc(content).replace(/\n/g, '<br>');
+      }
+    }
+
+    return '<div class="msg'+collapsed+extraCls+'" id="fi-'+item.id+'" onclick="toggleMsg(this)">' +
+      '<div class="msg-hdr">' +
+        '<span class="msg-name">'+esc(name)+'</span>' +
+        stHtml +
+      '</div>' +
+      '<div class="msg-content">'+renderedContent+'</div>' +
+      (collapsed ? '<div class="msg-expand">show more</div>' : '') +
+      '<div class="msg-footer"><span class="msg-time">'+time+'</span></div>' +
+      logs +
+    '</div>';
+  }
+
+  window.toggleMsg = function(el) {
+    var exp = el.querySelector('.msg-expand');
+    if(el.classList.contains('collapsed')) {
+      // Expand — show full content
+      el.classList.remove('collapsed');
+      if(exp) exp.textContent = 'show less';
+      el.classList.add('msg-full');
+    } else if(el.classList.contains('msg-full')) {
+      // Collapse back
+      el.classList.remove('msg-full');
+      el.classList.add('collapsed');
+      if(exp) exp.textContent = 'show more';
+    } else if(el.classList.contains('expanded')) {
+      el.classList.remove('expanded');
+    } else {
+      el.classList.add('expanded');
+    }
+  };
+
+  function esc(s){return s?String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+  function str(s,n){return s?(s.length>n?s.substring(0,n)+'...':s):''}
+
+  // ─── Start / Stop / Clear ──────────────────────────────────
+  window.aicStart = function() {
+    var text = prompt('What should the team work on?', 'Scan the project, find bugs, and create a fix plan.');
+    if (!text) return;
+    fetch(API+'/store/ai:message', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        class_id:'ai:message',
+        user_id:'owner',
+        to_agents:['agent:assistant'],
+        role:'user',
+        content:text,
+        status:'pending',
+        created:new Date().toISOString()
+      })
+    }).then(function(){
+      document.getElementById('btn-start').style.display='none';
+      document.getElementById('btn-stop').style.display='inline-block';
+    });
+  };
+
+  window.aicStop = function() {
+    if(!confirm('Stop all running agents? (pending messages will be cancelled)')) return;
+    // Mark all pending + streaming messages as answered to stop the chain
+    Promise.all([
+      fetch(API+'/query/ai:message?status=pending&_limit=50').then(function(r){return r.json()}),
+      fetch(API+'/query/ai:message?status=streaming&_limit=50').then(function(r){return r.json()})
+    ]).then(function(results) {
+      var msgs = results[0].concat(results[1]);
+      msgs.forEach(function(m){
+        fetch(API+'/store/ai:message/'+m.id, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'answered'})});
+      });
+    });
+    document.getElementById('btn-start').style.display='inline-block';
+    document.getElementById('btn-stop').style.display='none';
+  };
+
+  window.aicClear = function() {
+    if(!confirm('Clear all messages from the feed? (Tasks and findings are kept)')) return;
+    fetch(API+'/store/ai:message').then(function(r){return r.json()}).then(function(msgs){
+      var promises = msgs.map(function(m){
+        return fetch(API+'/store/ai:message/'+m.id, {method:'DELETE'});
+      });
+      Promise.all(promises).then(function(){
+        feedItems = {};
+        feedDirty = true;
+        renderFeed();
+      });
+    });
+  };
+
+  // Show stop button if agents ran recently
+  setInterval(function() {
+    var agents = window._agents || [];
+    var now = new Date();
+    var anyRecent = agents.some(function(a) {
+      if (!a.last_run) return false;
+      var lastRun = new Date(a.last_run);
+      return (now - lastRun) < 60000; // active in last 60 seconds
+    });
+    var anyStreaming = Object.values(agentActivity).some(function(a){return a.status==='streaming'||a.status==='processing'});
+    var active = anyRecent || anyStreaming;
+    document.getElementById('btn-start').style.display = active ? 'none' : 'inline-block';
+    document.getElementById('btn-stop').style.display = active ? 'inline-block' : 'none';
+  }, 3000);
+
+  // ─── Activity Bar ─────────────────────────────────────────
+  // Tracks what each agent is doing right now
+  var agentActivity = {}; // agent_id → { status, task, since }
+  window._agentActivity = agentActivity; // expose for external scripts
+
+  function updateActivityBar() {
+    // Delegate to the enhanced refreshActivityBar which unifies all status sources
+    if (typeof refreshActivityBar === 'function') { refreshActivityBar(); return; }
+    // Fallback (before refreshActivityBar is defined)
+    var agents = window._agents || [];
+    var bar = document.getElementById('activity-bar');
+    if (!bar || !agents.length) return;
+    var h = '';
+    agents.forEach(function(a) {
+      var act = agentActivity[a.id] || {};
+      var isWorking = act.status === 'streaming' || act.status === 'processing';
+      var cls = isWorking ? 'working' : 'idle';
+      var task = isWorking ? (act.task || 'thinking...') : 'idle';
+      h += '<div class="ab-agent ' + cls + '" style="cursor:pointer" onclick="switchChannel(\'' + a.id + '\')">';
+      h += '<span class="ab-dot"></span>';
+      h += '<strong>' + esc(a.name) + '</strong>';
+      h += '<span class="ab-task">' + esc(task) + '</span>';
+      h += '</div>';
+    });
+    bar.innerHTML = h;
+  }
+
+  // Called when we see a message status change
+  function trackAgentActivity(item) {
+    if (item.class_id !== 'ai:message' || !item.agent_id) return;
+    var agentId = item.agent_id;
+
+    if (item.role === 'assistant') {
+      if (item.status === 'streaming' || item.status === 'processing') {
+        // Agent is working — extract what they're working on
+        var task = '';
+        // Find the input message they're responding to
+        if (item.references && item.references.length) {
+          var refMsg = feedItems[item.references[0]];
+          if (refMsg && refMsg.content) {
+            task = refMsg.content.substring(0, 60);
+          }
+        }
+        agentActivity[agentId] = { status: item.status, task: task || 'working...', since: Date.now() };
+      } else if (item.status === 'complete' || item.status === 'error') {
+        agentActivity[agentId] = { status: 'idle', task: '', since: Date.now() };
+      }
+      updateActivityBar();
+    }
+
+    // Also track from input messages being processed
+    if (item.role === 'user' && item.status === 'processing' && item.to_agents) {
+      item.to_agents.forEach(function(aid) {
+        var taskPreview = (item.content || '').substring(0, 60);
+        agentActivity[aid] = { status: 'processing', task: taskPreview, since: Date.now() };
+      });
+      updateActivityBar();
+    }
+  }
+
+  // Auto-clear stale activity (agent stuck for > 5 min = probably done)
+  setInterval(function() {
+    var now = Date.now();
+    Object.keys(agentActivity).forEach(function(aid) {
+      var act = agentActivity[aid];
+      if (act.status !== 'idle' && act.since && (now - act.since) > 300000) {
+        agentActivity[aid] = { status: 'idle', task: '', since: now };
+      }
+    });
+    updateActivityBar();
+  }, 30000);
+
+  // ─── Data Panel ──────────────────────────────────────────
+  var activeDataTab = 'tasks';
+  window.switchDataTab = function(tab) {
+    activeDataTab = tab;
+    document.querySelectorAll('.dp-tab').forEach(function(t){t.classList.remove('active')});
+    document.querySelectorAll('.dp-panel').forEach(function(p){p.classList.remove('active');p.style.display='none'});
+    var tabEl = document.querySelector('.dp-tab[data-tab="'+tab+'"]');
+    var panelEl = document.getElementById('dp-'+tab);
+    if(tabEl) { tabEl.classList.add('active'); tabEl.classList.remove('has-activity'); }
+    if(panelEl) { panelEl.classList.add('active'); panelEl.style.display='flex'; }
+    if(tab === 'browse') browseLoad();
+    if(tab === 'findings') loadFindings();
+    if(tab === 'tasks') loadTasks();
+    if(tab === 'usage') loadUsage();
+  };
+
+  // Signal new activity on a data panel tab (pulse dot) when not currently active
+  function signalDataTabActivity(tab) {
+    if(activeDataTab === tab) return;
+    var tabEl = document.querySelector('.dp-tab[data-tab="'+tab+'"]');
+    if(tabEl) tabEl.classList.add('has-activity');
+  }
+
+  // Task rendering for the Tasks tab — reads from cached window._tasks
+  window.loadTasks = function() {
+    var items = window._tasks || [];
+    var openT = items.filter(function(t){return t.status !== 'done' && t.status !== 'verified'});
+    var doneT = items.filter(function(t){return t.status === 'done' || t.status === 'verified'});
+    document.getElementById('task-count').textContent = openT.length;
+    var el = document.getElementById('tasks');
+
+    var h = '';
+    // Open/in-progress tasks
+    openT.sort(function(a,b){return (a.step||99)-(b.step||99)});
+    openT.forEach(function(t){
+      var pc=(t.priority||'').toLowerCase();
+      var stCls = t.status==='open'?'open':(t.status==='in_progress'?'progress':'open');
+      h+='<div class="task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')" style="cursor:pointer">';
+      h+='<div class="t-name">'+bg(t.priority||'?',pc)+' '+bg(t.status||'?',stCls)+' '+esc(t.name)+'</div>';
+      h+='<div class="t-meta">';
+      if(t.agent_id)h+='<span>'+esc(agentName(t.agent_id))+'</span>';
+      if(t.step)h+='<span>step:'+t.step+'</span>';
+      h+='</div></div>';
+    });
+
+    if(!openT.length) h += '<div style="padding:8px 10px;color:#667781;font-size:0.82em">No open tasks</div>';
+
+    // Completed tasks section
+    if(doneT.length) {
+      h += '<div style="border-top:1px solid #e8e8e8;padding:6px 10px;font-size:0.75em;font-weight:600;color:#1a7f37;background:#f0fff4">Completed ('+doneT.length+')</div>';
+      h += '<div id="done-tasks" style="opacity:0.7">';
+      doneT.forEach(function(t){
+        h+='<div class="task" onclick="browseDetail(\'ai:task\',\''+t.id+'\')" style="cursor:pointer">';
+        h+='<div class="t-name">'+bg('done','done')+' '+esc(t.name)+'</div>';
+        h+='<div class="t-meta">';
+        if(t.agent_id)h+='<span>'+esc(agentName(t.agent_id))+'</span>';
+        if(t.completed_at)h+='<span>'+t.completed_at.substring(11,19)+'</span>';
+        h+='</div></div>';
+      });
+      h += '</div>';
+    }
+
+    el.innerHTML=h;
+  };
+
+  // ─── Usage ───────────────────────────────────────────────
+  function fmtDur(s) {
+    s = Math.round(s || 0);
+    if (!s) return '—';
+    if (s < 60) return s + 's';
+    var m = Math.floor(s / 60), sec = s % 60;
+    if (m < 60) return m + 'm ' + (sec ? sec + 's' : '');
+    return Math.floor(m / 60) + 'h ' + (m % 60) + 'm';
+  }
+
+  window.loadUsage = function() {
+    // Use cached agents data
+    var agents = (window._agents || []).slice();
+    (function(agents) {
+      var h = '';
+      // Sort by total runs desc
+      agents.sort(function(a, b) {
+        var ar = (a.stats && a.stats.total_runs) || a.run_count || 0;
+        var br = (b.stats && b.stats.total_runs) || b.run_count || 0;
+        return br - ar;
+      });
+      agents.forEach(function(a) {
+        var s = a.stats || {};
+        var totalRuns = s.total_runs || a.run_count || 0;
+        var totalDur = s.total_duration_s || 0;
+        var avgDur = s.avg_duration_s || 0;
+        var lastDur = s.last_duration_s || 0;
+        var lastRun = s.last_run || a.last_run || '';
+        h += '<div style="padding:10px;border-bottom:1px solid #f0f2f5">';
+        h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">';
+        h += '<span style="font-weight:600;font-size:0.88em">'+esc(a.name||a.id)+'</span>';
+        if (!a.is_active) h += '<span style="font-size:0.68em;background:#f0f2f5;color:#59636e;padding:1px 5px;border-radius:3px">inactive</span>';
+        h += '</div>';
+        h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:0.78em">';
+        h += '<div style="background:#f6f8fa;border-radius:4px;padding:4px 6px;text-align:center"><div style="color:#59636e;font-size:0.85em">Runs</div><div style="font-weight:700;color:#0550ae">'+totalRuns+'</div></div>';
+        h += '<div style="background:#f6f8fa;border-radius:4px;padding:4px 6px;text-align:center"><div style="color:#59636e;font-size:0.85em">Total</div><div style="font-weight:700">'+fmtDur(totalDur)+'</div></div>';
+        h += '<div style="background:#f6f8fa;border-radius:4px;padding:4px 6px;text-align:center"><div style="color:#59636e;font-size:0.85em">Avg</div><div style="font-weight:700">'+fmtDur(avgDur)+'</div></div>';
+        h += '<div style="background:#f6f8fa;border-radius:4px;padding:4px 6px;text-align:center"><div style="color:#59636e;font-size:0.85em">Last</div><div style="font-weight:700">'+fmtDur(lastDur)+'</div></div>';
+        h += '</div>';
+        if (lastRun) h += '<div style="margin-top:4px;font-size:0.72em;color:#59636e">Last run: '+esc(lastRun.substring(0,19).replace('T',' '))+'</div>';
+        h += '</div>';
+      });
+      if (!agents.length) h = '<div style="padding:20px;text-align:center;color:#667781;font-size:0.85em">No agents found</div>';
+      document.getElementById('usage-list').innerHTML = h;
+    })(agents);
+  };
+
+  // ─── Findings ────────────────────────────────────────────
+  // Findings rendering — reads from cached window._findings
+  window.loadFindings = function() {
+    var items = (window._findings || []).slice();
+    document.getElementById('finding-count').textContent = items.length;
+    var el = document.getElementById('findings-list');
+    if(!items.length) { el.innerHTML='<div style="padding:20px;text-align:center;color:#667781;font-size:0.85em">No findings yet</div>'; return; }
+    items.sort(function(a,b){
+      var sev={critical:0,high:1,medium:2,low:3};
+      return (sev[a.severity]||9)-(sev[b.severity]||9);
+    });
+    var h='';
+    items.forEach(function(f, idx){
+      var loc = '';
+      if(f.location) {
+        var locs = Array.isArray(f.location) ? f.location : [f.location];
+        loc = locs.map(function(l){return '<code>'+esc(l)+'</code>'}).join(', ');
+      }
+      h+='<div class="finding-item" onclick="toggleFinding('+idx+')">';
+      h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
+      h+='<span class="f-sev '+(f.severity||'medium')+'">'+(f.severity||'?')+'</span>';
+      if(f.category) h+='<span style="font-size:0.7em;color:#667781;background:#f0f2f5;padding:1px 5px;border-radius:3px">'+esc(f.category)+'</span>';
+      h+='<span style="font-size:0.7em;color:#667781">'+(f.status||'open')+'</span>';
+      h+='</div>';
+      h+='<div class="f-title" style="font-weight:600;font-size:0.88em;margin-top:3px">'+esc(f.name||'unnamed')+'</div>';
+
+      // Expandable detail section
+      h+='<div class="f-detail" id="finding-detail-'+idx+'" style="display:none;margin-top:6px;font-size:0.84em">';
+      if(f.description && f.description !== f.name) {
+        h+='<div style="margin-bottom:6px;color:#111b21;line-height:1.5">'+esc(f.description)+'</div>';
+      }
+      if(loc) {
+        h+='<div style="margin-bottom:4px"><span style="font-weight:600;color:#667781;font-size:0.9em">Location:</span> '+loc+'</div>';
+      }
+      if(f.fix) {
+        h+='<div style="background:#dafbe1;padding:6px 8px;border-radius:4px;margin-top:4px;font-size:0.92em">';
+        h+='<span style="font-weight:600;color:#1a7f37">Fix:</span> '+esc(f.fix)+'</div>';
+      }
+      if(f.gitlab_issue) {
+        h+='<div style="margin-top:4px"><a href="'+esc(f.gitlab_issue)+'" target="_blank" style="color:#027eb5;font-size:0.85em;text-decoration:none">GitLab Issue #'+(f.gitlab_iid||'')+'  ↗</a></div>';
+      }
+      if(f.reported_by) {
+        h+='<div style="margin-top:4px;font-size:0.82em;color:#667781">Reported by: '+esc(f.reported_by)+'</div>';
+      }
+      h+='<div style="margin-top:4px;font-size:0.78em;color:#8b949e;font-family:monospace">'+esc(f.id)+'</div>';
+      h+='</div>';
+
+      h+='</div>';
+    });
+    el.innerHTML=h;
+  };
+
+  window.toggleFinding = function(idx) {
+    var el = document.getElementById('finding-detail-'+idx);
+    if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  };
+
+  // ─── Data Browser ────────────────────────────────────────
+  window.browseLoad = function() {
+    var cls = document.getElementById('browse-class').value;
+    var el = document.getElementById('browse-results');
+    el.innerHTML='<div style="padding:20px;text-align:center;color:#667781">Loading...</div>';
+    fetch(API+'/store/'+encodeURIComponent(cls)).then(function(r){return r.json()}).then(function(items){
+      if(!items || !items.length) { el.innerHTML='<div style="padding:20px;text-align:center;color:#667781">No objects</div>'; return; }
+      var h='';
+      items.forEach(function(item){
+        var preview = '';
+        if(item.name) preview += '<strong>'+esc(item.name)+'</strong> ';
+        if(item.status) preview += '<span class="badge b-'+esc(item.status)+'">'+esc(item.status)+'</span> ';
+        if(item.priority) preview += '<span class="badge b-'+esc(item.priority.toLowerCase())+'">'+esc(item.priority)+'</span> ';
+        if(item.content) preview += esc(str(item.content,80));
+        else if(item.description) preview += esc(str(item.description,80));
+        else if(item.title) preview += esc(item.title);
+        h+='<div class="browse-item" onclick="browseDetail(\''+cls+'\',\''+item.id+'\')">';
+        h+='<div class="bi-id">'+esc(item.id)+'</div>';
+        h+='<div class="bi-fields">'+preview+'</div>';
+        h+='</div>';
+      });
+      el.innerHTML=h;
+    }).catch(function(e){el.innerHTML='<div style="padding:20px;color:#cf222e">Error: '+esc(e.message)+'</div>';});
+  };
+
+  window.browseDetail = function(cls, id) {
+    fetch(API+'/query/'+encodeURIComponent(cls)+'?id='+encodeURIComponent(id)+'&_limit=1').then(function(r){return r.json()}).then(function(arr){ var obj = arr[0] || {error:'not found'};
+      // Show in a modal-like detail view
+      var existing = document.querySelector('.browse-detail');
+      if(existing) existing.remove();
+      var detail = document.createElement('div');
+      detail.className = 'browse-detail';
+      detail.textContent = JSON.stringify(obj, null, 2);
+      detail.onclick = function(){ detail.remove(); };
+      var panel = document.getElementById('dp-browse');
+      if(!panel || !panel.classList.contains('active')) {
+        // If we're on findings/tasks tab, show inline
+        panel = document.querySelector('.dp-panel.active');
+      }
+      if(panel) {
+        var results = panel.querySelector('#browse-results, #findings-list, #tasks');
+        if(results) results.parentNode.insertBefore(detail, results.nextSibling);
+        else panel.appendChild(detail);
+      }
+    });
+  };
+
+  // ─── WebSocket ──────────────────────────────────────────
+  esws.on('connected',function(msg){
+    console.log('[WS] connected:', msg);
+
+    // Subscribe with fetch — get last N objects on connect
+    // All data classes use fetch so initial data arrives via WS (no REST polling needed)
+    var feedClasses = {
+      'ai:message': 100,
+      'ai:task': 50,
+      'ai:question': 30,
+      'ai:decision': 20,
+      'ai:worker': 10,
+      'ai:conversation': 20,
+      'ai:agent': 50,
+      'ai:agent_session': 30,
+      'ai:round': 5,
+      'es:finding': 30,
+      'es:log': 20,
+    };
+    var notifyOnly = ['ai:preference','ai:prompt'];
+
+    // Subscribe with fetch for feed classes
+    Object.keys(feedClasses).forEach(function(c){
+      esws._send({action:'subscribe', class_id:c, fetch:feedClasses[c]});
+    });
+    // Subscribe notify-only for others
+    notifyOnly.forEach(function(c){
+      esws._send({action:'subscribe', class_id:c});
+    });
+
+    console.log('[WS] subscribed to', Object.keys(feedClasses).length + notifyOnly.length, 'classes (' + Object.keys(feedClasses).length + ' with fetch)');
+    feedUpsert({id:'_ws_status', class_id:'ai:message', role:'system', content:'Connected — loading history...', updated_at:new Date().toISOString()});
+  });
+
+  var rt=null;
+  function sched(){if(rt)clearTimeout(rt);rt=setTimeout(function(){rt=null;load()},500)}
+
+  // Upsert an item into a cached array (window._tasks, etc.)
+  function cacheUpsert(arr, item) {
+    if (!arr || !item || !item.id) return arr || [];
+    var idx = -1;
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i].id === item.id) { idx = i; break; }
+    }
+    if (idx >= 0) { arr[idx] = item; } else { arr.push(item); }
+    return arr;
+  }
+
+  esws.on('change',function(item){
+    if(!item||!item.id) return;
+    // Only put messages into the chat feed
+    if(item.class_id==='ai:message') feedUpsert(item);
+    // Store non-message items for sidebar widgets (tasks, agents, etc.)
+    if(item.class_id!=='ai:message') { feedItems[item.id] = item; }
+    // Track agent activity for the activity bar
+    trackAgentActivity(item);
+
+    // Update cached arrays from WS change events — no REST needed
+    if(item.class_id==='ai:task') {
+      window._tasks = cacheUpsert(window._tasks || [], item);
+      loadTasks();
+      signalDataTabActivity('tasks');
+    }
+    if(item.class_id==='es:finding') {
+      window._findings = cacheUpsert(window._findings || [], item);
+      loadFindings();
+      signalDataTabActivity('findings');
+    }
+    if(item.class_id==='ai:agent') {
+      window._agents = cacheUpsert(window._agents || [], item);
+    }
+    if(item.class_id==='ai:question') {
+      window._questions = cacheUpsert(window._questions || [], item);
+      signalDataTabActivity('questions');
+    }
+    if(item.class_id==='ai:decision') {
+      window._decisions = cacheUpsert(window._decisions || [], item);
+    }
+    if(item.class_id==='ai:agent_session') {
+      window._sessions = cacheUpsert(window._sessions || [], item);
+    }
+    if(item.class_id==='ai:conversation') {
+      window._conversations = cacheUpsert(window._conversations || [], item);
+    }
+    // Worker changes → update cached array + running indicators immediately
+    if(item.class_id==='ai:worker') {
+      window._workers = cacheUpsert(window._workers || [], item);
+      if(item.current_agent && item.status==='running') {
+        window._runningAgentIds = window._runningAgentIds || {};
+        window._runningAgentIds[item.current_agent] = true;
+      }
+    }
+    // Track unread per agent channel
+    if(item.class_id==='ai:message' && item.agent_id && item.agent_id !== 'agent:assistant') {
+      var msgChannel = item.agent_id;
+      if(msgChannel !== activeChannel) {
+        channelUnread[msgChannel] = (channelUnread[msgChannel]||0) + 1;
+        renderChannelTabs();
+      }
+    }
+    // Auto-speak new assistant responses if TTS is enabled
+    if(item.class_id==='ai:message' && item.role==='assistant' && item.status==='complete' && item.content && window._ttsEnabled) {
+      if(activeChannel==='general' || item.agent_id===activeChannel) {
+        speakResponse(item.content);
+      }
+    }
+    sched();
+  });
+  // Remove an item from a cached array by id
+  function cacheRemove(arr, id) {
+    if (!arr || !id) return arr || [];
+    return arr.filter(function(x){ return x.id !== id; });
+  }
+
+  esws.on('delete',function(item){
+    if(!item||!item.id) return;
+    feedRemove(item.id);
+    // Remove from cached arrays
+    if(item.class_id==='ai:task') { window._tasks = cacheRemove(window._tasks, item.id); loadTasks(); }
+    if(item.class_id==='es:finding') { window._findings = cacheRemove(window._findings, item.id); loadFindings(); }
+    if(item.class_id==='ai:agent') { window._agents = cacheRemove(window._agents, item.id); }
+    if(item.class_id==='ai:question') { window._questions = cacheRemove(window._questions, item.id); }
+    if(item.class_id==='ai:decision') { window._decisions = cacheRemove(window._decisions, item.id); }
+    if(item.class_id==='ai:worker') { window._workers = cacheRemove(window._workers, item.id); }
+    if(item.class_id==='ai:agent_session') { window._sessions = cacheRemove(window._sessions, item.id); }
+    if(item.class_id==='ai:conversation') { window._conversations = cacheRemove(window._conversations, item.id); }
+    feedDirty = true;
+    renderFeed();
+    sched();
+  });
+  esws.on('close',function(){
+    document.getElementById('ws-status').innerHTML='<span class="dot err"></span>reconnecting';
+    feedUpsert({id:'_ws_status', class_id:'ai:message', role:'system', content:'Disconnected — reconnecting...', updated_at:new Date().toISOString()});
+  });
+  window._aicStartApp = startApp;
+  function startApp() {
+    try {
+      // Update WS URL in case env changed at login
+      esws.wsUrl = WS_URL;
+      var token = store.storage.getToken ? store.storage.getToken() : null;
+      console.log('[AIC] Connecting WS to:', WS_URL, token ? '(authenticated)' : '(no token)');
+      esws.connect(token ? { token: token } : { user_id: 'aic-dashboard' });
+      console.log('[AIC] WS connect called');
+    } catch(e) {
+      console.error('[AIC] WS connect failed:', e);
+    }
+
+    // Show user + env in header
+    var user = store.storage.auth ? store.storage.auth.user : null;
+    if (user) {
+      var userEl = document.getElementById('aic-user');
+      if (userEl) userEl.textContent = user.name || user.email || '';
+    }
+    var envLabel = document.getElementById('aic-env-label');
+    if (envLabel) envLabel.textContent = activeEnv.name;
+
+    load(); // Initial render from empty caches; WS initial events will trigger sched() → load()
+
+    // Fallback: when WS is disconnected, fetch data via REST to keep UI alive
+    setInterval(function(){
+      if(!esws.ws||esws.ws.readyState!==1) {
+        // WS down — fetch critical data via REST as fallback
+        Promise.all([
+          fetch(API+'/store/ai:agent').then(function(r){return r.json()}).catch(function(){return []}),
+          fetch(API+'/store/ai:task').then(function(r){return r.json()}).catch(function(){return []}),
+          fetch(API+'/store/ai:worker').then(function(r){return r.ok?r.json():[]}).catch(function(){return []}),
+        ]).then(function(results){
+          window._agents = results[0];
+          window._tasks = results[1];
+          window._workers = results[2];
+          load();
+        });
+      }
+    },15000);
+  }
+
+  // ─── Startup: load environments, check auth, then start ──
+  (async function() {
+    await loadEnvironments();
+
+    // Restore saved machine name
+    var savedMachine = localStorage.getItem('aic_machine_name');
+    var machineInput = document.getElementById('aic-machine');
+    if (savedMachine && machineInput) machineInput.value = savedMachine;
+
+    var authed = await checkAuth();
+    if (!authed) {
+      showAicLogin();
+      return;
+    }
+    hideAicLogin();
+    var esLabel = document.getElementById('aic-es-url');
+    if (esLabel) esLabel.textContent = API.replace(/^https?:\/\//, '');
+    startApp();
+    // Tasks and findings are loaded via WS initial events — no REST polling needed
+  })();
+
+  // ─── Voice Interface ─────────────────────────────────────
+  var _speechRecognition = null;
+  var _micActive = false;
+  window._ttsEnabled = false;
+
+  window.toggleMic = function() {
+    if (_micActive) { stopMic(); } else { startMic(); }
+  };
+
+  function startMic() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert('Speech recognition requires Chrome or Edge.'); return; }
+
+    _speechRecognition = new SR();
+    _speechRecognition.continuous = false;
+    _speechRecognition.interimResults = true;
+    _speechRecognition.lang = 'en-US';
+
+    _speechRecognition.onstart = function() {
+      _micActive = true;
+      document.getElementById('mic-btn').classList.add('mic-active');
+      document.getElementById('feed-input').placeholder = 'Listening...';
+    };
+
+    _speechRecognition.onresult = function(event) {
+      var transcript = '';
+      for (var i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      document.getElementById('feed-input').value = transcript;
+      // Auto-send on final result
+      if (event.results[event.results.length - 1].isFinal) {
+        setTimeout(function() {
+          if (document.getElementById('feed-input').value.trim()) {
+            sendFeedMessage();
+          }
+        }, 400);
+      }
+    };
+
+    _speechRecognition.onerror = function(e) {
+      console.warn('[Voice] error:', e.error);
+      stopMic();
+    };
+
+    _speechRecognition.onend = function() { stopMic(); };
+    _speechRecognition.start();
+  }
+
+  function stopMic() {
+    _micActive = false;
+    document.getElementById('mic-btn').classList.remove('mic-active');
+    document.getElementById('feed-input').placeholder =
+      activeChannel === 'general' ? 'Type a message...' : 'Message ' + agentName(activeChannel) + '...';
+    if (_speechRecognition) {
+      try { _speechRecognition.stop(); } catch(e) {}
+      _speechRecognition = null;
+    }
+  }
+
+  window.toggleTTS = function() {
+    window._ttsEnabled = !window._ttsEnabled;
+    document.getElementById('tts-btn').classList.toggle('tts-active', window._ttsEnabled);
+  };
+
+  window.speakResponse = function(text) {
+    if (!window._ttsEnabled || !window.speechSynthesis) return;
+    // Strip markdown for cleaner speech
+    var clean = text
+      .replace(/#{1,6}\s/g, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/`[^`]+`/g, '')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/^\s*[-*]\s/gm, '')
+      .replace(/---[\s\S]*$/m, '')  // strip summary block
+      .replace(/\n+/g, '. ')
+      .trim();
+    if (clean.length > 600) {
+      clean = clean.substring(0, 600) + '... end of response.';
+    }
+    var utter = new SpeechSynthesisUtterance(clean);
+    utter.rate = 1.05;
+    utter.pitch = 1.0;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
+  };
+})();
+</script>
+
+<!-- Agent Terminal Modal -->
+<div class="term-bg" id="term-modal" onclick="if(event.target===this)closeTerm()">
+  <div class="term-box">
+    <div class="term-hdr">
+      <div class="term-dot" id="term-dot" style="background:#808080"></div>
+      <span class="term-title" id="term-title">agent:assistant</span>
+      <button class="term-close" onclick="closeTerm()">&times;</button>
+    </div>
+    <div class="term-body" id="term-body">
+      <span class="t-info">Click an agent in the activity bar to view their live session.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Agent Terminal ─────────────────────────────────────
+var _termAgent = null;
+var _termInterval = null;
+var DISPATCHER_URL = 'http://127.0.0.1:3102';
+
+window.openTerm = function(agentId) {
+  _termAgent = agentId;
+  document.getElementById('term-modal').classList.add('open');
+  document.getElementById('term-title').textContent = agentId;
+  document.getElementById('term-body').innerHTML = '<span class="t-info">Loading...</span>';
+  refreshTerm();
+  if (_termInterval) clearInterval(_termInterval);
+  _termInterval = setInterval(refreshTerm, 2000);
+};
+
+window.closeTerm = function() {
+  document.getElementById('term-modal').classList.remove('open');
+  _termAgent = null;
+  if (_termInterval) { clearInterval(_termInterval); _termInterval = null; }
+};
+
+function refreshTerm() {
+  if (!_termAgent) return;
+  fetch(DISPATCHER_URL + '/stream/' + encodeURIComponent(_termAgent))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var dot = document.getElementById('term-dot');
+      dot.style.background = data.status === 'running' ? '#25d366' : '#808080';
+      document.getElementById('term-title').textContent = _termAgent + (data.elapsed_s ? ' — ' + data.elapsed_s + 's' : data.status === 'idle' ? ' — idle' : '');
+
+      var body = document.getElementById('term-body');
+      var h = '';
+      (data.lines || []).forEach(function(line) {
+        if (line.indexOf('[tool]') === 0) {
+          h += '<div class="t-tool">' + escH(line) + '</div>';
+        } else if (line.indexOf('[result]') === 0) {
+          h += '<div class="t-result">' + escH(line) + '</div>';
+        } else if (line.indexOf('[text]') === 0) {
+          h += '<div class="t-text">' + escH(line) + '</div>';
+        } else if (line.indexOf('[done]') === 0) {
+          h += '<div class="t-done">' + escH(line) + '</div>';
+        } else if (line.indexOf('[stderr]') === 0 || line.indexOf('[error]') === 0) {
+          h += '<div class="t-err">' + escH(line) + '</div>';
+        } else {
+          h += '<div class="t-info">' + escH(line) + '</div>';
+        }
+      });
+      body.innerHTML = h || '<span class="t-info">No output yet.</span>';
+      body.scrollTop = body.scrollHeight;
+    })
+    .catch(function() {
+      document.getElementById('term-body').innerHTML = '<span class="t-err">Cannot reach dispatcher at ' + DISPATCHER_URL + '</span>';
+    });
+}
+
+function escH(s) { return s ? String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''; }
+
+// ─── Live activity bar from cached data ───────────────────
+// Check window._feedItems for streaming/processing messages to know who's working
+// No REST polling — WS change events keep _feedItems up to date
+function refreshActivityBar() {
+  // Scan cached feedItems for streaming messages
+  var activeAgents = {};
+  var items = window._feedItems || {};
+  Object.keys(items).forEach(function(id) {
+    var m = items[id];
+    if (m && m.class_id === 'ai:message' && (m.status === 'streaming' || m.status === 'processing') && m.agent_id) {
+      var since = m.updated_at || m.created || null;
+      activeAgents[m.agent_id] = { status: 'running', since: since };
+    }
+  });
+  // Also include agents known running from workers
+  var runIds = window._runningAgentIds || {};
+  Object.keys(runIds).forEach(function(aid) {
+    if (!activeAgents[aid]) activeAgents[aid] = { status: 'running', since: null };
+  });
+
+  // Update activity bar
+  var agents = window._agents || [];
+  var bar = document.getElementById('activity-bar');
+  if (!bar || !agents.length) return;
+  var act_data = window._agentActivity || {};
+  var agentLastTask = window._agentLastTask || {};
+  var now = Date.now();
+  var h = '';
+  agents.forEach(function(a) {
+    var act = activeAgents[a.id] || act_data[a.id] || {};
+    var isWorking = act.status === 'running' || act.status === 'streaming' || act.status === 'processing';
+    var cls = isWorking ? 'working' : 'idle';
+
+    // Task label: prefer current in_progress task name, else latest assigned task
+    var taskLabel = '';
+    if (isWorking) {
+      var curTask = agentLastTask[a.id];
+      if (curTask && curTask.name) {
+        taskLabel = curTask.name.length > 28 ? curTask.name.substring(0, 27) + '…' : curTask.name;
+      } else if (act.task) {
+        taskLabel = act.task.length > 28 ? act.task.substring(0, 27) + '…' : act.task;
+      } else {
+        taskLabel = 'working…';
+      }
+      // Append elapsed time
+      if (act.since) {
+        var sinceMs = now - new Date(act.since).getTime();
+        if (!isNaN(sinceMs) && sinceMs > 0) {
+          var mins = Math.floor(sinceMs / 60000);
+          var secs = Math.floor((sinceMs % 60000) / 1000);
+          taskLabel += ' (' + (mins > 0 ? mins + 'm' : '') + secs + 's)';
+        }
+      }
+    } else {
+      // Show last run time if available
+      var lastRunAgo = '';
+      if (a.last_run) {
+        var lrMs = now - new Date(a.last_run).getTime();
+        if (!isNaN(lrMs) && lrMs > 0) {
+          var lrMins = Math.floor(lrMs / 60000);
+          lastRunAgo = lrMins < 60 ? lrMins + 'm ago' : Math.floor(lrMins/60) + 'h ago';
+        }
+      }
+      taskLabel = lastRunAgo ? 'idle · ' + lastRunAgo : 'idle';
+    }
+
+    h += '<div class="ab-agent ' + cls + '" style="cursor:pointer" title="' + escH(a.id) + '" onclick="switchChannel(\'' + a.id + '\')">';
+    h += '<span class="ab-dot"></span>';
+    h += '<strong>' + escH(a.name) + '</strong>';
+    h += '<span class="ab-task">' + escH(taskLabel) + '</span>';
+    h += '</div>';
+  });
+  bar.innerHTML = h;
+
+  // Update Start/Stop buttons + connection status
+  var anyRunning = Object.keys(activeAgents).length > 0;
+  var startBtn = document.getElementById('btn-start');
+  var stopBtn = document.getElementById('btn-stop');
+  if (startBtn) startBtn.style.display = anyRunning ? 'none' : 'inline-block';
+  if (stopBtn) stopBtn.style.display = anyRunning ? 'inline-block' : 'none';
+}
+setInterval(refreshActivityBar, 3000);
+
+// Dark mode
+function toggleDarkMode() {
+  var isDark = document.body.classList.toggle('dark');
+  localStorage.setItem('aic-dark-mode', isDark ? '1' : '0');
+  document.getElementById('dark-toggle').textContent = isDark ? '☀️' : '🌙';
+}
+// Restore preference on load
+(function() {
+  if (localStorage.getItem('aic-dark-mode') === '1') {
+    document.body.classList.add('dark');
+    var btn = document.getElementById('dark-toggle');
+    if (btn) btn.textContent = '☀️';
+  }
+})();
+</script>
+</body>
+</html>

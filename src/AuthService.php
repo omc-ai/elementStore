@@ -438,6 +438,12 @@ class AuthService
      */
     public static function requireAdmin(): ?array
     {
+        // Dev bypass: if ES_ALLOW_UNAUTHENTICATED is set, skip admin checks entirely
+        $allowUnauth = strtolower((string)(getenv('ES_ALLOW_UNAUTHENTICATED') ?: $_ENV['ES_ALLOW_UNAUTHENTICATED'] ?? $_SERVER['ES_ALLOW_UNAUTHENTICATED'] ?? '')) === 'true';
+        if ($allowUnauth) {
+            return null; // Access granted in dev mode
+        }
+
         // Admin endpoints always require a properly configured and enabled auth system.
         // If auth_config is missing, we cannot verify identity → 503 (not 401/403).
         if (self::$cachedConfig === null) {

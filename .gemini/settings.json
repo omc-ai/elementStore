@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "elementStore": {
+      "command": "node",
+      "args": [
+        "/Users/asi/OrbStack/docker/volumes/agura_code/elementStore/packages/es-mcp-server/src/index.js",
+        "--url",
+        "http://arc3d.master.local/elementStore",
+        "--agent",
+        "agent:owner"
+      ]
+    }
+  }
+}
