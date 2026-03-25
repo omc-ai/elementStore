@@ -1,741 +1,978 @@
 {
-  "version": "1.0.0",
-  "namespace": "auth",
-  "source_project": "auth-service",
-  "description": "Auth-service data models — users, roles, modules, permissions, and refresh tokens. Classes mirror the auth-service internal schema; instances backed by auth-service API via crud_provider.",
-  "classes": [
-    {
-      "id": "auth_user",
-      "class_id": "@class",
-      "name": "User",
-      "description": "A user account managed by auth-service",
-      "props": [
+    "version": "1.0.0",
+    "namespace": "auth",
+    "source_project": "auth-service",
+    "description": "Auth-service data models — users, roles, modules, permissions, and refresh tokens. Classes mirror the auth-service internal schema; instances backed by auth-service API via crud_provider.",
+    "classes": [
         {
-          "key": "email",
-          "label": "Email",
-          "description": "Unique login email",
-          "data_type": "string",
-          "editor": {
-            "id": "email"
-          },
-          "display_order": 1,
-          "flags": {
-            "required": true
-          },
-          "class_id": "@prop_string"
+            "id": "auth_user",
+            "class_id": "@class",
+            "name": "User",
+            "description": "A user account managed by auth-service",
+            "props": [
+                {
+                    "key": "email",
+                    "label": "Email",
+                    "description": "Unique login email",
+                    "data_type": "string",
+                    "editor": {
+                        "id": "email"
+                    },
+                    "display_order": 1,
+                    "flags": {
+                        "required": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "first_name",
+                    "label": "First Name",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 2,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "last_name",
+                    "label": "Last Name",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 3,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "display_name",
+                    "label": "Display Name",
+                    "description": "Shown in UI; defaults to first + last name",
+                    "data_type": "string",
+                    "display_order": 4,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "avatar_url",
+                    "label": "Avatar URL",
+                    "description": "Profile picture URL",
+                    "data_type": "string",
+                    "editor": {
+                        "id": "url"
+                    },
+                    "display_order": 5,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "password_hash",
+                    "label": "Password Hash",
+                    "description": "bcrypt/argon2 hash — never returned by API",
+                    "data_type": "string",
+                    "display_order": 6,
+                    "flags": {
+                        "server_only": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "is_active",
+                    "label": "Active",
+                    "description": "Inactive users cannot log in",
+                    "data_type": "boolean",
+                    "default_value": true,
+                    "display_order": 7,
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "is_verified",
+                    "label": "Email Verified",
+                    "description": "Whether the user has verified their email address",
+                    "data_type": "boolean",
+                    "default_value": false,
+                    "display_order": 8,
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "is_superadmin",
+                    "label": "Superadmin",
+                    "description": "Bypasses all permission checks",
+                    "data_type": "boolean",
+                    "default_value": false,
+                    "display_order": 9,
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "verification_token",
+                    "label": "Verification Token",
+                    "description": "Email verification token — server only",
+                    "data_type": "string",
+                    "display_order": 10,
+                    "flags": {
+                        "server_only": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "reset_token",
+                    "label": "Reset Token",
+                    "description": "Password reset token — server only",
+                    "data_type": "string",
+                    "display_order": 11,
+                    "flags": {
+                        "server_only": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "reset_token_exp",
+                    "label": "Reset Expires At",
+                    "description": "When the reset token expires",
+                    "data_type": "string",
+                    "display_order": 12,
+                    "flags": {
+                        "server_only": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "roles",
+                    "label": "Roles",
+                    "description": "Roles assigned to this user",
+                    "data_type": "relation",
+                    "object_class_id": [
+                        "auth_role"
+                    ],
+                    "is_array": "indexed",
+                    "display_order": 13,
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "metadata",
+                    "label": "Metadata",
+                    "description": "Arbitrary extra data (app-specific)",
+                    "data_type": "object",
+                    "display_order": 14,
+                    "class_id": "@prop_object"
+                },
+                {
+                    "key": "last_login_at",
+                    "label": "Last Login",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 15,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "created_at",
+                    "label": "Created At",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 16,
+                    "flags": {
+                        "create_only": true,
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "updated_at",
+                    "label": "Updated At",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 17,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                }
+            ]
         },
         {
-          "key": "first_name",
-          "label": "First Name",
-          "description": "",
-          "data_type": "string",
-          "display_order": 2,
-          "class_id": "@prop_string"
+            "id": "auth_role",
+            "class_id": "@class",
+            "name": "Role",
+            "description": "A named role that groups permissions. Assigned to users.",
+            "props": [
+                {
+                    "key": "name",
+                    "label": "Name",
+                    "description": "Unique role name (e.g. admin, editor, viewer)",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "flags": {
+                        "required": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "description",
+                    "label": "Description",
+                    "description": "What this role allows",
+                    "data_type": "string",
+                    "editor": {
+                        "id": "textarea"
+                    },
+                    "display_order": 2,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "is_system",
+                    "label": "System Role",
+                    "description": "System roles cannot be deleted",
+                    "data_type": "boolean",
+                    "default_value": false,
+                    "display_order": 3,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "is_default",
+                    "label": "Default Role",
+                    "description": "Assigned to every new user automatically",
+                    "data_type": "boolean",
+                    "default_value": false,
+                    "display_order": 4,
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "permissions",
+                    "label": "Permissions",
+                    "description": "Module-action permissions granted to this role",
+                    "data_type": "relation",
+                    "object_class_id": [
+                        "auth_permission"
+                    ],
+                    "is_array": "indexed",
+                    "display_order": 5,
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "created_at",
+                    "label": "Created At",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 6,
+                    "flags": {
+                        "create_only": true,
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                }
+            ]
         },
         {
-          "key": "last_name",
-          "label": "Last Name",
-          "description": "",
-          "data_type": "string",
-          "display_order": 3,
-          "class_id": "@prop_string"
+            "id": "auth_module",
+            "class_id": "@class",
+            "name": "Module",
+            "description": "A functional unit of an application that can be permission-gated (e.g. billing, reports, admin).",
+            "props": [
+                {
+                    "key": "name",
+                    "label": "Name",
+                    "description": "Unique module key (e.g. billing, reports, elementstore.classes)",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "flags": {
+                        "required": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "label",
+                    "label": "Label",
+                    "description": "Human-readable display name",
+                    "data_type": "string",
+                    "display_order": 2,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "description",
+                    "label": "Description",
+                    "description": "What this module controls access to",
+                    "data_type": "string",
+                    "editor": {
+                        "id": "textarea"
+                    },
+                    "display_order": 3,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "app_id",
+                    "label": "App",
+                    "description": "Which application this module belongs to",
+                    "data_type": "string",
+                    "display_order": 4,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "parent_id",
+                    "label": "Parent",
+                    "description": "Parent module for hierarchical permission trees",
+                    "data_type": "relation",
+                    "object_class_id": [
+                        "auth_module"
+                    ],
+                    "display_order": 5,
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "actions",
+                    "label": "Actions",
+                    "description": "Available actions for this module (e.g. read, write, delete, admin)",
+                    "data_type": "string",
+                    "is_array": "indexed",
+                    "display_order": 6,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "is_active",
+                    "label": "Active",
+                    "description": "Inactive modules are ignored in permission checks",
+                    "data_type": "boolean",
+                    "default_value": true,
+                    "display_order": 7,
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "created_at",
+                    "label": "Created At",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 8,
+                    "flags": {
+                        "create_only": true,
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                }
+            ]
         },
         {
-          "key": "display_name",
-          "label": "Display Name",
-          "description": "Shown in UI; defaults to first + last name",
-          "data_type": "string",
-          "display_order": 4,
-          "class_id": "@prop_string"
+            "id": "auth_permission",
+            "class_id": "@class",
+            "name": "Permission",
+            "description": "A rule granting a role access to specific actions on a module.",
+            "props": [
+                {
+                    "key": "role_id",
+                    "label": "Role",
+                    "description": "Role this permission applies to",
+                    "data_type": "relation",
+                    "object_class_id": [
+                        "auth_role"
+                    ],
+                    "display_order": 1,
+                    "flags": {
+                        "required": true,
+                        "create_only": true
+                    },
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "module_id",
+                    "label": "Module",
+                    "description": "Module this permission controls access to",
+                    "data_type": "relation",
+                    "object_class_id": [
+                        "auth_module"
+                    ],
+                    "display_order": 2,
+                    "flags": {
+                        "required": true,
+                        "create_only": true
+                    },
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "actions",
+                    "label": "Actions",
+                    "description": "Granted actions (subset of module.actions, or ['*'] for all)",
+                    "data_type": "string",
+                    "is_array": "indexed",
+                    "display_order": 3,
+                    "flags": {
+                        "required": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "created_at",
+                    "label": "Created",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 4,
+                    "flags": {
+                        "create_only": true,
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                }
+            ]
         },
         {
-          "key": "avatar_url",
-          "label": "Avatar URL",
-          "description": "Profile picture URL",
-          "data_type": "string",
-          "editor": {
-            "id": "url"
-          },
-          "display_order": 5,
-          "class_id": "@prop_string"
+            "id": "auth_app_registration",
+            "class_id": "@class",
+            "name": "App Registration",
+            "description": "An application registered with the auth-service. Mirrors auth_app on the auth-service side.",
+            "props": [
+                {
+                    "key": "app_id",
+                    "label": "App ID",
+                    "description": "Unique application identifier",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "flags": {
+                        "required": true,
+                        "create_only": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "name",
+                    "label": "Name",
+                    "description": "Human-readable application name",
+                    "data_type": "string",
+                    "display_order": 2,
+                    "flags": {
+                        "required": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "description",
+                    "label": "Description",
+                    "description": "What this application does",
+                    "data_type": "string",
+                    "editor": {
+                        "id": "textarea"
+                    },
+                    "display_order": 3,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "client_id",
+                    "label": "Client ID",
+                    "description": "Generated client ID",
+                    "data_type": "string",
+                    "display_order": 4,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "client_secret",
+                    "label": "Client Secret",
+                    "description": "Hashed — never returned in full",
+                    "data_type": "string",
+                    "display_order": 5,
+                    "flags": {
+                        "server_only": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "allowed_origins",
+                    "label": "Allowed Origins",
+                    "description": "CORS origins allowed to use tokens issued for this app",
+                    "data_type": "string",
+                    "is_array": "indexed",
+                    "display_order": 6,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "scopes",
+                    "label": "Scopes",
+                    "description": "Permission scopes this app is allowed to request",
+                    "data_type": "string",
+                    "is_array": "indexed",
+                    "display_order": 7,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "is_active",
+                    "label": "Active",
+                    "description": "Inactive apps are rejected at login",
+                    "data_type": "boolean",
+                    "default_value": true,
+                    "display_order": 8,
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "created_at",
+                    "label": "Created At",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 9,
+                    "flags": {
+                        "create_only": true,
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                }
+            ]
         },
         {
-          "key": "password_hash",
-          "label": "Password Hash",
-          "description": "bcrypt/argon2 hash — never returned by API",
-          "data_type": "string",
-          "display_order": 6,
-          "flags": {
-            "server_only": true
-          },
-          "class_id": "@prop_string"
+            "id": "auth_machine_registration",
+            "class_id": "@class",
+            "name": "Machine Registration",
+            "description": "A machine/instance registered under an app in auth-service. Mirrors auth_machine on the auth-service side.",
+            "props": [
+                {
+                    "key": "app_id",
+                    "label": "App",
+                    "description": "Application this machine belongs to",
+                    "data_type": "relation",
+                    "object_class_id": [
+                        "auth_app_registration"
+                    ],
+                    "display_order": 1,
+                    "flags": {
+                        "required": true,
+                        "create_only": true
+                    },
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "instance_id",
+                    "label": "Instance ID",
+                    "description": "UUID identifying this machine, generated on first boot",
+                    "data_type": "string",
+                    "display_order": 2,
+                    "flags": {
+                        "required": true,
+                        "create_only": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "machine_id",
+                    "label": "Machine ID",
+                    "description": "ID assigned by auth-service",
+                    "data_type": "string",
+                    "display_order": 3,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "hostname",
+                    "label": "Hostname",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 4,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "ip",
+                    "label": "IP Address",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 5,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "version",
+                    "label": "App Version",
+                    "description": "Version of the application on this machine",
+                    "data_type": "string",
+                    "display_order": 6,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "is_active",
+                    "label": "Active",
+                    "description": "Revoked machines cannot authenticate",
+                    "data_type": "boolean",
+                    "default_value": true,
+                    "display_order": 7,
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "registered_at",
+                    "label": "Registered At",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 8,
+                    "flags": {
+                        "create_only": true,
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "last_boot_at",
+                    "label": "Last Boot At",
+                    "description": "Last successful boot registration",
+                    "data_type": "string",
+                    "display_order": 9,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                }
+            ]
         },
         {
-          "key": "is_active",
-          "label": "Active",
-          "description": "Inactive users cannot log in",
-          "data_type": "boolean",
-          "default_value": true,
-          "display_order": 7,
-          "class_id": "@prop_boolean"
+            "id": "auth_refresh_token",
+            "class_id": "@class",
+            "name": "Refresh Token",
+            "description": "Issued long-lived refresh tokens. Used to obtain new access tokens without re-login. Stored for revocation.",
+            "props": [
+                {
+                    "key": "user_id",
+                    "label": "User",
+                    "description": "User this token was issued to",
+                    "data_type": "relation",
+                    "object_class_id": [
+                        "auth_user"
+                    ],
+                    "display_order": 1,
+                    "flags": {
+                        "required": true,
+                        "create_only": true
+                    },
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "app_id",
+                    "label": "App",
+                    "description": "Application the token was issued for",
+                    "data_type": "relation",
+                    "object_class_id": [
+                        "auth_app_registration"
+                    ],
+                    "display_order": 2,
+                    "flags": {
+                        "create_only": true
+                    },
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "machine_id",
+                    "label": "Machine",
+                    "description": "Machine this token was issued from",
+                    "data_type": "string",
+                    "display_order": 3,
+                    "flags": {
+                        "create_only": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "token_hash",
+                    "label": "Token Hash",
+                    "description": "Hash of the actual token — never returned",
+                    "data_type": "string",
+                    "display_order": 4,
+                    "flags": {
+                        "server_only": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "expires_at",
+                    "label": "Expires At",
+                    "description": "When this refresh token expires",
+                    "data_type": "string",
+                    "display_order": 5,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "is_revoked",
+                    "label": "Revoked",
+                    "description": "Revoked tokens are rejected even if not expired",
+                    "data_type": "boolean",
+                    "default_value": false,
+                    "display_order": 6,
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "revoked_at",
+                    "label": "Revoked At",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 7,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "created_at",
+                    "label": "Issued At",
+                    "description": "",
+                    "data_type": "string",
+                    "display_order": 8,
+                    "flags": {
+                        "create_only": true,
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "last_used_at",
+                    "label": "Last Used At",
+                    "description": "Last time this token was used to refresh",
+                    "data_type": "string",
+                    "display_order": 9,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                }
+            ]
         },
         {
-          "key": "is_verified",
-          "label": "Email Verified",
-          "description": "Whether the user has verified their email address",
-          "data_type": "boolean",
-          "default_value": false,
-          "display_order": 8,
-          "class_id": "@prop_boolean"
+            "name": "Auth Role",
+            "description": "Named role with permissions. Assigned to users per app.",
+            "extends_id": "core:atomObj",
+            "props": [
+                {
+                    "key": "role_name",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "class_id": "@prop",
+                    "flags": {
+                        "required": true
+                    },
+                    "id": "auth:role.role_name"
+                },
+                {
+                    "key": "app_id",
+                    "data_type": "relation",
+                    "display_order": 2,
+                    "class_id": "@prop",
+                    "options": {
+                        "class_id": "@app"
+                    },
+                    "id": "auth:role.app_id"
+                },
+                {
+                    "key": "permissions",
+                    "data_type": "relation",
+                    "is_array": "indexed",
+                    "display_order": 3,
+                    "class_id": "@prop",
+                    "options": {
+                        "class_id": "auth:permission"
+                    },
+                    "id": "auth:role.permissions"
+                },
+                {
+                    "key": "is_system",
+                    "data_type": "boolean",
+                    "display_order": 4,
+                    "class_id": "@prop",
+                    "id": "auth:role.is_system"
+                },
+                {
+                    "key": "is_default",
+                    "data_type": "boolean",
+                    "display_order": 5,
+                    "class_id": "@prop",
+                    "id": "auth:role.is_default"
+                }
+            ],
+            "is_system": true,
+            "id": "auth:role",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a08019fd0"
+            }
         },
         {
-          "key": "is_superadmin",
-          "label": "Superadmin",
-          "description": "Bypasses all permission checks",
-          "data_type": "boolean",
-          "default_value": false,
-          "display_order": 9,
-          "class_id": "@prop_boolean"
+            "name": "Auth Permission",
+            "description": "Single permission: module + action. Grouped into roles.",
+            "extends_id": "core:atomObj",
+            "props": [
+                {
+                    "key": "module",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "class_id": "@prop",
+                    "flags": {
+                        "required": true
+                    },
+                    "id": "auth:permission.module"
+                },
+                {
+                    "key": "action",
+                    "data_type": "string",
+                    "display_order": 2,
+                    "class_id": "@prop",
+                    "flags": {
+                        "required": true
+                    },
+                    "id": "auth:permission.action"
+                },
+                {
+                    "key": "app_id",
+                    "data_type": "relation",
+                    "display_order": 3,
+                    "class_id": "@prop",
+                    "options": {
+                        "class_id": "@app"
+                    },
+                    "id": "auth:permission.app_id"
+                }
+            ],
+            "is_system": true,
+            "id": "auth:permission",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a0801af94"
+            }
         },
         {
-          "key": "verification_token",
-          "label": "Verification Token",
-          "description": "Email verification token — server only",
-          "data_type": "string",
-          "display_order": 10,
-          "flags": {
-            "server_only": true
-          },
-          "class_id": "@prop_string"
+            "name": "Auth Module",
+            "description": "Feature module within an app. Groups permissions.",
+            "extends_id": "core:atomObj",
+            "props": [
+                {
+                    "key": "module_name",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "class_id": "@prop",
+                    "flags": {
+                        "required": true
+                    },
+                    "id": "auth:module.module_name"
+                },
+                {
+                    "key": "app_id",
+                    "data_type": "relation",
+                    "display_order": 2,
+                    "class_id": "@prop",
+                    "options": {
+                        "class_id": "@app"
+                    },
+                    "id": "auth:module.app_id"
+                },
+                {
+                    "key": "permissions",
+                    "data_type": "relation",
+                    "is_array": "indexed",
+                    "display_order": 3,
+                    "class_id": "@prop",
+                    "options": {
+                        "class_id": "auth:permission",
+                        "foreign_key": "module"
+                    },
+                    "id": "auth:module.permissions"
+                }
+            ],
+            "is_system": true,
+            "id": "auth:module",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a0801b8c6"
+            }
         },
         {
-          "key": "reset_token",
-          "label": "Reset Token",
-          "description": "Password reset token — server only",
-          "data_type": "string",
-          "display_order": 11,
-          "flags": {
-            "server_only": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "reset_token_exp",
-          "label": "Reset Expires At",
-          "description": "When the reset token expires",
-          "data_type": "string",
-          "display_order": 12,
-          "flags": {
-            "server_only": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "roles",
-          "label": "Roles",
-          "description": "Roles assigned to this user",
-          "data_type": "relation",
-          "object_class_id": [
-            "auth_role"
-          ],
-          "is_array": "indexed",
-          "display_order": 13,
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "metadata",
-          "label": "Metadata",
-          "description": "Arbitrary extra data (app-specific)",
-          "data_type": "object",
-          "display_order": 14,
-          "class_id": "@prop_object"
-        },
-        {
-          "key": "last_login_at",
-          "label": "Last Login",
-          "description": "",
-          "data_type": "string",
-          "display_order": 15,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "description": "",
-          "data_type": "string",
-          "display_order": 16,
-          "flags": {
-            "create_only": true,
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "updated_at",
-          "label": "Updated At",
-          "description": "",
-          "data_type": "string",
-          "display_order": 17,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
+            "name": "Credential",
+            "description": "Secure storage for API keys, tokens, secrets. Server-only fields for sensitive data.",
+            "extends_id": "core:atomObj",
+            "props": [
+                {
+                    "key": "credential_name",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "class_id": "@prop",
+                    "flags": {
+                        "required": true
+                    },
+                    "id": "auth:credential.credential_name"
+                },
+                {
+                    "key": "provider",
+                    "data_type": "string",
+                    "display_order": 2,
+                    "class_id": "@prop",
+                    "id": "auth:credential.provider"
+                },
+                {
+                    "key": "user_id",
+                    "data_type": "relation",
+                    "display_order": 3,
+                    "class_id": "@prop",
+                    "options": {
+                        "class_id": "@user"
+                    },
+                    "id": "auth:credential.user_id"
+                },
+                {
+                    "key": "key",
+                    "data_type": "string",
+                    "display_order": 4,
+                    "class_id": "@prop",
+                    "flags": {
+                        "server_only": true
+                    },
+                    "id": "auth:credential.key"
+                },
+                {
+                    "key": "secret",
+                    "data_type": "string",
+                    "display_order": 5,
+                    "class_id": "@prop",
+                    "flags": {
+                        "server_only": true
+                    },
+                    "id": "auth:credential.secret"
+                },
+                {
+                    "key": "token",
+                    "data_type": "string",
+                    "display_order": 6,
+                    "class_id": "@prop",
+                    "flags": {
+                        "server_only": true
+                    },
+                    "id": "auth:credential.token"
+                },
+                {
+                    "key": "metadata",
+                    "data_type": "object",
+                    "display_order": 7,
+                    "class_id": "@prop",
+                    "id": "auth:credential.metadata"
+                },
+                {
+                    "key": "expires_at",
+                    "data_type": "string",
+                    "display_order": 8,
+                    "class_id": "@prop",
+                    "id": "auth:credential.expires_at"
+                },
+                {
+                    "key": "is_active",
+                    "data_type": "boolean",
+                    "display_order": 9,
+                    "class_id": "@prop",
+                    "id": "auth:credential.is_active"
+                }
+            ],
+            "is_system": true,
+            "id": "auth:credential",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a0801b92f"
+            }
         }
-      ]
-    },
-    {
-      "id": "auth_role",
-      "class_id": "@class",
-      "name": "Role",
-      "description": "A named role that groups permissions. Assigned to users.",
-      "props": [
-        {
-          "key": "name",
-          "label": "Name",
-          "description": "Unique role name (e.g. admin, editor, viewer)",
-          "data_type": "string",
-          "display_order": 1,
-          "flags": {
-            "required": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "description",
-          "label": "Description",
-          "description": "What this role allows",
-          "data_type": "string",
-          "editor": {
-            "id": "textarea"
-          },
-          "display_order": 2,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "is_system",
-          "label": "System Role",
-          "description": "System roles cannot be deleted",
-          "data_type": "boolean",
-          "default_value": false,
-          "display_order": 3,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_boolean"
-        },
-        {
-          "key": "is_default",
-          "label": "Default Role",
-          "description": "Assigned to every new user automatically",
-          "data_type": "boolean",
-          "default_value": false,
-          "display_order": 4,
-          "class_id": "@prop_boolean"
-        },
-        {
-          "key": "permissions",
-          "label": "Permissions",
-          "description": "Module-action permissions granted to this role",
-          "data_type": "relation",
-          "object_class_id": [
-            "auth_permission"
-          ],
-          "is_array": "indexed",
-          "display_order": 5,
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "description": "",
-          "data_type": "string",
-          "display_order": 6,
-          "flags": {
-            "create_only": true,
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        }
-      ]
-    },
-    {
-      "id": "auth_module",
-      "class_id": "@class",
-      "name": "Module",
-      "description": "A functional unit of an application that can be permission-gated (e.g. billing, reports, admin).",
-      "props": [
-        {
-          "key": "name",
-          "label": "Name",
-          "description": "Unique module key (e.g. billing, reports, elementstore.classes)",
-          "data_type": "string",
-          "display_order": 1,
-          "flags": {
-            "required": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "label",
-          "label": "Label",
-          "description": "Human-readable display name",
-          "data_type": "string",
-          "display_order": 2,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "description",
-          "label": "Description",
-          "description": "What this module controls access to",
-          "data_type": "string",
-          "editor": {
-            "id": "textarea"
-          },
-          "display_order": 3,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "app_id",
-          "label": "App",
-          "description": "Which application this module belongs to",
-          "data_type": "string",
-          "display_order": 4,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "parent_id",
-          "label": "Parent",
-          "description": "Parent module for hierarchical permission trees",
-          "data_type": "relation",
-          "object_class_id": [
-            "auth_module"
-          ],
-          "display_order": 5,
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "actions",
-          "label": "Actions",
-          "description": "Available actions for this module (e.g. read, write, delete, admin)",
-          "data_type": "string",
-          "is_array": "indexed",
-          "display_order": 6,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "is_active",
-          "label": "Active",
-          "description": "Inactive modules are ignored in permission checks",
-          "data_type": "boolean",
-          "default_value": true,
-          "display_order": 7,
-          "class_id": "@prop_boolean"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "description": "",
-          "data_type": "string",
-          "display_order": 8,
-          "flags": {
-            "create_only": true,
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        }
-      ]
-    },
-    {
-      "id": "auth_permission",
-      "class_id": "@class",
-      "name": "Permission",
-      "description": "A rule granting a role access to specific actions on a module.",
-      "props": [
-        {
-          "key": "role_id",
-          "label": "Role",
-          "description": "Role this permission applies to",
-          "data_type": "relation",
-          "object_class_id": [
-            "auth_role"
-          ],
-          "display_order": 1,
-          "flags": {
-            "required": true,
-            "create_only": true
-          },
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "module_id",
-          "label": "Module",
-          "description": "Module this permission controls access to",
-          "data_type": "relation",
-          "object_class_id": [
-            "auth_module"
-          ],
-          "display_order": 2,
-          "flags": {
-            "required": true,
-            "create_only": true
-          },
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "actions",
-          "label": "Actions",
-          "description": "Granted actions (subset of module.actions, or ['*'] for all)",
-          "data_type": "string",
-          "is_array": "indexed",
-          "display_order": 3,
-          "flags": {
-            "required": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "created_at",
-          "label": "Created",
-          "description": "",
-          "data_type": "string",
-          "display_order": 4,
-          "flags": {
-            "create_only": true,
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        }
-      ]
-    },
-    {
-      "id": "auth_app_registration",
-      "class_id": "@class",
-      "name": "App Registration",
-      "description": "An application registered with the auth-service. Mirrors auth_app on the auth-service side.",
-      "props": [
-        {
-          "key": "app_id",
-          "label": "App ID",
-          "description": "Unique application identifier",
-          "data_type": "string",
-          "display_order": 1,
-          "flags": {
-            "required": true,
-            "create_only": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "name",
-          "label": "Name",
-          "description": "Human-readable application name",
-          "data_type": "string",
-          "display_order": 2,
-          "flags": {
-            "required": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "description",
-          "label": "Description",
-          "description": "What this application does",
-          "data_type": "string",
-          "editor": {
-            "id": "textarea"
-          },
-          "display_order": 3,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "client_id",
-          "label": "Client ID",
-          "description": "Generated client ID",
-          "data_type": "string",
-          "display_order": 4,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "client_secret",
-          "label": "Client Secret",
-          "description": "Hashed — never returned in full",
-          "data_type": "string",
-          "display_order": 5,
-          "flags": {
-            "server_only": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "allowed_origins",
-          "label": "Allowed Origins",
-          "description": "CORS origins allowed to use tokens issued for this app",
-          "data_type": "string",
-          "is_array": "indexed",
-          "display_order": 6,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "scopes",
-          "label": "Scopes",
-          "description": "Permission scopes this app is allowed to request",
-          "data_type": "string",
-          "is_array": "indexed",
-          "display_order": 7,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "is_active",
-          "label": "Active",
-          "description": "Inactive apps are rejected at login",
-          "data_type": "boolean",
-          "default_value": true,
-          "display_order": 8,
-          "class_id": "@prop_boolean"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "description": "",
-          "data_type": "string",
-          "display_order": 9,
-          "flags": {
-            "create_only": true,
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        }
-      ]
-    },
-    {
-      "id": "auth_machine_registration",
-      "class_id": "@class",
-      "name": "Machine Registration",
-      "description": "A machine/instance registered under an app in auth-service. Mirrors auth_machine on the auth-service side.",
-      "props": [
-        {
-          "key": "app_id",
-          "label": "App",
-          "description": "Application this machine belongs to",
-          "data_type": "relation",
-          "object_class_id": [
-            "auth_app_registration"
-          ],
-          "display_order": 1,
-          "flags": {
-            "required": true,
-            "create_only": true
-          },
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "instance_id",
-          "label": "Instance ID",
-          "description": "UUID identifying this machine, generated on first boot",
-          "data_type": "string",
-          "display_order": 2,
-          "flags": {
-            "required": true,
-            "create_only": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "machine_id",
-          "label": "Machine ID",
-          "description": "ID assigned by auth-service",
-          "data_type": "string",
-          "display_order": 3,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "hostname",
-          "label": "Hostname",
-          "description": "",
-          "data_type": "string",
-          "display_order": 4,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "ip",
-          "label": "IP Address",
-          "description": "",
-          "data_type": "string",
-          "display_order": 5,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "version",
-          "label": "App Version",
-          "description": "Version of the application on this machine",
-          "data_type": "string",
-          "display_order": 6,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "is_active",
-          "label": "Active",
-          "description": "Revoked machines cannot authenticate",
-          "data_type": "boolean",
-          "default_value": true,
-          "display_order": 7,
-          "class_id": "@prop_boolean"
-        },
-        {
-          "key": "registered_at",
-          "label": "Registered At",
-          "description": "",
-          "data_type": "string",
-          "display_order": 8,
-          "flags": {
-            "create_only": true,
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "last_boot_at",
-          "label": "Last Boot At",
-          "description": "Last successful boot registration",
-          "data_type": "string",
-          "display_order": 9,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        }
-      ]
-    },
-    {
-      "id": "auth_refresh_token",
-      "class_id": "@class",
-      "name": "Refresh Token",
-      "description": "Issued long-lived refresh tokens. Used to obtain new access tokens without re-login. Stored for revocation.",
-      "props": [
-        {
-          "key": "user_id",
-          "label": "User",
-          "description": "User this token was issued to",
-          "data_type": "relation",
-          "object_class_id": [
-            "auth_user"
-          ],
-          "display_order": 1,
-          "flags": {
-            "required": true,
-            "create_only": true
-          },
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "app_id",
-          "label": "App",
-          "description": "Application the token was issued for",
-          "data_type": "relation",
-          "object_class_id": [
-            "auth_app_registration"
-          ],
-          "display_order": 2,
-          "flags": {
-            "create_only": true
-          },
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "machine_id",
-          "label": "Machine",
-          "description": "Machine this token was issued from",
-          "data_type": "string",
-          "display_order": 3,
-          "flags": {
-            "create_only": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "token_hash",
-          "label": "Token Hash",
-          "description": "Hash of the actual token — never returned",
-          "data_type": "string",
-          "display_order": 4,
-          "flags": {
-            "server_only": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "expires_at",
-          "label": "Expires At",
-          "description": "When this refresh token expires",
-          "data_type": "string",
-          "display_order": 5,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "is_revoked",
-          "label": "Revoked",
-          "description": "Revoked tokens are rejected even if not expired",
-          "data_type": "boolean",
-          "default_value": false,
-          "display_order": 6,
-          "class_id": "@prop_boolean"
-        },
-        {
-          "key": "revoked_at",
-          "label": "Revoked At",
-          "description": "",
-          "data_type": "string",
-          "display_order": 7,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "created_at",
-          "label": "Issued At",
-          "description": "",
-          "data_type": "string",
-          "display_order": 8,
-          "flags": {
-            "create_only": true,
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "last_used_at",
-          "label": "Last Used At",
-          "description": "Last time this token was used to refresh",
-          "data_type": "string",
-          "display_order": 9,
-          "flags": {
-            "readonly": true
-          },
-          "class_id": "@prop_string"
-        }
-      ]
-    }
-  ]
+    ]
 }

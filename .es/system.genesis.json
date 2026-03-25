@@ -2656,6 +2656,311 @@
             "version": "13c6da1d4d5ebc1ee1e67ff1adda69bf",
             "id": "@state",
             "class_id": "@class"
+        },
+        {
+            "name": "Key Definition",
+            "description": "Unique constraint on a class. Each key is an array of field names that must be unique together. Used by setObject validation.",
+            "props": [
+                {
+                    "key": "fields",
+                    "label": "Fields",
+                    "description": "Array of prop keys that form this unique key",
+                    "data_type": "string",
+                    "is_array": "indexed",
+                    "display_order": 1,
+                    "class_id": "@prop",
+                    "flags": {
+                        "required": true
+                    },
+                    "id": "@key.fields"
+                }
+            ],
+            "is_system": true,
+            "id": "@key",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a08016033"
+            }
+        },
+        {
+            "name": "Current User",
+            "description": "Logged-in user context. GET /store/@user/me resolves to current user from JWT.",
+            "extends_id": "core:atomObj",
+            "props": [
+                {
+                    "key": "user_id",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "class_id": "@prop",
+                    "flags": {
+                        "required": true,
+                        "readonly": true
+                    },
+                    "id": "@user.user_id"
+                },
+                {
+                    "key": "email",
+                    "data_type": "string",
+                    "display_order": 2,
+                    "class_id": "@prop",
+                    "id": "@user.email"
+                },
+                {
+                    "key": "name",
+                    "data_type": "string",
+                    "display_order": 3,
+                    "class_id": "@prop",
+                    "id": "@user.name"
+                },
+                {
+                    "key": "role",
+                    "data_type": "string",
+                    "display_order": 5,
+                    "class_id": "@prop",
+                    "id": "@user.role"
+                },
+                {
+                    "key": "permissions",
+                    "data_type": "string",
+                    "is_array": "indexed",
+                    "display_order": 6,
+                    "class_id": "@prop",
+                    "id": "@user.permissions"
+                },
+                {
+                    "key": "app_id",
+                    "data_type": "relation",
+                    "display_order": 7,
+                    "class_id": "@prop",
+                    "id": "@user.app_id"
+                },
+                {
+                    "key": "tenant_id",
+                    "data_type": "relation",
+                    "display_order": 8,
+                    "class_id": "@prop",
+                    "id": "@user.tenant_id"
+                },
+                {
+                    "key": "session_id",
+                    "data_type": "relation",
+                    "display_order": 9,
+                    "class_id": "@prop",
+                    "id": "@user.session_id"
+                },
+                {
+                    "key": "preferences",
+                    "data_type": "object",
+                    "display_order": 10,
+                    "class_id": "@prop",
+                    "id": "@user.preferences"
+                },
+                {
+                    "key": "recent",
+                    "data_type": "string",
+                    "is_array": "indexed",
+                    "display_order": 11,
+                    "class_id": "@prop",
+                    "id": "@user.recent"
+                },
+                {
+                    "key": "memory",
+                    "data_type": "object",
+                    "display_order": 12,
+                    "class_id": "@prop",
+                    "id": "@user.memory"
+                },
+                {
+                    "key": "last_login",
+                    "data_type": "string",
+                    "display_order": 13,
+                    "class_id": "@prop",
+                    "flags": {
+                        "server_only": true
+                    },
+                    "id": "@user.last_login"
+                }
+            ],
+            "is_system": true,
+            "id": "@user",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a0801758e"
+            }
+        },
+        {
+            "name": "Platform Tenant",
+            "description": "Tenant isolation unit.",
+            "extends_id": "core:atomObj",
+            "props": [
+                {
+                    "key": "domain",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "class_id": "@prop",
+                    "id": "@tenant.domain"
+                },
+                {
+                    "key": "subdomain",
+                    "data_type": "string",
+                    "display_order": 2,
+                    "class_id": "@prop",
+                    "id": "@tenant.subdomain"
+                },
+                {
+                    "key": "owner_id",
+                    "data_type": "relation",
+                    "display_order": 3,
+                    "class_id": "@prop",
+                    "id": "@tenant.owner_id"
+                },
+                {
+                    "key": "plan",
+                    "data_type": "string",
+                    "display_order": 4,
+                    "class_id": "@prop",
+                    "id": "@tenant.plan"
+                },
+                {
+                    "key": "limits",
+                    "data_type": "object",
+                    "display_order": 5,
+                    "class_id": "@prop",
+                    "id": "@tenant.limits"
+                },
+                {
+                    "key": "storage_type",
+                    "data_type": "string",
+                    "display_order": 6,
+                    "class_id": "@prop",
+                    "id": "@tenant.storage_type"
+                },
+                {
+                    "key": "storage_prefix",
+                    "data_type": "string",
+                    "display_order": 7,
+                    "class_id": "@prop",
+                    "id": "@tenant.storage_prefix"
+                },
+                {
+                    "key": "is_demo",
+                    "data_type": "boolean",
+                    "display_order": 8,
+                    "class_id": "@prop",
+                    "id": "@tenant.is_demo"
+                },
+                {
+                    "key": "is_active",
+                    "data_type": "boolean",
+                    "display_order": 9,
+                    "class_id": "@prop",
+                    "id": "@tenant.is_active"
+                }
+            ],
+            "is_system": true,
+            "id": "@tenant",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a080191d4"
+            }
+        },
+        {
+            "id": "@session",
+            "class_id": "@class",
+            "extends_id": "core:atomObj",
+            "description": "Active user session. Created on login, destroyed on logout.",
+            "props": [
+                {
+                    "key": "session_id",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "class_id": "@prop",
+                    "flags": {
+                        "required": true
+                    },
+                    "id": "@session.session_id"
+                },
+                {
+                    "key": "user_id",
+                    "data_type": "relation",
+                    "display_order": 2,
+                    "class_id": "@prop",
+                    "options": {
+                        "class_id": "@user"
+                    },
+                    "id": "@session.user_id"
+                },
+                {
+                    "key": "app_id",
+                    "data_type": "relation",
+                    "display_order": 3,
+                    "class_id": "@prop",
+                    "options": {
+                        "class_id": "@app"
+                    },
+                    "id": "@session.app_id"
+                },
+                {
+                    "key": "tenant_id",
+                    "data_type": "relation",
+                    "display_order": 4,
+                    "class_id": "@prop",
+                    "options": {
+                        "class_id": "@tenant"
+                    },
+                    "id": "@session.tenant_id"
+                },
+                {
+                    "key": "status",
+                    "data_type": "string",
+                    "display_order": 5,
+                    "class_id": "@prop",
+                    "id": "@session.status"
+                },
+                {
+                    "key": "ip",
+                    "data_type": "string",
+                    "display_order": 6,
+                    "class_id": "@prop",
+                    "id": "@session.ip"
+                },
+                {
+                    "key": "user_agent",
+                    "data_type": "string",
+                    "display_order": 7,
+                    "class_id": "@prop",
+                    "id": "@session.user_agent"
+                },
+                {
+                    "key": "started_at",
+                    "data_type": "string",
+                    "display_order": 8,
+                    "class_id": "@prop",
+                    "id": "@session.started_at"
+                },
+                {
+                    "key": "expires_at",
+                    "data_type": "string",
+                    "display_order": 9,
+                    "class_id": "@prop",
+                    "id": "@session.expires_at"
+                },
+                {
+                    "key": "last_activity",
+                    "data_type": "string",
+                    "display_order": 10,
+                    "class_id": "@prop",
+                    "id": "@session.last_activity"
+                }
+            ],
+            "seed_file": "@session.json",
+            "id_prefix": "Session",
+            "name": "User Session",
+            "is_system": true,
+            "track_changes": false,
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a08018833"
+            }
         }
     ]
 }
