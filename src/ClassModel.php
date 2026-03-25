@@ -812,11 +812,29 @@ class ClassModel
             }
 
             try {
-                $changeObj = $this->setObject('@changes', [
+                // Compute schema_hash for @class changes (tracks schema evolution)
+                $schemaHash = null;
+                if ($class_id === Constants::K_CLASS && isset($data[Constants::F_PROPS])) {
+                    $hashParts = [];
+                    foreach ($data[Constants::F_PROPS] as $prop) {
+                        if (is_array($prop) && isset($prop['key'])) {
+                            $hashParts[] = $prop['key'] . ':' . ($prop['data_type'] ?? '') . ':' . ($prop['is_array'] ?? 'false');
+                        }
+                    }
+                    sort($hashParts);
+                    $schemaHash = md5(implode('|', $hashParts));
+                }
+
+                $changeRecord = [
                     Constants::F_CLASS_ID => '@changes',
                     'items' => [$changeItem],
                     'sender_id' => $this->userId ?? 'system',
-                ]);
+                ];
+                if ($schemaHash !== null) {
+                    $changeRecord['schema_hash'] = $schemaHash;
+                }
+
+                $changeObj = $this->setObject('@changes', $changeRecord);
                 $changeId = $changeObj->id ?? null;
                 if ($changeId) {
                     // Store version in @state (server-managed object state)
@@ -2099,17 +2117,6 @@ class ClassModel
         }
 
         $data[Constants::F_PROPS] = $props;
-
-        // Compute schema_hash — MD5 of props keys+types for schema change detection
-        $hashParts = [];
-        foreach ($props as $prop) {
-            if (is_array($prop) && isset($prop['key'])) {
-                $hashParts[] = $prop['key'] . ':' . ($prop['data_type'] ?? '') . ':' . ($prop['is_array'] ?? 'false');
-            }
-        }
-        sort($hashParts); // deterministic order
-        $data['schema_hash'] = md5(implode('|', $hashParts));
-
         return $data;
     }
 
