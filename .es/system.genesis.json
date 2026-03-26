@@ -2961,6 +2961,250 @@
             "@state": {
                 "version": "3a297baf861c6e8c8b983c9a08018833"
             }
+        },
+        {
+            "name": "Change Set",
+            "description": "Represents a set of object changes broadcast via WebSocket. Each item contains the changed object data with _old holding previous values of changed fields.",
+            "props": [
+                {
+                    "data_type": "object",
+                    "key": "items",
+                    "label": "Items",
+                    "description": "Changed objects with _old containing previous values",
+                    "is_array": "indexed",
+                    "display_order": 1,
+                    "class_id": "@prop",
+                    "id": "@changes.items"
+                },
+                {
+                    "data_type": "string",
+                    "key": "sender_id",
+                    "label": "Sender",
+                    "description": "User ID that triggered the changes",
+                    "is_array": "false",
+                    "display_order": 2,
+                    "class_id": "@prop",
+                    "id": "@changes.sender_id"
+                },
+                {
+                    "data_type": "string",
+                    "key": "time",
+                    "label": "Time",
+                    "description": "When the changes occurred",
+                    "is_array": "false",
+                    "display_order": 3,
+                    "class_id": "@prop",
+                    "id": "@changes.time"
+                },
+                {
+                    "key": "schema_hash",
+                    "label": "Schema Hash",
+                    "description": "MD5 hash of class props at this version. Only present for @class changes.",
+                    "data_type": "string",
+                    "display_order": 4,
+                    "class_id": "@prop",
+                    "id": "@changes.schema_hash"
+                }
+            ],
+            "is_system": true,
+            "is_abstract": false,
+            "id": "@changes",
+            "class_id": "@class",
+            "track_changes": false,
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a080101c8"
+            }
+        },
+        {
+            "description": "System log entry — errors, warnings, info. Persisted in the store and auto-broadcast via WebSocket for real-time monitoring.",
+            "props": [
+                {
+                    "data_type": "string",
+                    "key": "level",
+                    "label": "Level",
+                    "description": "Log level",
+                    "is_array": "false",
+                    "display_order": 1,
+                    "flags": {
+                        "required": true,
+                        "readonly": false,
+                        "hidden": false,
+                        "create_only": false,
+                        "server_only": false,
+                        "master_only": false
+                    },
+                    "class_id": "@prop_string",
+                    "id": "@log.level"
+                },
+                {
+                    "data_type": "string",
+                    "key": "message",
+                    "label": "Message",
+                    "description": "Log message",
+                    "is_array": "false",
+                    "display_order": 2,
+                    "flags": {
+                        "required": true,
+                        "readonly": false,
+                        "hidden": false,
+                        "create_only": false,
+                        "server_only": false,
+                        "master_only": false
+                    },
+                    "class_id": "@prop_string",
+                    "id": "@log.message"
+                },
+                {
+                    "data_type": "string",
+                    "key": "source",
+                    "label": "Source",
+                    "description": "Where the log originated (class, file, endpoint)",
+                    "is_array": "false",
+                    "display_order": 3,
+                    "class_id": "@prop_string",
+                    "id": "@log.source"
+                },
+                {
+                    "data_type": "object",
+                    "key": "context",
+                    "label": "Context",
+                    "description": "Additional context — exception class, stack trace, request data",
+                    "is_array": "false",
+                    "display_order": 4,
+                    "class_id": "@prop_object",
+                    "id": "@log.context"
+                },
+                {
+                    "data_type": "string",
+                    "key": "time",
+                    "label": "Time",
+                    "description": "When the log was created",
+                    "is_array": "false",
+                    "editor": "datetime",
+                    "display_order": 5,
+                    "flags": {
+                        "required": false,
+                        "readonly": true,
+                        "hidden": false,
+                        "create_only": false,
+                        "server_only": false,
+                        "master_only": false
+                    },
+                    "class_id": "@prop_string",
+                    "id": "@log.time"
+                }
+            ],
+            "is_system": true,
+            "is_abstract": false,
+            "id": "@log",
+            "class_id": "@class",
+            "id_prefix": "log:"
+        },
+        {
+            "name": "Exception",
+            "description": "Defines an exception type with HTTP code and a chain of actions to execute on the client. Actions are @action objects executed in order (log, show dialog, retry, redirect, etc.).",
+            "props": [
+                {
+                    "data_type": "string",
+                    "key": "name",
+                    "label": "Name",
+                    "description": "Exception display name",
+                    "is_array": "false",
+                    "display_order": 1,
+                    "flags": {
+                        "required": true,
+                        "readonly": false,
+                        "hidden": false,
+                        "create_only": false,
+                        "server_only": false,
+                        "master_only": false
+                    },
+                    "class_id": "@prop",
+                    "id": "@exception.name"
+                },
+                {
+                    "data_type": "integer",
+                    "key": "code",
+                    "label": "HTTP Code",
+                    "description": "HTTP status code",
+                    "is_array": "false",
+                    "display_order": 2,
+                    "flags": {
+                        "required": true,
+                        "readonly": false,
+                        "hidden": false,
+                        "create_only": false,
+                        "server_only": false,
+                        "master_only": false
+                    },
+                    "class_id": "@prop",
+                    "id": "@exception.code"
+                },
+                {
+                    "data_type": "string",
+                    "key": "error_code",
+                    "label": "Error Code",
+                    "description": "Internal error code: not_found, forbidden, validation_failed, bad_credentials, etc.",
+                    "is_array": "false",
+                    "display_order": 3,
+                    "flags": {
+                        "required": true,
+                        "readonly": false,
+                        "hidden": false,
+                        "create_only": false,
+                        "server_only": false,
+                        "master_only": false
+                    },
+                    "class_id": "@prop",
+                    "id": "@exception.error_code"
+                },
+                {
+                    "data_type": "string",
+                    "key": "message",
+                    "label": "Message Template",
+                    "description": "Error message with {{field}} placeholders",
+                    "is_array": "false",
+                    "display_order": 4,
+                    "class_id": "@prop",
+                    "id": "@exception.message"
+                },
+                {
+                    "data_type": "relation",
+                    "key": "actions",
+                    "label": "Actions",
+                    "description": "Chain of @action objects to execute when this exception occurs (log, show_dialog, retry, redirect, etc.)",
+                    "is_array": "indexed",
+                    "display_order": 5,
+                    "class_id": "@prop",
+                    "id": "@exception.actions"
+                },
+                {
+                    "data_type": "boolean",
+                    "key": "retryable",
+                    "label": "Retryable",
+                    "description": "Whether client can retry the failed operation",
+                    "is_array": "false",
+                    "display_order": 6,
+                    "class_id": "@prop",
+                    "id": "@exception.retryable"
+                },
+                {
+                    "data_type": "string",
+                    "key": "severity",
+                    "label": "Severity",
+                    "description": "Error severity",
+                    "is_array": "false",
+                    "display_order": 7,
+                    "class_id": "@prop",
+                    "id": "@exception.severity"
+                }
+            ],
+            "is_system": true,
+            "is_abstract": false,
+            "version": 1,
+            "id": "@exception",
+            "class_id": "@class",
+            "prompt": "## @exception — Exception Handler\n\nAn @exception defines structured error handling for elementStore operations. Each exception has an error_code in PPPCEEE format (PPP=project, C=severity 8=critical/9=die, EEE=sequence) that uniquely identifies the error type.\n\nFlow: When a StorageException is thrown, the error_code is looked up against registered @exception definitions. The matched definition specifies: the user-facing message template, severity level, whether to log, and optionally an action chain to execute for recovery or notification.\n\nClient behavior: The client receives the error_code and message in API error responses. It can match on error_code to show contextual UI (e.g. validation_failed triggers field highlighting, not_found shows a missing-object dialog, forbidden shows access denied).\n\nAction chain: An @exception can reference @action ids to execute on error — for example, logging to @log, sending a notification, or triggering a rollback composite action.\n\nValidation errors: The special code validation_failed carries an errors[] array with per-field path, message, and code for granular UI feedback."
         }
     ]
 }
