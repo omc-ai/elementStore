@@ -1218,6 +1218,22 @@ class ClassModel
             );
         }
 
+        // Check if any objects exist — cannot delete class with data
+        // Use merge_into action to transfer objects to another class first
+        try {
+            $objects = $this->storage->find($class_id, [], 1);
+            if (!empty($objects)) {
+                throw new StorageException(
+                    "Cannot delete class '{$class_id}' — it has existing objects. Use merge_into(target_class) to transfer objects first.",
+                    'has_objects'
+                );
+            }
+        } catch (StorageException $e) {
+            throw $e; // Re-throw our own exceptions
+        } catch (\Throwable $e) {
+            // Storage might not have this database yet — safe to delete
+        }
+
         unset($this->objectCache[Constants::K_CLASS][$class_id]);
         return $this->deleteObject(Constants::K_CLASS, $class_id);
     }
@@ -2161,20 +2177,36 @@ class ClassModel
      */
     private function checkUniqueConstraints(string $classId, array $data, ClassMeta $meta): void
     {
-        $constraints = $meta->unique ?? null;
-        if (empty($constraints) || !is_array($constraints)) {
-            return;
-        }
-
         $objectId = $data[Constants::F_ID] ?? null;
 
-        foreach ($constraints as $constraint) {
-            $constraintId = $constraint['id'] ?? 'unknown';
-            $fields = $constraint['fields'] ?? [];
-            if (empty($fields) || !is_array($fields)) {
-                continue;
-            }
+        // Collect all key definitions: from legacy 'unique' array + new 'keys' array
+        $allKeys = [];
+        $metaArr = $meta->toArray();
 
+        // Legacy: unique[] constraints
+        $constraints = $metaArr['unique'] ?? [];
+        foreach ($constraints as $c) {
+            if (!empty($c['fields'])) {
+                $allKeys[] = ['fields' => $c['fields'], 'id' => $c['id'] ?? implode('+', $c['fields'])];
+            }
+        }
+
+        // New: keys[] from @class
+        $keys = $metaArr['keys'] ?? [];
+        foreach ($keys as $k) {
+            $fields = $k['fields'] ?? [];
+            if (!empty($fields)) {
+                $allKeys[] = ['fields' => $fields, 'id' => implode('+', $fields)];
+            }
+        }
+
+        if (empty($allKeys)) return;
+
+        foreach ($allKeys as $keyDef) {
+            $fields = $keyDef['fields'];
+            $keyId = $keyDef['id'];
+
+            // Build filter from current data
             $filters = [];
             $skip = false;
             foreach ($fields as $field) {
@@ -2184,15 +2216,17 @@ class ClassModel
             }
             if ($skip) continue;
 
+            // Query for existing objects with same key values
             $matches = $this->storage->query($classId, $filters, ['limit' => 2]);
             foreach ($matches as $existing) {
                 $existingId = $existing[Constants::F_ID] ?? null;
+                // Skip self (on update)
                 if ($objectId !== null && $existingId == $objectId) continue;
                 $fieldList = implode(', ', $fields);
                 throw new StorageException(
-                    "Unique constraint '{$constraintId}' violated on [{$fieldList}]",
+                    "Unique key '{$keyId}' violated on [{$fieldList}]",
                     'validation_failed',
-                    [['path' => $fields[0], 'message' => "Duplicate value for constraint '{$constraintId}'", 'code' => 'unique']]
+                    [['path' => $fields[0], 'message' => "Duplicate value for key '{$keyId}'", 'code' => 'unique']]
                 );
             }
         }
@@ -2851,5 +2885,308 @@ class ClassModel
                 BroadcastService::emitChange($merged, $child, $this->userId);
             }
         }
+    }
+
+    // =========================================================================
+    // @ACTION EXECUTION — class methods and object methods
+    // =========================================================================
+
+    /**
+     * Execute a class-level @action (no specific object).
+     * Looks up the action by name on the class definition, then executes.
+     *
+     * @param string $class_id  Class to execute action on
+     * @param string $actionName Action name (e.g. 'merge_into', 'validate_keys')
+     * @param array  $params    Action parameters
+     * @return array Result data
+     */
+    public function executeClassAction(string $class_id, string $actionName, array $params = []): array
+    {
+        $this->ensureBootstrap();
+
+        // Find the @action object for this class + action name
+        $actionDef = $this->findAction($class_id, $actionName);
+        if ($actionDef === null) {
+            // Check built-in actions
+            return $this->executeBuiltinAction($class_id, null, $actionName, $params);
+        }
+
+        $executor = new ActionExecutor($this->storage, $this);
+        return $executor->execute($actionDef, $params, ['class_id' => $class_id]);
+    }
+
+    /**
+     * Execute an object-level @action.
+     *
+     * @param string $class_id  Class of the object
+     * @param mixed  $id        Object ID
+     * @param string $actionName Action name
+     * @param array  $params    Action parameters
+     * @return array Result data
+     */
+    public function executeObjectAction(string $class_id, mixed $id, string $actionName, array $params = []): array
+    {
+        $this->ensureBootstrap();
+
+        $objData = $this->storage->getobj($class_id, $id);
+        if ($objData === null) {
+            throw new StorageException("Object not found: {$class_id}/{$id}", 'not_found');
+        }
+
+        $actionDef = $this->findAction($class_id, $actionName);
+        if ($actionDef === null) {
+            return $this->executeBuiltinAction($class_id, $id, $actionName, $params);
+        }
+
+        $executor = new ActionExecutor($this->storage, $this);
+        return $executor->execute($actionDef, $params, $objData);
+    }
+
+    /**
+     * Resolve /me — find or create the current user's object for a class.
+     * Uses JWT payload to identify the user.
+     *
+     * @param string $class_id Class to resolve /me for
+     * @return AtomObj|null The resolved object, or null if not authenticated
+     */
+    public function resolveMe(string $class_id): ?AtomObj
+    {
+        if ($this->userId === null) return null;
+
+        // For @user: find by user_id key
+        if ($class_id === '@user') {
+            $results = $this->storage->query('@user', ['user_id' => $this->userId], ['limit' => 1]);
+            if (!empty($results)) {
+                return $this->factory('@user', $results[0]);
+            }
+            // Auto-create @user from JWT context
+            $userData = [
+                Constants::F_CLASS_ID => '@user',
+                'user_id' => $this->userId,
+                'role' => $this->userRoles[0] ?? 'user',
+            ];
+            if ($this->appId) $userData['app_id'] = $this->appId;
+            if ($this->tenantId) $userData['tenant_id'] = $this->tenantId;
+            return $this->setObject('@user', $userData);
+        }
+
+        // For @session: find by current session (JWT jti)
+        if ($class_id === '@session') {
+            // Session ID would come from JWT 'jti' claim — stored in a session context field
+            return null; // TODO: implement session resolution from JWT jti
+        }
+
+        // For @tenant: find by current tenant_id
+        if ($class_id === '@tenant') {
+            if ($this->tenantId === null) return null;
+            $obj = $this->getObject('@tenant', $this->tenantId);
+            return $obj;
+        }
+
+        // For @app: find by current app_id
+        if ($class_id === '@app') {
+            if ($this->appId === null) return null;
+            $obj = $this->getObject('@app', $this->appId);
+            return $obj;
+        }
+
+        // Generic: find object where owner_id = current user
+        $results = $this->storage->find($class_id, ['owner_id' => $this->userId], 1);
+        if (!empty($results)) {
+            return $this->factory($class_id, $results[0]);
+        }
+        return null;
+    }
+
+    /**
+     * Find an @action definition for a class by action name.
+     */
+    private function findAction(string $class_id, string $actionName): ?array
+    {
+        // 1. Check class definition's actions[] array
+        $meta = $this->getClass($class_id);
+        if ($meta) {
+            $metaArr = $meta->toArray();
+            $actions = $metaArr['actions'] ?? [];
+            foreach ($actions as $act) {
+                if (is_array($act) && ($act['name'] ?? '') === $actionName) {
+                    return $act;
+                }
+                // If actions[] contains IDs (strings), resolve them
+                if (is_string($act)) {
+                    $actData = $this->storage->getobj(Constants::K_ACTION, $act);
+                    if ($actData && ($actData['name'] ?? '') === $actionName) {
+                        return $actData;
+                    }
+                }
+            }
+
+            // 2. Check parent class (inheritance)
+            $extendsId = $metaArr['extends_id'] ?? null;
+            if ($extendsId) {
+                $parentAction = $this->findAction($extendsId, $actionName);
+                if ($parentAction) return $parentAction;
+            }
+        }
+
+        // 3. Fallback: query @action objects by target_class_id
+        try {
+            $actions = $this->storage->find(Constants::K_ACTION, [
+                'target_class_id' => $class_id,
+                'name' => $actionName,
+            ], 1);
+            return !empty($actions) ? $actions[0] : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Execute built-in actions that don't need @action objects.
+     * These are core operations available on all classes.
+     */
+    private function executeBuiltinAction(string $class_id, ?string $id, string $actionName, array $params): array
+    {
+        switch ($actionName) {
+            case 'merge_into':
+                return $this->actionMergeInto($class_id, $id, $params);
+            case 'validate_keys':
+                return $this->actionValidateKeys($class_id);
+            case 'sync_genesis':
+                return $this->actionSyncGenesis($class_id);
+            default:
+                throw new StorageException("Unknown action: {$actionName} on {$class_id}", 'not_found');
+        }
+    }
+
+    /**
+     * Built-in action: merge object or class into target.
+     * Object-level: merge this object's data into target object.
+     * Class-level: migrate all objects from this class to target class.
+     */
+    private function actionMergeInto(string $class_id, ?string $id, array $params): array
+    {
+        $targetClass = $params['target_class'] ?? null;
+        $targetId = $params['target_id'] ?? null;
+
+        if ($id !== null && $targetId !== null) {
+            // Object merge: copy props from source to target
+            $source = $this->storage->getobj($class_id, $id);
+            $target = $this->storage->getobj($targetClass ?? $class_id, $targetId);
+            if (!$source || !$target) {
+                throw new StorageException("Source or target not found", 'not_found');
+            }
+
+            // Merge: source props into target, skip system fields
+            $skipFields = [Constants::F_ID, Constants::F_CLASS_ID, 'created_at', 'updated_at', '@state', '_rev'];
+            $merged = $target;
+            foreach ($source as $k => $v) {
+                if (!in_array($k, $skipFields) && !isset($target[$k])) {
+                    $merged[$k] = $v;
+                }
+            }
+            $saved = $this->setObject($targetClass ?? $class_id, $merged);
+            return ['merged' => true, 'target' => $saved->toArray()];
+        }
+
+        if ($targetClass !== null) {
+            // Class merge: migrate all objects from source class to target class
+            $sourceObjects = $this->storage->query($class_id, [Constants::F_CLASS_ID => $class_id]);
+            $migrated = 0;
+            $errors = [];
+
+            foreach ($sourceObjects as $obj) {
+                $obj[Constants::F_CLASS_ID] = $targetClass;
+                unset($obj['@state']); // Reset state for new class
+                try {
+                    $this->setObject($targetClass, $obj);
+                    $migrated++;
+                } catch (\Throwable $e) {
+                    $errors[] = ['id' => $obj[Constants::F_ID] ?? '?', 'error' => $e->getMessage()];
+                }
+            }
+
+            return [
+                'merged' => true,
+                'source_class' => $class_id,
+                'target_class' => $targetClass,
+                'migrated' => $migrated,
+                'errors' => $errors,
+            ];
+        }
+
+        throw new StorageException("merge_into requires target_class or target_id", 'validation_failed');
+    }
+
+    /**
+     * Built-in action: validate all unique keys for a class.
+     * Scans all objects and reports duplicates.
+     */
+    private function actionValidateKeys(string $class_id): array
+    {
+        $meta = $this->getClass($class_id);
+        if (!$meta) {
+            throw new StorageException("Class not found: {$class_id}", 'not_found');
+        }
+        $metaArr = $meta->toArray();
+        $keys = $metaArr['keys'] ?? [];
+        if (empty($keys)) {
+            return ['valid' => true, 'message' => 'No keys defined on this class'];
+        }
+
+        $objects = $this->storage->query($class_id, [Constants::F_CLASS_ID => $class_id]);
+        $violations = [];
+
+        foreach ($keys as $keyDef) {
+            $fields = $keyDef['fields'] ?? [];
+            if (empty($fields)) continue;
+
+            $seen = [];
+            foreach ($objects as $obj) {
+                $keyValue = implode('|', array_map(fn($f) => (string)($obj[$f] ?? ''), $fields));
+                $objId = $obj[Constants::F_ID] ?? '?';
+                if (isset($seen[$keyValue])) {
+                    $violations[] = [
+                        'key_fields' => $fields,
+                        'value' => $keyValue,
+                        'objects' => [$seen[$keyValue], $objId],
+                    ];
+                } else {
+                    $seen[$keyValue] = $objId;
+                }
+            }
+        }
+
+        return [
+            'valid' => empty($violations),
+            'keys_checked' => count($keys),
+            'objects_checked' => count($objects),
+            'violations' => $violations,
+        ];
+    }
+
+    /**
+     * Built-in action: sync class definition to genesis file.
+     */
+    private function actionSyncGenesis(string $class_id): array
+    {
+        if ($this->genesisLoader === null) {
+            throw new StorageException("GenesisLoader not available", 'not_available');
+        }
+
+        $classData = $this->storage->getobj(Constants::K_CLASS, $class_id);
+        if (!$classData) {
+            throw new StorageException("Class not found: {$class_id}", 'not_found');
+        }
+
+        $genesisFile = $classData[Constants::F_GENESIS_FILE] ?? null;
+        $genesisDir = $classData[Constants::F_GENESIS_DIR] ?? null;
+
+        if (!$genesisFile) {
+            throw new StorageException("Class {$class_id} has no genesis_file set", 'not_configured');
+        }
+
+        $this->genesisLoader->saveToGenesis($class_id, $genesisFile, $classData, $genesisDir);
+        return ['synced' => true, 'class_id' => $class_id, 'genesis_file' => $genesisFile];
     }
 }

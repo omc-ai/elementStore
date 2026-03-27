@@ -239,7 +239,7 @@ function error($message, $code = 400, $details = null): Response
 /**
  * Handle exception and return appropriate response
  */
-function handleException(\Exception $e): Response
+function handleException(\Throwable $e): Response
 {
     // Save @log entry — guarded against recursion
     static $saving = false;
@@ -541,10 +541,22 @@ $app->get('/store/{class}', function ($c) use ($app) {
         ->setHeader('X-Pagination-Hard-Max', (string)$hardMax);
 });
 
-// Get single object by ID
+// Get single object by ID (or /me resolver)
 $app->get('/store/{class}/{id}', function ($c, $id) use ($app) {
     /** @var ClassModel $model */
     $model = $app->di->get('model');
+
+    // /me resolver — resolve current user's object from JWT context
+    if ($id === 'me') {
+        try {
+            $result = $model->resolveMe($c);
+            if ($result === null) return error('Not authenticated', 401);
+            return json($result->toApiArray());
+        } catch (\Throwable $e) {
+            return handleException($e);
+        }
+    }
+
     $result = $model->getObject($c, $id);
     return $result ? json($result->toApiArray()) : error("Not found: {$c}/{$id}", 404);
 });
@@ -585,40 +597,44 @@ $app->get('/store/{class}/{id}/{prop}', function ($c, $id, $prop) use ($app) {
     return json($value);
 });
 
-// PUT /store/{class}/{id}/{prop} - Set property value OR execute action
+// PUT /store/{class}/{id}/{prop_or_action}
+// prop = set property value | action() = execute action
 $app->put('/store/{class}/{id}/{prop}', function ($c, $id, $prop) use ($app) {
     /** @var ClassModel $model */
     $model = $app->di->get('model');
-    $obj = $model->getObject($c, $id);
-
-    if (!$obj) return error("Not found: {$c}/{$id}", 404);
-
     $input = $app->request->getJsonRawBody(true) ?: [];
 
-    // Check if this prop references an @action (object_class_id includes '@action')
-    $objData = $obj->toArray();
-    $actionDef = resolveActionForProp($model, $c, $prop, $objData);
+    // Action call: name ends with ()
+    if (str_ends_with($prop, '()')) {
+        $actionName = substr($prop, 0, -2);
+        try {
+            $result = $model->executeObjectAction($c, $id, $actionName, $input);
+            return json($result);
+        } catch (\Exception $e) {
+            return handleException($e);
+        }
+    }
 
+    // Property set or legacy prop-wired action
+    $obj = $model->getObject($c, $id);
+    if (!$obj) return error("Not found: {$c}/{$id}", 404);
+
+    $objData = $obj->toArray();
+
+    // Legacy: check if prop references an @action (object_class_id includes '@action')
+    $actionDef = resolveActionForProp($model, $c, $prop, $objData);
     if ($actionDef !== null) {
-        // CLI-type actions require admin role even on the prop-wired route.
-        // (The direct /action/{id}/execute route already enforces adminGuard globally.)
         if (($actionDef['type'] ?? '') === 'cli') {
             if ($e = adminGuard()) return $e;
         }
-
-        // Execute the action — input body = action params
         try {
             $executor = createActionExecutor($model);
             $result = $executor->execute($actionDef, $input, $objData);
-
-            // If action returned data, merge into object and save
             if (is_array($result) && !empty($result)) {
                 $merged = array_merge($objData, $result);
                 $saved = $model->setObject($c, $merged);
                 return json($saved->toApiArray());
             }
-
-            // Action returned nothing — re-read and return current state
             $refreshed = $model->getObject($c, $id);
             return json($refreshed ? $refreshed->toApiArray() : $objData);
         } catch (ActionExecutorException $e) {
@@ -630,7 +646,6 @@ $app->put('/store/{class}/{id}/{prop}', function ($c, $id, $prop) use ($app) {
 
     // Normal property set
     $value = $input['value'] ?? $input;
-
     try {
         $result = $model->setObject($c, [
             Constants::F_ID => $id,
