@@ -633,7 +633,8 @@ class ClassModel
             if ($class_id === Constants::K_CLASS && $oldData !== null) {
                 $canModifySystem = in_array('admin', $this->userRoles, true)
                     || in_array('system', $this->userRoles, true);
-                if (!empty($oldData['is_system']) && !$canModifySystem) {
+                $isSystemFlag = !empty($oldData['is_system']) || !empty($oldData['@state']['system'] ?? false);
+                if ($isSystemFlag && !$canModifySystem) {
                     throw new StorageException(
                         "Cannot modify system class: {$id}. Admin or system role required.",
                         'forbidden'
@@ -1211,7 +1212,8 @@ class ClassModel
 
         // Immutability guard: seed classes (is_seed or is_system flag) are protected
         $classData = $this->storage->getobj(Constants::K_CLASS, $class_id);
-        if ($classData && (!empty($classData['is_seed']) || !empty($classData['is_system']))) {
+        $isSystemFlag = !empty($classData['is_system']) || !empty($classData['@state']['system'] ?? false);
+        if ($classData && (!empty($classData['is_seed']) || $isSystemFlag)) {
             throw new StorageException(
                 "Cannot delete seed/system class: {$class_id}",
                 'forbidden'
@@ -3059,6 +3061,8 @@ class ClassModel
                 return $this->actionValidateKeys($class_id);
             case 'sync_genesis':
                 return $this->actionSyncGenesis($class_id);
+            case 'fix':
+                return $this->actionFix($class_id, $id);
             default:
                 throw new StorageException("Unknown action: {$actionName} on {$class_id}", 'not_found');
         }
@@ -3193,5 +3197,89 @@ class ClassModel
 
         $this->genesisLoader->saveToGenesis($class_id, $genesisFile, $classData, $genesisDir);
         return ['synced' => true, 'class_id' => $class_id, 'genesis_file' => $genesisFile];
+    }
+
+    /**
+     * Built-in action: fix objects — strip unknown fields, apply defaults, cast types.
+     *
+     * If $id is provided, fix one object. Otherwise fix all objects of the class.
+     * Returns summary of changes made.
+     */
+    private function actionFix(string $class_id, ?string $id): array
+    {
+        $meta = $this->getClass($class_id);
+        if (!$meta) {
+            throw new StorageException("Class not found: {$class_id}", 'not_found');
+        }
+
+        $props = $this->getClassProps($class_id);
+        $propKeys = [];
+        foreach ($props as $prop) {
+            $propKeys[$prop->key] = $prop;
+        }
+
+        // Only CouchDB internal fields are exempt — everything else must be a defined prop
+        $couchFields = ['_id', '_rev'];
+
+        // Load objects
+        if ($id !== null) {
+            $raw = $this->storage->getobj($class_id, $id);
+            $objects = $raw ? [$raw] : [];
+        } else {
+            $objects = $this->storage->query($class_id, [Constants::F_CLASS_ID => $class_id]);
+        }
+
+        $fixed = 0;
+        $stripped = [];
+        $defaults_applied = [];
+
+        foreach ($objects as $obj) {
+            $objId = $obj[Constants::F_ID] ?? '?';
+            $changed = false;
+            $clean = [];
+
+            // Keep CouchDB internal fields
+            foreach ($couchFields as $sf) {
+                if (array_key_exists($sf, $obj)) {
+                    $clean[$sf] = $obj[$sf];
+                }
+            }
+
+            // id and class_id are always kept (object identity)
+            if (isset($obj[Constants::F_ID])) $clean[Constants::F_ID] = $obj[Constants::F_ID];
+            if (isset($obj[Constants::F_CLASS_ID])) $clean[Constants::F_CLASS_ID] = $obj[Constants::F_CLASS_ID];
+
+            // Keep defined props, cast types, apply defaults
+            foreach ($propKeys as $key => $prop) {
+                if (array_key_exists($key, $obj)) {
+                    $clean[$key] = $this->castValue($obj[$key], $prop);
+                } elseif ($prop->default_value !== null) {
+                    $clean[$key] = $prop->default_value;
+                    $defaults_applied[] = "{$objId}.{$key}";
+                    $changed = true;
+                }
+            }
+
+            // Find stripped fields
+            foreach ($obj as $key => $val) {
+                if (!array_key_exists($key, $clean)) {
+                    $stripped[] = "{$objId}.{$key}";
+                    $changed = true;
+                }
+            }
+
+            // Save if changed
+            if ($changed) {
+                $this->storage->setobj($class_id, $clean);
+                $fixed++;
+            }
+        }
+
+        return [
+            'fixed' => $fixed,
+            'total' => count($objects),
+            'stripped_fields' => $stripped,
+            'defaults_applied' => $defaults_applied,
+        ];
     }
 }
