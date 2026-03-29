@@ -730,6 +730,15 @@ class ClassModel
             }
         }
 
+        // Step 3a: Auto-add primary key on new @class objects if no keys defined
+        if ($oldData === null && $class_id === Constants::K_CLASS) {
+            if (empty($data['keys'])) {
+                $data['keys'] = [
+                    'primary' => ['fields' => ['id'], 'auto_field' => 'id', 'auto_type' => 'uuid']
+                ];
+            }
+        }
+
         // Step 3: Stamp security fields for new objects (non-system classes)
         if ($oldData === null && !$this->isSystemClass($class_id)) {
             if ($this->userId !== null) {
