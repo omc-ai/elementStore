@@ -7,6 +7,8 @@
         {
             "id": "auth_user",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
             "name": "User",
             "description": "A user account managed by auth-service",
             "props": [
@@ -189,6 +191,8 @@
         {
             "id": "auth_role",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Role",
             "description": "A named role that groups permissions. Assigned to users.",
             "props": [
@@ -264,6 +268,8 @@
         {
             "id": "auth_module",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:47",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Module",
             "description": "A functional unit of an application that can be permission-gated (e.g. billing, reports, admin).",
             "props": [
@@ -351,6 +357,8 @@
         {
             "id": "auth_permission",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:47",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Permission",
             "description": "A rule granting a role access to specific actions on a module.",
             "props": [
@@ -413,6 +421,8 @@
         {
             "id": "auth_app_registration",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:47",
+            "created_at": "2026-03-29 14:42:46",
             "name": "App Registration",
             "description": "An application registered with the auth-service. Mirrors auth_app on the auth-service side.",
             "props": [
@@ -516,6 +526,8 @@
         {
             "id": "auth_machine_registration",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:47",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Machine Registration",
             "description": "A machine/instance registered under an app in auth-service. Mirrors auth_machine on the auth-service side.",
             "props": [
@@ -627,6 +639,8 @@
         {
             "id": "auth_refresh_token",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Refresh Token",
             "description": "Issued long-lived refresh tokens. Used to obtain new access tokens without re-login. Stored for revocation.",
             "props": [
@@ -738,6 +752,13 @@
             ]
         },
         {
+            "id": "auth:role",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a08019fd0"
+            },
+            "updated_at": "2026-03-29 17:20:47",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Auth Role",
             "description": "Named role with permissions. Assigned to users per app.",
             "extends_id": "core:atomObj",
@@ -787,15 +808,16 @@
                     "class_id": "@prop",
                     "id": "auth:role.is_default"
                 }
-            ],
-            "is_system": true,
-            "id": "auth:role",
-            "class_id": "@class",
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a08019fd0"
-            }
+            ]
         },
         {
+            "id": "auth:permission",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a0801af94"
+            },
+            "updated_at": "2026-03-29 17:20:47",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Auth Permission",
             "description": "Single permission: module + action. Grouped into roles.",
             "extends_id": "core:atomObj",
@@ -830,15 +852,16 @@
                     },
                     "id": "auth:permission.app_id"
                 }
-            ],
-            "is_system": true,
-            "id": "auth:permission",
-            "class_id": "@class",
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a0801af94"
-            }
+            ]
         },
         {
+            "id": "auth:module",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a0801b8c6"
+            },
+            "updated_at": "2026-03-29 17:20:47",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Auth Module",
             "description": "Feature module within an app. Groups permissions.",
             "extends_id": "core:atomObj",
@@ -875,15 +898,16 @@
                     },
                     "id": "auth:module.permissions"
                 }
-            ],
-            "is_system": true,
-            "id": "auth:module",
-            "class_id": "@class",
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a0801b8c6"
-            }
+            ]
         },
         {
+            "id": "auth:credential",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a0801b92f"
+            },
+            "updated_at": "2026-03-29 17:20:47",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Credential",
             "description": "Secure storage for API keys, tokens, secrets. Server-only fields for sensitive data.",
             "extends_id": "core:atomObj",
@@ -966,13 +990,7 @@
                     "class_id": "@prop",
                     "id": "auth:credential.is_active"
                 }
-            ],
-            "is_system": true,
-            "id": "auth:credential",
-            "class_id": "@class",
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a0801b92f"
-            }
+            ]
         }
     ]
 }

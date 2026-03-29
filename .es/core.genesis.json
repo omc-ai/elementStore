@@ -6,14 +6,87 @@
         {
             "id": "core:atomObj",
             "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a08037fb5"
+            },
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Atom Object",
-            "namespace_id": "core",
-            "extends_id": null,
-            "is_abstract": true,
-            "is_system": true,
-            "is_seed": true,
             "description": "Base object for all elementStore objects. Provides @state.",
+            "extends_id": null,
             "props": [
+                {
+                    "data_type": "string",
+                    "key": "updated_at",
+                    "label": "Updated",
+                    "is_array": "false",
+                    "display_order": -1,
+                    "flags": {
+                        "required": false,
+                        "readonly": true,
+                        "hidden": false,
+                        "create_only": false,
+                        "server_only": true,
+                        "master_only": false,
+                        "from_parent": false
+                    },
+                    "class_id": "@prop",
+                    "id": "core:atomObj.updated_at"
+                },
+                {
+                    "data_type": "string",
+                    "key": "created_at",
+                    "label": "Created",
+                    "is_array": "false",
+                    "display_order": -2,
+                    "flags": {
+                        "required": false,
+                        "readonly": true,
+                        "hidden": false,
+                        "create_only": false,
+                        "server_only": true,
+                        "master_only": false,
+                        "from_parent": false
+                    },
+                    "class_id": "@prop",
+                    "id": "core:atomObj.created_at"
+                },
+                {
+                    "data_type": "string",
+                    "key": "class_id",
+                    "label": "Class",
+                    "is_array": "false",
+                    "display_order": -3,
+                    "flags": {
+                        "required": false,
+                        "readonly": true,
+                        "hidden": false,
+                        "create_only": false,
+                        "server_only": false,
+                        "master_only": false,
+                        "from_parent": false
+                    },
+                    "class_id": "@prop",
+                    "id": "core:atomObj.class_id"
+                },
+                {
+                    "data_type": "string",
+                    "key": "id",
+                    "label": "ID",
+                    "is_array": "false",
+                    "display_order": -4,
+                    "flags": {
+                        "required": false,
+                        "readonly": true,
+                        "hidden": false,
+                        "create_only": false,
+                        "server_only": false,
+                        "master_only": false,
+                        "from_parent": false
+                    },
+                    "class_id": "@prop",
+                    "id": "core:atomObj.id"
+                },
                 {
                     "data_type": "string",
                     "key": "description",
@@ -55,13 +128,11 @@
         {
             "id": "core:uiBase",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
             "name": "UI Base",
-            "namespace_id": "core",
-            "extends_id": "core:atomObj",
-            "is_abstract": true,
-            "is_system": true,
-            "is_seed": true,
             "description": "Base class for UI elements with rendering and interaction hooks",
+            "extends_id": "core:atomObj",
             "props": [
                 {
                     "key": "@events",
@@ -90,12 +161,11 @@
         {
             "id": "core:action",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
             "name": "UI Action",
-            "namespace_id": "core",
-            "extends_id": "core:atomObj",
-            "is_system": true,
-            "is_seed": true,
             "description": "Action definition for buttons and events",
+            "extends_id": "core:atomObj",
             "props": [
                 {
                     "key": "type",
@@ -132,14 +202,11 @@
         {
             "id": "core:app",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Application",
-            "namespace_id": "core",
-            "extends_id": "core:atomObj",
-            "is_system": true,
-            "is_seed": true,
-            "icon": "app-window",
-            "color": "#6366f1",
             "description": "Application root - not persisted to ElementStore",
+            "extends_id": "core:atomObj",
             "props": [
                 {
                     "key": "dialogs",
@@ -186,32 +253,16 @@
                     ],
                     "description": "Domain elements on canvas"
                 }
-            ],
-            "storage": "@storage:local",
-            "defaults": {
-                "theme": "system",
-                "sidebarOpen": true,
-                "sidebarTab": "elements",
-                "propertiesPanelOpen": true,
-                "minimapVisible": true,
-                "canvasMode": "2d",
-                "snapToGrid": true,
-                "gridSize": 20,
-                "showGrid": true,
-                "editorMode": true
-            }
+            ]
         },
         {
             "id": "core:baseElement",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Base Element",
-            "namespace_id": "core",
-            "extends_id": "core:atomObj",
-            "storage": "storage_design",
-            "is_abstract": true,
-            "is_system": true,
-            "is_seed": true,
             "description": "Base class for all domain elements",
+            "extends_id": "core:atomObj",
             "props": [
                 {
                     "key": "canvasElement",
@@ -250,34 +301,16 @@
                     "hidden": true,
                     "description": "Parent design (belongsTo back-reference)"
                 }
-            ],
-            "defaults": {
-                "nodeTypeId": "baseNode",
-                "isServerLinkable": false,
-                "isK8sLinkable": false,
-                "position": {
-                    "x": 0,
-                    "y": 0,
-                    "z": 0
-                },
-                "size": {
-                    "width": 150,
-                    "height": 100,
-                    "depth": 50
-                }
-            }
+            ]
         },
         {
             "id": "core:baseContainer",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Base Container",
-            "namespace_id": "core",
-            "extends_id": "core:baseElement",
-            "is_abstract": true,
-            "is_container": true,
-            "is_system": true,
-            "is_seed": true,
             "description": "Base class for elements that can contain children",
+            "extends_id": "core:baseElement",
             "props": [
                 {
                     "key": "childs",
@@ -288,22 +321,16 @@
                     ],
                     "description": "Child elements"
                 }
-            ],
-            "defaults": {
-                "nodeTypeId": "containerNode",
-                "isContainer": true
-            }
+            ]
         },
         {
             "id": "core:connection",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Connection",
-            "namespace_id": "core",
-            "extends_id": "core:atomObj",
-            "storage": "storage_design",
-            "is_system": true,
-            "is_seed": true,
             "description": "Connection between elements",
+            "extends_id": "core:atomObj",
             "props": [
                 {
                     "key": "source_id",
@@ -342,22 +369,16 @@
                     "data_type": "string",
                     "description": "Connection label"
                 }
-            ],
-            "defaults": {
-                "connectionType": "default",
-                "animated": false
-            }
+            ]
         },
         {
             "id": "core:design",
             "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
             "name": "Design",
-            "namespace_id": "core",
-            "extends_id": "core:atomObj",
-            "storage": "storage_design",
-            "is_system": true,
-            "is_seed": true,
             "description": "Design container - holds nodes and connections for a canvas layout",
+            "extends_id": "core:atomObj",
             "props": [
                 {
                     "key": "nodes",
@@ -404,15 +425,7 @@
                     "hidden": true,
                     "description": "Auto-save interval in ms (0 = disabled)"
                 }
-            ],
-            "defaults": {
-                "nodes": [],
-                "connections": [],
-                "viewportX": 0,
-                "viewportY": 0,
-                "zoom": 1,
-                "autoSaveInterval": 5000
-            }
+            ]
         }
     ]
 }

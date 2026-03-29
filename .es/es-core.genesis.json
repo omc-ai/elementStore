@@ -1,39 +1,197 @@
 {
-  "version": "1.0.0",
-  "namespace": "es",
-  "description": "ElementStore management classes — findings, plans. For ES self-management only.",
-  "classes": [
-    {
-      "id": "es:finding",
-      "class_id": "@class",
-      "name": "Finding",
-      "description": "An audit finding — issue, duplicate, or optimization opportunity.",
-      "props": [
-        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
-        {"key": "severity", "data_type": "string", "display_order": 2, "options": {"values": ["critical", "high", "medium", "low", "info"]}, "flags": {"required": true}, "class_id": "@prop_string"},
-        {"key": "category", "data_type": "string", "display_order": 3, "options": {"values": ["duplicate", "security", "performance", "unification", "production", "missing"]}, "class_id": "@prop_string"},
-        {"key": "description", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 4, "class_id": "@prop_string"},
-        {"key": "location", "data_type": "string", "is_array": "indexed", "display_order": 5, "class_id": "@prop_string"},
-        {"key": "fix", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 6, "class_id": "@prop_string"},
-        {"key": "status", "data_type": "string", "display_order": 7, "options": {"values": ["open", "in_progress", "resolved", "wont_fix"]}, "default_value": "open", "class_id": "@prop_string"},
-        {"key": "project", "data_type": "string", "display_order": 8, "class_id": "@prop_string"},
-        {"key": "tasks", "data_type": "relation", "is_array": "indexed", "object_class_id": ["ai:task"], "display_order": 9, "class_id": "@prop_relation"},
-        {"key": "discovered_at", "data_type": "string", "display_order": 10, "class_id": "@prop_string"}
-      ]
-    },
-    {
-      "id": "es:plan",
-      "class_id": "@class",
-      "name": "Plan",
-      "description": "A strategic plan grouping tasks into phases.",
-      "props": [
-        {"key": "name", "data_type": "string", "display_order": 1, "flags": {"required": true}, "class_id": "@prop_string"},
-        {"key": "description", "data_type": "string", "editor": {"id": "textarea"}, "display_order": 2, "class_id": "@prop_string"},
-        {"key": "phase", "data_type": "string", "display_order": 3, "options": {"values": ["security", "unification", "production", "optimization", "features"]}, "class_id": "@prop_string"},
-        {"key": "tasks", "data_type": "relation", "is_array": "indexed", "object_class_id": ["ai:task"], "display_order": 4, "class_id": "@prop_relation"},
-        {"key": "status", "data_type": "string", "display_order": 5, "options": {"values": ["draft", "active", "completed", "cancelled"]}, "default_value": "draft", "class_id": "@prop_string"},
-        {"key": "progress_pct", "data_type": "integer", "display_order": 6, "default_value": 0, "class_id": "@prop_number"}
-      ]
-    }
-  ]
+    "version": "1.0.0",
+    "namespace": "es",
+    "description": "ElementStore management classes — findings, plans. For ES self-management only.",
+    "classes": [
+        {
+            "id": "es:finding",
+            "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
+            "name": "Finding",
+            "description": "An audit finding — issue, duplicate, or optimization opportunity.",
+            "props": [
+                {
+                    "key": "name",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "flags": {
+                        "required": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "severity",
+                    "data_type": "string",
+                    "display_order": 2,
+                    "options": {
+                        "values": [
+                            "critical",
+                            "high",
+                            "medium",
+                            "low",
+                            "info"
+                        ]
+                    },
+                    "flags": {
+                        "required": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "category",
+                    "data_type": "string",
+                    "display_order": 3,
+                    "options": {
+                        "values": [
+                            "duplicate",
+                            "security",
+                            "performance",
+                            "unification",
+                            "production",
+                            "missing"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "description",
+                    "data_type": "string",
+                    "editor": {
+                        "id": "textarea"
+                    },
+                    "display_order": 4,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "location",
+                    "data_type": "string",
+                    "is_array": "indexed",
+                    "display_order": 5,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "fix",
+                    "data_type": "string",
+                    "editor": {
+                        "id": "textarea"
+                    },
+                    "display_order": 6,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "status",
+                    "data_type": "string",
+                    "display_order": 7,
+                    "options": {
+                        "values": [
+                            "open",
+                            "in_progress",
+                            "resolved",
+                            "wont_fix"
+                        ]
+                    },
+                    "default_value": "open",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "project",
+                    "data_type": "string",
+                    "display_order": 8,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "tasks",
+                    "data_type": "relation",
+                    "is_array": "indexed",
+                    "object_class_id": [
+                        "ai:task"
+                    ],
+                    "display_order": 9,
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "discovered_at",
+                    "data_type": "string",
+                    "display_order": 10,
+                    "class_id": "@prop_string"
+                }
+            ]
+        },
+        {
+            "id": "es:plan",
+            "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:48",
+            "created_at": "2026-03-29 14:42:46",
+            "name": "Plan",
+            "description": "A strategic plan grouping tasks into phases.",
+            "props": [
+                {
+                    "key": "name",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "flags": {
+                        "required": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "description",
+                    "data_type": "string",
+                    "editor": {
+                        "id": "textarea"
+                    },
+                    "display_order": 2,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "phase",
+                    "data_type": "string",
+                    "display_order": 3,
+                    "options": {
+                        "values": [
+                            "security",
+                            "unification",
+                            "production",
+                            "optimization",
+                            "features"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "tasks",
+                    "data_type": "relation",
+                    "is_array": "indexed",
+                    "object_class_id": [
+                        "ai:task"
+                    ],
+                    "display_order": 4,
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "status",
+                    "data_type": "string",
+                    "display_order": 5,
+                    "options": {
+                        "values": [
+                            "draft",
+                            "active",
+                            "completed",
+                            "cancelled"
+                        ]
+                    },
+                    "default_value": "draft",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "progress_pct",
+                    "data_type": "integer",
+                    "display_order": 6,
+                    "default_value": 0,
+                    "class_id": "@prop_number"
+                }
+            ]
+        }
+    ]
 }

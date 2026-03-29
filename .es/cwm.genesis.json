@@ -1,241 +1,238 @@
 {
-  "version": "1.0.0",
-  "namespace": "cwm",
-  "description": "CloudWM (Kamatera) API provider — cloud server management via the Kamatera REST API.",
-  "classes": [
-    {
-      "id": "@cloudwm",
-      "class_id": "@class",
-      "name": "CloudWM Provider",
-      "description": "CloudWM (Kamatera) API crud_provider. Extends @provider with CloudWM-specific fields (datacenter). Supports server listing, creation, and power management via REST API. Authenticates with CWM_CLIENTID and CWM_SECRET.",
-      "extends_id": "@provider",
-      "is_system": false,
-      "is_abstract": false,
-      "is_seed": true,
-      "namespace_id": "cwm",
-      "props": [
+    "version": "1.0.0",
+    "namespace": "cwm",
+    "description": "CloudWM (Kamatera) API provider — cloud server management via the Kamatera REST API.",
+    "classes": [
         {
-          "key": "datacenter",
-          "label": "Datacenter",
-          "description": "Default datacenter code for server operations (e.g. EU, IL, US-NY2). Can be overridden per action via params.",
-          "data_type": "string",
-          "display_order": 10,
-          "class_id": "@prop_string"
+            "id": "@cloudwm",
+            "class_id": "@class",
+            "updated_at": "2026-03-29 17:20:42",
+            "name": "CloudWM Provider",
+            "description": "CloudWM (Kamatera) API crud_provider. Extends @provider with CloudWM-specific fields (datacenter). Supports server listing, creation, and power management via REST API. Authenticates with CWM_CLIENTID and CWM_SECRET.",
+            "extends_id": "@provider",
+            "props": [
+                {
+                    "key": "datacenter",
+                    "label": "Datacenter",
+                    "description": "Default datacenter code for server operations (e.g. EU, IL, US-NY2). Can be overridden per action via params.",
+                    "data_type": "string",
+                    "display_order": 10,
+                    "class_id": "@prop_string"
+                }
+            ]
         }
-      ]
-    }
-  ],
-  "objects": [
-    {
-      "id": "act:cwm-list-servers",
-      "class_id": "@action",
-      "name": "List Servers",
-      "description": "List all CloudWM servers in the account. Returns server id, name, datacenter, status, CPU, RAM, and IP addresses.",
-      "type": "api",
-      "group_name": "cloudwm",
-      "method": "GET",
-      "endpoint": "/service/servers",
-      "returns": "list",
-      "strategy": "sequential",
-      "params": [
+    ],
+    "objects": [
         {
-          "key": "datacenter",
-          "label": "Datacenter",
-          "description": "Filter by datacenter code (e.g. EU, IL, US-NY2)",
-          "data_type": "string",
-          "class_id": "@prop"
+            "id": "act:cwm-list-servers",
+            "class_id": "@action",
+            "name": "List Servers",
+            "description": "List all CloudWM servers in the account. Returns server id, name, datacenter, status, CPU, RAM, and IP addresses.",
+            "type": "api",
+            "group_name": "cloudwm",
+            "method": "GET",
+            "endpoint": "/service/servers",
+            "returns": "list",
+            "strategy": "sequential",
+            "params": [
+                {
+                    "key": "datacenter",
+                    "label": "Datacenter",
+                    "description": "Filter by datacenter code (e.g. EU, IL, US-NY2)",
+                    "data_type": "string",
+                    "class_id": "@prop"
+                }
+            ],
+            "response_mapping": {
+                "id": "id",
+                "name": "name",
+                "datacenter": "datacenter",
+                "status": "power",
+                "cpus": "cpuType",
+                "ram": "ram",
+                "networks": "networks"
+            },
+            "requires_selection": false,
+            "bulk": false
+        },
+        {
+            "id": "act:cwm-create-server",
+            "class_id": "@action",
+            "name": "Create Server",
+            "description": "Create a new CloudWM cloud server. Requires datacenter, image, CPU type, RAM, and disk configuration. Returns a job command ID — poll status to get the server ID once provisioned.",
+            "type": "api",
+            "group_name": "cloudwm",
+            "method": "POST",
+            "endpoint": "/service/server",
+            "returns": "object",
+            "strategy": "sequential",
+            "params": [
+                {
+                    "key": "name",
+                    "label": "Server Name",
+                    "description": "Hostname/display name for the server",
+                    "data_type": "string",
+                    "class_id": "@prop"
+                },
+                {
+                    "key": "datacenter",
+                    "label": "Datacenter",
+                    "description": "Datacenter code (e.g. EU, IL, US-NY2). Falls back to provider datacenter if not specified.",
+                    "data_type": "string",
+                    "class_id": "@prop"
+                },
+                {
+                    "key": "image",
+                    "label": "Image",
+                    "description": "OS image ID (e.g. IL:6000C298f5c1ec0c40a7e8c0). Use /service/servers/images to list available images.",
+                    "data_type": "string",
+                    "class_id": "@prop"
+                },
+                {
+                    "key": "cpu",
+                    "label": "CPU Type",
+                    "description": "CPU type code (e.g. B for burstable, D for dedicated). Use /service/servers/capabilities for options.",
+                    "data_type": "string",
+                    "class_id": "@prop"
+                },
+                {
+                    "key": "ram",
+                    "label": "RAM (MB)",
+                    "description": "RAM in megabytes (e.g. 1024, 2048, 4096)",
+                    "data_type": "integer",
+                    "class_id": "@prop"
+                },
+                {
+                    "key": "disk",
+                    "label": "Disk Size (GB)",
+                    "description": "Primary disk size in GB",
+                    "data_type": "integer",
+                    "class_id": "@prop"
+                },
+                {
+                    "key": "password",
+                    "label": "Root Password",
+                    "description": "Root/admin password for the new server",
+                    "data_type": "string",
+                    "class_id": "@prop"
+                },
+                {
+                    "key": "network",
+                    "label": "Network",
+                    "description": "Network configuration name (e.g. wan). Provide comma-separated for multiple NICs.",
+                    "data_type": "string",
+                    "class_id": "@prop"
+                },
+                {
+                    "key": "daily_backup",
+                    "label": "Daily Backup",
+                    "description": "Enable daily automated backup for the server",
+                    "data_type": "boolean",
+                    "class_id": "@prop"
+                }
+            ],
+            "request_mapping": {
+                "name": "name",
+                "datacenter": "datacenter",
+                "image": "image",
+                "cpu": "cpu",
+                "ram": "ram",
+                "disk": "disk",
+                "password": "password",
+                "network": "network",
+                "dailybackup": "daily_backup"
+            },
+            "response_mapping": {
+                "commandIds": "job_ids",
+                "servers": "servers"
+            },
+            "requires_selection": false,
+            "bulk": false
+        },
+        {
+            "id": "act:cwm-power-on",
+            "class_id": "@action",
+            "name": "Power On Server",
+            "description": "Power on a stopped CloudWM server by server name. Returns a command ID — the server will be in running state once the job completes.",
+            "type": "api",
+            "group_name": "cloudwm",
+            "method": "POST",
+            "endpoint": "/service/server/powerOn",
+            "returns": "object",
+            "strategy": "sequential",
+            "params": [
+                {
+                    "key": "name",
+                    "label": "Server Name",
+                    "description": "Name of the server to power on",
+                    "data_type": "string",
+                    "class_id": "@prop"
+                }
+            ],
+            "request_mapping": {
+                "name": "name"
+            },
+            "response_mapping": {
+                "commandId": "job_id"
+            },
+            "requires_selection": true,
+            "bulk": false
+        },
+        {
+            "id": "act:cwm-power-off",
+            "class_id": "@action",
+            "name": "Power Off Server",
+            "description": "Power off a running CloudWM server by server name. Hard powers down the VM. Returns a command ID.",
+            "type": "api",
+            "group_name": "cloudwm",
+            "method": "POST",
+            "endpoint": "/service/server/powerOff",
+            "returns": "object",
+            "strategy": "sequential",
+            "params": [
+                {
+                    "key": "name",
+                    "label": "Server Name",
+                    "description": "Name of the server to power off",
+                    "data_type": "string",
+                    "class_id": "@prop"
+                }
+            ],
+            "request_mapping": {
+                "name": "name"
+            },
+            "response_mapping": {
+                "commandId": "job_id"
+            },
+            "requires_selection": true,
+            "bulk": false
+        },
+        {
+            "id": "provider:cloudwm",
+            "class_id": "@cloudwm",
+            "name": "CloudWM",
+            "description": "CloudWM (Kamatera) API provider instance. Manages cloud servers — list, create, power on/off. Configure auth with CWM_CLIENTID and CWM_SECRET environment variables.",
+            "base_url": "https://cloudwm.com/api",
+            "write_mode": "crud",
+            "auth": {
+                "type": "apikey",
+                "headers": {
+                    "AuthClientId": "${CWM_CLIENTID}",
+                    "AuthSecret": "${CWM_SECRET}"
+                },
+                "_note": "Set CWM_CLIENTID and CWM_SECRET environment variables with your CloudWM API credentials."
+            },
+            "id_field": "name",
+            "actions": [
+                "act:cwm-list-servers",
+                "act:cwm-create-server",
+                "act:cwm-power-on",
+                "act:cwm-power-off"
+            ],
+            "mapping": {
+                "id": "name",
+                "name": "name"
+            }
         }
-      ],
-      "response_mapping": {
-        "id": "id",
-        "name": "name",
-        "datacenter": "datacenter",
-        "status": "power",
-        "cpus": "cpuType",
-        "ram": "ram",
-        "networks": "networks"
-      },
-      "requires_selection": false,
-      "bulk": false
-    },
-    {
-      "id": "act:cwm-create-server",
-      "class_id": "@action",
-      "name": "Create Server",
-      "description": "Create a new CloudWM cloud server. Requires datacenter, image, CPU type, RAM, and disk configuration. Returns a job command ID — poll status to get the server ID once provisioned.",
-      "type": "api",
-      "group_name": "cloudwm",
-      "method": "POST",
-      "endpoint": "/service/server",
-      "returns": "object",
-      "strategy": "sequential",
-      "params": [
-        {
-          "key": "name",
-          "label": "Server Name",
-          "description": "Hostname/display name for the server",
-          "data_type": "string",
-          "class_id": "@prop"
-        },
-        {
-          "key": "datacenter",
-          "label": "Datacenter",
-          "description": "Datacenter code (e.g. EU, IL, US-NY2). Falls back to provider datacenter if not specified.",
-          "data_type": "string",
-          "class_id": "@prop"
-        },
-        {
-          "key": "image",
-          "label": "Image",
-          "description": "OS image ID (e.g. IL:6000C298f5c1ec0c40a7e8c0). Use /service/servers/images to list available images.",
-          "data_type": "string",
-          "class_id": "@prop"
-        },
-        {
-          "key": "cpu",
-          "label": "CPU Type",
-          "description": "CPU type code (e.g. B for burstable, D for dedicated). Use /service/servers/capabilities for options.",
-          "data_type": "string",
-          "class_id": "@prop"
-        },
-        {
-          "key": "ram",
-          "label": "RAM (MB)",
-          "description": "RAM in megabytes (e.g. 1024, 2048, 4096)",
-          "data_type": "integer",
-          "class_id": "@prop"
-        },
-        {
-          "key": "disk",
-          "label": "Disk Size (GB)",
-          "description": "Primary disk size in GB",
-          "data_type": "integer",
-          "class_id": "@prop"
-        },
-        {
-          "key": "password",
-          "label": "Root Password",
-          "description": "Root/admin password for the new server",
-          "data_type": "string",
-          "class_id": "@prop"
-        },
-        {
-          "key": "network",
-          "label": "Network",
-          "description": "Network configuration name (e.g. wan). Provide comma-separated for multiple NICs.",
-          "data_type": "string",
-          "class_id": "@prop"
-        },
-        {
-          "key": "daily_backup",
-          "label": "Daily Backup",
-          "description": "Enable daily automated backup for the server",
-          "data_type": "boolean",
-          "class_id": "@prop"
-        }
-      ],
-      "request_mapping": {
-        "name": "name",
-        "datacenter": "datacenter",
-        "image": "image",
-        "cpu": "cpu",
-        "ram": "ram",
-        "disk": "disk",
-        "password": "password",
-        "network": "network",
-        "dailybackup": "daily_backup"
-      },
-      "response_mapping": {
-        "commandIds": "job_ids",
-        "servers": "servers"
-      },
-      "requires_selection": false,
-      "bulk": false
-    },
-    {
-      "id": "act:cwm-power-on",
-      "class_id": "@action",
-      "name": "Power On Server",
-      "description": "Power on a stopped CloudWM server by server name. Returns a command ID — the server will be in running state once the job completes.",
-      "type": "api",
-      "group_name": "cloudwm",
-      "method": "POST",
-      "endpoint": "/service/server/powerOn",
-      "returns": "object",
-      "strategy": "sequential",
-      "params": [
-        {
-          "key": "name",
-          "label": "Server Name",
-          "description": "Name of the server to power on",
-          "data_type": "string",
-          "class_id": "@prop"
-        }
-      ],
-      "request_mapping": {
-        "name": "name"
-      },
-      "response_mapping": {
-        "commandId": "job_id"
-      },
-      "requires_selection": true,
-      "bulk": false
-    },
-    {
-      "id": "act:cwm-power-off",
-      "class_id": "@action",
-      "name": "Power Off Server",
-      "description": "Power off a running CloudWM server by server name. Hard powers down the VM. Returns a command ID.",
-      "type": "api",
-      "group_name": "cloudwm",
-      "method": "POST",
-      "endpoint": "/service/server/powerOff",
-      "returns": "object",
-      "strategy": "sequential",
-      "params": [
-        {
-          "key": "name",
-          "label": "Server Name",
-          "description": "Name of the server to power off",
-          "data_type": "string",
-          "class_id": "@prop"
-        }
-      ],
-      "request_mapping": {
-        "name": "name"
-      },
-      "response_mapping": {
-        "commandId": "job_id"
-      },
-      "requires_selection": true,
-      "bulk": false
-    },
-    {
-      "id": "provider:cloudwm",
-      "class_id": "@cloudwm",
-      "name": "CloudWM",
-      "description": "CloudWM (Kamatera) API provider instance. Manages cloud servers — list, create, power on/off. Configure auth with CWM_CLIENTID and CWM_SECRET environment variables.",
-      "base_url": "https://cloudwm.com/api",
-      "write_mode": "crud",
-      "auth": {
-        "type": "apikey",
-        "headers": {
-          "AuthClientId": "${CWM_CLIENTID}",
-          "AuthSecret": "${CWM_SECRET}"
-        },
-        "_note": "Set CWM_CLIENTID and CWM_SECRET environment variables with your CloudWM API credentials."
-      },
-      "id_field": "name",
-      "actions": [
-        "act:cwm-list-servers",
-        "act:cwm-create-server",
-        "act:cwm-power-on",
-        "act:cwm-power-off"
-      ],
-      "mapping": {
-        "id": "name",
-        "name": "name"
-      }
-    }
-  ]
+    ]
 }
