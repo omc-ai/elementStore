@@ -1490,8 +1490,11 @@ class ClassModel
             }
         }
 
-        // Check unique name constraint
-        if (isset($result[Constants::F_NAME])) {
+        // Check unique name constraint — only if class has no explicit keys
+        // (if keys are defined, uniqueness is handled by checkUniqueConstraints)
+        $metaArr = $meta ? $meta->toArray() : [];
+        $hasKeys = !empty($metaArr['keys']);
+        if (!$hasKeys && isset($result[Constants::F_NAME])) {
             $id = $result[Constants::F_ID] ?? null;
             if (!$this->isNameUnique($class_id, $result[Constants::F_NAME], $id)) {
                 $errors[] = [
@@ -2191,12 +2194,14 @@ class ClassModel
             }
         }
 
-        // New: keys[] from @class
+        // New: keys from @class (assoc: {"name": {fields, auto_field, ...}} or legacy indexed: [{fields}])
         $keys = $metaArr['keys'] ?? [];
-        foreach ($keys as $k) {
+        foreach ($keys as $keyName => $k) {
             $fields = $k['fields'] ?? [];
             if (!empty($fields)) {
-                $allKeys[] = ['fields' => $fields, 'id' => implode('+', $fields)];
+                // Use assoc key name if string, otherwise generate from fields
+                $id = is_string($keyName) ? $keyName : implode('+', $fields);
+                $allKeys[] = ['fields' => $fields, 'id' => $id, 'auto_field' => $k['auto_field'] ?? null];
             }
         }
 

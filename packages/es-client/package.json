@@ -22,10 +22,14 @@
     "access": "restricted"
   },
   "peerDependencies": {
-    "react": ">=17"
+    "react": ">=17",
+    "lucide-react": ">=0.300"
   },
   "peerDependenciesMeta": {
     "react": {
+      "optional": true
+    },
+    "lucide-react": {
       "optional": true
     }
   },
@@ -36,6 +40,8 @@
   ],
   "license": "UNLICENSED",
   "devDependencies": {
+    "@types/react": "^19.2.0",
+    "lucide-react": "^0.562.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   }

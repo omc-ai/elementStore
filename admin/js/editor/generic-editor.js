@@ -564,10 +564,14 @@ const elementStore = {
 
         let html = `<table class="ge" data-level="0">${this.getColgroup()}<tbody>`;
         if (!sorted.find(p => p.key === 'id')) {
+            // For @class objects (and system classes), ID is user-defined, not auto-generated
+            const isClassDef = classId === '@class';
+            const idPlaceholder = isClassDef ? 'Required — e.g. auth:role, @user' : 'Auto-generated';
+            const idReadonly = data?.id ? 'readonly' : '';
             html += `<tr>
                 <td class="ge-indent"><div class="ge-resizer" onmousedown="geStartResize(event, this)"></div></td>
                 <td class="ge-key">id <span class="t">string</span></td>
-                <td class="ge-val" colspan="2"><input type="text" data-path="id" value="${esc(data?.id || '')}" ${data?.id ? 'readonly' : ''} placeholder="Auto-generated"></td>
+                <td class="ge-val" colspan="2"><input type="text" data-path="id" value="${esc(data?.id || '')}" ${idReadonly} placeholder="${idPlaceholder}"></td>
             </tr>`;
         }
 
