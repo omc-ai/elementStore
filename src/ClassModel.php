@@ -522,6 +522,39 @@ class ClassModel
         }
     }
 
+    /**
+     * Inject payload-bound key filters into a query.
+     *
+     * Reads key definitions from the class. For any field with a payload binding
+     * (e.g. {"app_id": "me.session.app_id"}), adds a filter with the current
+     * session value. This ensures users only see objects in their scope.
+     */
+    private function injectKeyPayloadFilters(string $classId, array &$filters): void
+    {
+        $meta = $this->getClass($classId);
+        if (!$meta) return;
+
+        $metaArr = $meta->toArray();
+        $keys = $metaArr['keys'] ?? [];
+
+        foreach ($keys as $keyDef) {
+            $fields = $keyDef['fields'] ?? [];
+            $resolvedFields = $this->resolveKeyFields($fields);
+
+            foreach ($resolvedFields as $rf) {
+                if ($rf['source'] === 'local') continue;
+
+                $propName = $rf['prop'];
+                $value = $this->resolvePayloadValue($rf['source']);
+
+                // Only inject if we have a session value and user hasn't already filtered
+                if ($value !== null && !isset($filters[$propName])) {
+                    $filters[$propName] = $value;
+                }
+            }
+        }
+    }
+
     // =========================================================================
     // OBJECT OPERATIONS
     // =========================================================================
@@ -677,6 +710,11 @@ class ClassModel
             if ($oldData !== null) {
                 $data = array_merge($oldData, $data);
             }
+        }
+
+        // Step 2b-keys: Apply key bindings (auto-fill payload fields, generate auto_inc)
+        if ($meta !== null) {
+            $data = $this->applyKeyBindings($class_id, $data, $oldData);
         }
 
         // Step 2b: Check unique constraints
@@ -994,10 +1032,15 @@ class ClassModel
         // Add class_id filter
         $filters[Constants::F_CLASS_ID] = $class_id;
 
-        // Add security filters for non-system classes
-        // Admin/system roles bypass ownership filtering (see all objects)
+        // Inject payload-bound key filters from class definition
+        // Admin/system roles bypass these filters
         $isPrivileged = in_array('admin', $this->userRoles, true)
             || in_array('system', $this->userRoles, true);
+        if (!$isPrivileged) {
+            $this->injectKeyPayloadFilters($class_id, $filters);
+        }
+
+        // Add security filters for non-system classes
         if (!$this->isSystemClass($class_id) && $this->enforceOwnership && !$isPrivileged) {
             $this->injectSecurityFilters($filters);
         }
@@ -2184,18 +2227,160 @@ class ClassModel
     }
 
     /**
-     * Guess data type from PHP value
+     * Resolve key field definitions.
+     *
+     * Each field entry can be:
+     * - string "name"                    → local prop, value from object
+     * - object {"app_id": "me.session.app_id"} → local prop, value from session
+     *
+     * Returns normalized array of ['prop' => propName, 'source' => 'local'|sourceExpression]
      */
+    private function resolveKeyFields(array $fields): array
+    {
+        $resolved = [];
+        foreach ($fields as $field) {
+            if (is_string($field)) {
+                $resolved[] = ['prop' => $field, 'source' => 'local'];
+            } elseif (is_array($field)) {
+                // Object: {"prop_name": "me.session.xxx"}
+                foreach ($field as $propName => $sourcePath) {
+                    $resolved[] = ['prop' => $propName, 'source' => $sourcePath];
+                    break; // Only first key-value pair
+                }
+            }
+        }
+        return $resolved;
+    }
+
+    /**
+     * Resolve a source path like "me.session.app_id" to a value from the current session.
+     */
+    private function resolvePayloadValue(string $sourcePath): mixed
+    {
+        // Parse "me.xxx" or "me.session.xxx"
+        $parts = explode('.', $sourcePath);
+        if (empty($parts) || $parts[0] !== 'me') return null;
+
+        // me.user_id, me.app_id, me.tenant_id, me.domain
+        $field = end($parts);
+        return match($field) {
+            'user_id' => $this->userId,
+            'app_id' => $this->appId,
+            'tenant_id' => $this->tenantId,
+            'domain' => $this->domain,
+            default => null,
+        };
+    }
+
+    /**
+     * Apply key bindings to object data — auto-fill payload-bound fields.
+     *
+     * Called during setObject for new objects.
+     * - Fills bound fields from session context
+     * - Generates auto_inc values
+     * - Returns modified data
+     */
+    public function applyKeyBindings(string $classId, array $data, ?array $oldData): array
+    {
+        $meta = $this->getClass($classId);
+        if (!$meta) return $data;
+
+        $metaArr = $meta->toArray();
+        $keys = $metaArr['keys'] ?? [];
+        $isNew = ($oldData === null);
+
+        foreach ($keys as $keyName => $keyDef) {
+            $fields = $keyDef['fields'] ?? [];
+            $autoField = $keyDef['auto_field'] ?? null;
+            $autoType = $keyDef['auto_type'] ?? 'uuid';
+
+            $resolvedFields = $this->resolveKeyFields($fields);
+
+            foreach ($resolvedFields as $rf) {
+                $propName = $rf['prop'];
+                $source = $rf['source'];
+
+                if ($source !== 'local') {
+                    // Payload-bound field
+                    $payloadValue = $this->resolvePayloadValue($source);
+                    if ($payloadValue !== null) {
+                        if ($isNew) {
+                            // Auto-fill on create
+                            $data[$propName] = $payloadValue;
+                        } elseif (isset($data[$propName]) && isset($oldData[$propName])
+                                  && $data[$propName] !== $oldData[$propName]) {
+                            // Reject change on update — keep old value
+                            $data[$propName] = $oldData[$propName];
+                        }
+                    }
+                }
+            }
+
+            // Handle auto-generation for the auto_field
+            if ($autoField && $isNew && !isset($data[$autoField])) {
+                if ($autoType === 'auto_inc') {
+                    $data[$autoField] = $this->generateAutoInc($classId, $keyDef, $resolvedFields, $data);
+                }
+                // 'uuid' is handled by storage layer (CouchDB auto-generates ID)
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Generate next auto-increment value for a key field.
+     */
+    private function generateAutoInc(string $classId, array $keyDef, array $resolvedFields, array $data): string
+    {
+        $autoField = $keyDef['auto_field'];
+        $prefix = $keyDef['prefix'] ?? '';
+        $start = (int)($keyDef['start'] ?? 1);
+        $step = (int)($keyDef['step'] ?? 1);
+
+        // Build scope filter from non-auto fields
+        $scopeFilters = [Constants::F_CLASS_ID => $classId];
+        foreach ($resolvedFields as $rf) {
+            if ($rf['prop'] === $autoField) continue;
+            $val = $data[$rf['prop']] ?? null;
+            if ($val !== null) {
+                $scopeFilters[$rf['prop']] = $val;
+            }
+        }
+
+        // Find max value within scope
+        $existing = $this->storage->query($classId, $scopeFilters, ['limit' => 1000]);
+        $maxNum = $start - $step;
+        foreach ($existing as $obj) {
+            $val = $obj[$autoField] ?? null;
+            if ($val === null) continue;
+            // Strip prefix to get numeric part
+            $numStr = $prefix ? str_replace($prefix, '', (string)$val) : (string)$val;
+            if (is_numeric($numStr)) {
+                $num = (int)$numStr;
+                if ($num > $maxNum) $maxNum = $num;
+            }
+        }
+
+        $nextNum = $maxNum + $step;
+        return $prefix . $nextNum;
+    }
+
     /**
      * Check unique constraints defined on a class.
+     *
+     * Handles:
+     * - Assoc keys: {"keyName": {fields, auto_field, auto_type}}
+     * - Legacy indexed: [{fields}]
+     * - Bound fields: {"app_id": "me.session.app_id"} → resolved from session
      */
     private function checkUniqueConstraints(string $classId, array $data, ClassMeta $meta): void
     {
         $objectId = $data[Constants::F_ID] ?? null;
-
-        // Collect all key definitions: from legacy 'unique' array + new 'keys' array
-        $allKeys = [];
         $metaArr = $meta->toArray();
+
+        // Collect all key definitions
+        $allKeys = [];
 
         // Legacy: unique[] constraints
         $constraints = $metaArr['unique'] ?? [];
@@ -2205,30 +2390,58 @@ class ClassModel
             }
         }
 
-        // New: keys from @class (assoc: {"name": {fields, auto_field, ...}} or legacy indexed: [{fields}])
+        // New: keys from @class (assoc or legacy indexed)
         $keys = $metaArr['keys'] ?? [];
         foreach ($keys as $keyName => $k) {
             $fields = $k['fields'] ?? [];
             if (!empty($fields)) {
-                // Use assoc key name if string, otherwise generate from fields
                 $id = is_string($keyName) ? $keyName : implode('+', $fields);
-                $allKeys[] = ['fields' => $fields, 'id' => $id, 'auto_field' => $k['auto_field'] ?? null];
+                $allKeys[] = [
+                    'fields' => $fields,
+                    'id' => $id,
+                    'auto_field' => $k['auto_field'] ?? null,
+                    'auto_type' => $k['auto_type'] ?? null,
+                ];
             }
         }
 
         if (empty($allKeys)) return;
 
         foreach ($allKeys as $keyDef) {
-            $fields = $keyDef['fields'];
+            $rawFields = $keyDef['fields'];
             $keyId = $keyDef['id'];
+            $autoField = $keyDef['auto_field'] ?? null;
 
-            // Build filter from current data
+            // Resolve field names (handle object bindings)
+            $resolvedFields = $this->resolveKeyFields($rawFields);
+
+            // Skip primary key on 'id' — CouchDB handles uniqueness natively
+            if (count($resolvedFields) === 1 && $resolvedFields[0]['prop'] === 'id') continue;
+
+            // Build filter from resolved field values
             $filters = [];
             $skip = false;
-            foreach ($fields as $field) {
-                $value = $data[$field] ?? null;
+            $fieldNames = [];
+
+            foreach ($resolvedFields as $rf) {
+                $propName = $rf['prop'];
+                $fieldNames[] = $propName;
+
+                // Skip auto_field if not yet generated
+                if ($propName === $autoField && !isset($data[$propName])) {
+                    $skip = true;
+                    break;
+                }
+
+                $value = $data[$propName] ?? null;
+
+                // For bound fields, resolve from session if not in data
+                if ($value === null && $rf['source'] !== 'local') {
+                    $value = $this->resolvePayloadValue($rf['source']);
+                }
+
                 if ($value === null) { $skip = true; break; }
-                $filters[$field] = $value;
+                $filters[$propName] = $value;
             }
             if ($skip) continue;
 
@@ -2236,13 +2449,12 @@ class ClassModel
             $matches = $this->storage->query($classId, $filters, ['limit' => 2]);
             foreach ($matches as $existing) {
                 $existingId = $existing[Constants::F_ID] ?? null;
-                // Skip self (on update)
                 if ($objectId !== null && $existingId == $objectId) continue;
-                $fieldList = implode(', ', $fields);
+                $fieldList = implode(', ', $fieldNames);
                 throw new StorageException(
                     "Unique key '{$keyId}' violated on [{$fieldList}]",
                     'validation_failed',
-                    [['path' => $fields[0], 'message' => "Duplicate value for key '{$keyId}'", 'code' => 'unique']]
+                    [['path' => $fieldNames[0], 'message' => "Duplicate value for key '{$keyId}'", 'code' => 'unique']]
                 );
             }
         }
