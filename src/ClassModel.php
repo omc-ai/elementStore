@@ -1034,6 +1034,21 @@ class ClassModel
 
         $results = $this->storage->query($class_id, $filters, $options);
 
+        // Free text search — filter results by matching any string field
+        $freeText = $options['freeText'] ?? null;
+        if ($freeText !== null && $freeText !== '') {
+            $needle = mb_strtolower($freeText);
+            $results = array_filter($results, function ($data) use ($needle) {
+                foreach ($data as $k => $v) {
+                    if (is_string($v) && str_contains(mb_strtolower($v), $needle)) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+            $results = array_values($results);
+        }
+
         // Filter out @state.deleted objects (unless explicitly querying for them)
         $includeDeleted = $filters['@state.deleted'] ?? null;
         if ($includeDeleted === null) {

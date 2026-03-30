@@ -1622,7 +1622,10 @@
                         <h2 class="panel-title">Objects</h2>
                         <span class="endpoint"></span>
                     </div>
-                    <div><button class="btn btn-primary btn-sm" data-action="create">+ New</button></div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <input type="text" class="search-input" data-action="search" placeholder="Search..." style="padding:4px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:13px;width:220px">
+                        <button class="btn btn-primary btn-sm" data-action="create">+ New</button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="grid-wrap"><div class="ag-grid-el ag-theme-alpine"></div></div>

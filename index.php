@@ -751,6 +751,7 @@ $app->get('/query/{class}', function ($c) use ($app) {
             '_order'  => $options['sortDir'] = $v,
             '_limit'  => $options['limit']   = min(max((int)$v, 1), $hardMax), // clamp [1, hardMax]
             '_offset' => $options['offset']  = max((int)$v, 0),
+            '_q'      => $options['freeText'] = $v,
             default   => !str_starts_with($k, '_') ? $filters[$k] = $v : null
         };
     }
@@ -758,7 +759,16 @@ $app->get('/query/{class}', function ($c) use ($app) {
     if (!isset($options['limit'])) {
         $options['limit'] = 100;
     }
+    // When free text search is active, fetch more from storage then filter+trim
+    $requestedLimit = $options['limit'];
+    if (!empty($options['freeText'])) {
+        $options['limit'] = $hardMax; // fetch all, filter in memory
+    }
     $results = $model->query($c, $filters, $options);
+    // Re-apply requested limit after free text filter
+    if (!empty($options['freeText']) && count($results) > $requestedLimit) {
+        $results = array_slice($results, 0, $requestedLimit);
+    }
     $count   = count($results);
     return json(array_map(fn($o) => $o->toApiArray(), $results))
         ->setHeader('X-Pagination-Limit',    (string)$options['limit'])

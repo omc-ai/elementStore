@@ -30,6 +30,28 @@ class ObjectListPanel {
             });
         }
 
+        // Wire up search input — free text filter across all columns
+        const searchInput = this.containerEl.querySelector('[data-action="search"]');
+        if (searchInput) {
+            let debounceTimer = null;
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    const text = e.target.value.trim();
+                    if (this.gridApi) {
+                        // Client-side quick filter (instant, searches all visible columns)
+                        this.gridApi.setGridOption('quickFilterText', text);
+                    }
+                    // Server-side search for longer queries (fetches from API)
+                    if (text.length >= 3) {
+                        this._serverSearch(text);
+                    } else if (text.length === 0) {
+                        this._serverSearch('');
+                    }
+                }, 300);
+            });
+        }
+
         // Store reference for global action functions keyed by classId
         if (!window._objectListPanels) window._objectListPanels = {};
         window._objectListPanels[classId] = this;
@@ -74,6 +96,28 @@ class ObjectListPanel {
         if (el) el.textContent = count;
         const toolbar = this.containerEl.querySelector('.batch-toolbar');
         if (toolbar) toolbar.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    async _serverSearch(text) {
+        try {
+            let url = `/query/${this.classId}?_limit=500`;
+            if (text) {
+                url += `&_q=${encodeURIComponent(text)}`;
+            }
+            const objects = await api('GET', url);
+            this.gridData = objects;
+            if (this.gridApi) {
+                this.gridApi.setGridOption('rowData', objects);
+            }
+            // Update count in title
+            const titleEl = this.containerEl.querySelector('.panel-title');
+            if (titleEl) {
+                const base = titleEl.textContent.replace(/\s*\(\d+\)/, '');
+                titleEl.textContent = `${base} (${objects.length})`;
+            }
+        } catch (err) {
+            console.error('Search failed:', err);
+        }
     }
 
     async load() {
