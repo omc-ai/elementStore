@@ -13,6 +13,16 @@ Instructions for Claude Code when working in this repository.
 
 Only write code when the elementStore schema cannot express what you need (e.g., storage provider internals, protocol handling, rendering logic). The goal: **the store describes WHAT exists; code implements HOW it runs.**
 
+## Rule: NEVER Write to CouchDB Directly
+
+**All data mutations MUST go through the ElementStore API.** Direct CouchDB access (curl to port 5984, bulk_docs, _all_docs with writes) is STRICTLY FORBIDDEN for any write, update, or delete operation.
+
+- **Allowed**: Read CouchDB directly for debugging (inspecting docs, checking _rev, verifying data)
+- **Forbidden**: Writing, updating, or deleting docs via CouchDB API
+- **Reason**: Direct writes bypass validation, scope enforcement, @state protection, key uniqueness, setters, @changes tracking, WebSocket broadcast, and genesis sync. Data written directly will be inconsistent.
+
+If the ES API cannot perform an operation, that's a bug in the API — fix the API, don't bypass it.
+
 ## Rule: Object Operations Through the Store
 
 **For creating, updating, reading, and querying objects and classes — ALWAYS use the live ElementStore server via `es-cli.sh` or the REST API.** This validates the full server pipeline on every operation. A failure is a signal that the pipeline is broken — fix the root cause, don't bypass it.
