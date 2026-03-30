@@ -36,6 +36,13 @@ async function api(method, endpoint, data = null) {
     var appId = typeof getSelectedAppId === 'function' ? getSelectedAppId() : null;
     if (appId) opts.headers['X-App-Id'] = appId;
 
+    // Scope overrides — override token session values
+    const scope = window._adminScope || {};
+    if (scope.tenant_id) opts.headers['X-Scope-Tenant'] = scope.tenant_id;
+    if (scope.app_id) opts.headers['X-Scope-App'] = scope.app_id;
+    if (scope.user_id) opts.headers['X-Scope-User'] = scope.user_id;
+    if (scope.org_id) opts.headers['X-Scope-Org'] = scope.org_id;
+
     if (data) opts.body = JSON.stringify(data);
     const res = await fetch(API_BASE + endpoint, opts);
 

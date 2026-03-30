@@ -1510,6 +1510,9 @@
                 <input type="text" id="globalSearchInput" placeholder="Search by ID...">
                 <div id="searchResults"></div>
             </div>
+            <button class="btn btn-secondary" onclick="openScopeDialog()" id="scopeBtn" title="Current scope context">
+                🔒 <span id="scopeLabel">No Scope</span>
+            </button>
             <select id="appSelector" class="header-select" onchange="handleAppChange(this.value)" style="display:none;"></select>
             <button class="btn btn-secondary" onclick="exportData()">Export</button>
             <button class="btn btn-secondary" onclick="showExportHistory()">History</button>
@@ -1529,6 +1532,25 @@
             </button>
             <span id="userDisplay" style="display:none;"></span>
             <button id="logoutBtn" class="btn btn-secondary" onclick="logout()" style="display:none;">Logout</button>
+        </div>
+    </div>
+
+    <!-- Scope Dialog -->
+    <div id="scopeDialog" class="modal" style="display:none;">
+        <div class="modal-backdrop" onclick="closeScopeDialog()"></div>
+        <div class="modal-content" style="max-width:500px;">
+            <div class="modal-header" onmousedown="startDrag(event, 'scopeDialog')">
+                <h3>Session Scope</h3>
+                <button class="btn btn-ghost btn-xs" onclick="closeScopeDialog()">✕</button>
+            </div>
+            <div class="modal-body" id="scopeDialogBody" style="padding:16px;">
+                <p style="font-size:12px;color:#6b7280;margin-bottom:12px">Select the scope context for this session. Objects are filtered by these values.</p>
+                <div id="scopeFields"></div>
+            </div>
+            <div class="modal-footer" style="padding:12px 16px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #e5e7eb">
+                <button class="btn btn-ghost btn-sm" onclick="clearScope()">Clear All</button>
+                <button class="btn btn-primary btn-sm" onclick="applyScope()">Apply</button>
+            </div>
         </div>
     </div>
 

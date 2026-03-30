@@ -128,7 +128,7 @@ $app->before(function () use ($app, $isDev) {
         }
     }
     $app->response->setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    $allowHeaders = 'Content-Type, Authorization, X-Tenant-Id, X-Response-Format, X-Fields';
+    $allowHeaders = 'Content-Type, Authorization, X-Tenant-Id, X-Response-Format, X-Fields, X-Scope-Tenant, X-Scope-App, X-Scope-User, X-Scope-Org';
     if ($isDev) {
         $allowHeaders .= ', X-User-Id, X-Disable-Ownership, X-Allow-Custom-Ids';
     }
@@ -215,6 +215,27 @@ $app->before(function () use ($model) {
             $model->setUserRoles($roles);
         }
     }
+    return true;
+});
+
+// Scope override middleware — admin can override session scope via X-Scope-* headers
+// Only allowed for admin/system roles (prevents regular users from escalating)
+$app->before(function () use ($model) {
+    $isAdmin = in_array('admin', $model->getUserRoles(), true)
+            || in_array('system', $model->getUserRoles(), true);
+    if (!$isAdmin) return true;
+
+    $scopeTenant = $_SERVER['HTTP_X_SCOPE_TENANT'] ?? null;
+    $scopeApp    = $_SERVER['HTTP_X_SCOPE_APP']    ?? null;
+    $scopeUser   = $_SERVER['HTTP_X_SCOPE_USER']   ?? null;
+    $scopeOrg    = $_SERVER['HTTP_X_SCOPE_ORG']    ?? null;
+
+    if ($scopeTenant) $model->setTenantId($scopeTenant);
+    if ($scopeApp)    $model->setSecurityContext($model->getUserId(), $scopeApp, $model->getDomain());
+    if ($scopeUser)   $model->setUserId($scopeUser);
+    // org_id: stored on model if available
+    // TODO: add org support to ClassModel when @org class exists
+
     return true;
 });
 

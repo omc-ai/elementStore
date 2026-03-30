@@ -4,6 +4,95 @@
 
 let tabManager;
 
+// =====================
+// Scope Management
+// =====================
+window._adminScope = JSON.parse(localStorage.getItem('es_admin_scope') || '{}');
+
+function updateScopeLabel() {
+    const scope = window._adminScope;
+    const parts = [];
+    if (scope.tenant_id) parts.push('T:' + scope.tenant_id.substring(0, 8));
+    if (scope.app_id) parts.push('A:' + scope.app_id.substring(0, 8));
+    if (scope.user_id) parts.push('U:' + scope.user_id.substring(0, 8));
+    if (scope.org_id) parts.push('O:' + scope.org_id.substring(0, 8));
+    const label = document.getElementById('scopeLabel');
+    if (label) label.textContent = parts.length > 0 ? parts.join(' | ') : 'No Scope';
+    const btn = document.getElementById('scopeBtn');
+    if (btn) btn.style.background = parts.length > 0 ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.2)';
+}
+
+async function openScopeDialog() {
+    const dialog = document.getElementById('scopeDialog');
+    dialog.style.display = 'flex';
+    const body = document.getElementById('scopeFields');
+    const scope = window._adminScope;
+
+    // Load available options for each scope type
+    const scopeTypes = [
+        { key: 'tenant_id', label: 'Tenant', class: '@tenant' },
+        { key: 'app_id', label: 'Application', class: '@app' },
+        { key: 'user_id', label: 'User', class: '@user' },
+    ];
+
+    let html = '';
+    for (const st of scopeTypes) {
+        let options = '<option value="">— All (no filter) —</option>';
+        try {
+            const items = await api('GET', `/query/${st.class}?_limit=100`);
+            for (const item of items) {
+                const selected = scope[st.key] === item.id ? 'selected' : '';
+                const label = item.name || item.id;
+                options += `<option value="${esc(item.id)}" ${selected}>${esc(label)} (${esc(item.id.substring(0, 12))})</option>`;
+            }
+        } catch (_) {
+            options += '<option value="" disabled>(no objects found)</option>';
+        }
+        html += `
+            <div style="margin-bottom:12px">
+                <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:#374151">${st.label}</label>
+                <select data-scope="${st.key}" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:13px">
+                    ${options}
+                </select>
+            </div>`;
+    }
+
+    // Manual ID input for org_id (no class yet)
+    html += `
+        <div style="margin-bottom:12px">
+            <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:#374151">Organization</label>
+            <input type="text" data-scope="org_id" value="${esc(scope.org_id || '')}" placeholder="org ID (manual)" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:13px">
+        </div>`;
+
+    body.innerHTML = html;
+}
+
+function closeScopeDialog() {
+    document.getElementById('scopeDialog').style.display = 'none';
+}
+
+function applyScope() {
+    const scope = {};
+    document.querySelectorAll('#scopeFields [data-scope]').forEach(el => {
+        const val = el.value.trim();
+        if (val) scope[el.dataset.scope] = val;
+    });
+    window._adminScope = scope;
+    localStorage.setItem('es_admin_scope', JSON.stringify(scope));
+    updateScopeLabel();
+    closeScopeDialog();
+    refreshData(); // Reload current tab with new scope
+}
+
+function clearScope() {
+    document.querySelectorAll('#scopeFields [data-scope]').forEach(el => el.value = '');
+    window._adminScope = {};
+    localStorage.setItem('es_admin_scope', '{}');
+    updateScopeLabel();
+    closeScopeDialog();
+    refreshData();
+}
+
 // Global ES admin context — accessible from console: es.store, es.ws, es.editors, etc.
 window.es = {
     get store() { return typeof store !== 'undefined' ? store : null; },
@@ -82,6 +171,7 @@ async function initDashboard() {
 
     // Initialize global search
     initGlobalSearch();
+    updateScopeLabel();
 
     // Close genesis dropdown on outside click
     document.addEventListener('click', function(e) {
