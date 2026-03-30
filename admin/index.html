@@ -1524,6 +1524,7 @@
                     <button class="dropdown-item" onclick="verifyGenesis();this.closest('.dropdown').classList.remove('open')">Verify Genesis</button>
                 </div>
             </div>
+            <button class="btn btn-secondary" onclick="openRawJson()">{ } JSON</button>
             <button class="btn btn-danger" onclick="resetDatabase()">Reset DB</button>
             <button class="btn btn-secondary" onclick="refreshData()">Refresh</button>
             <button class="btn btn-secondary" id="wsActivityBtn" onclick="toggleWsActivity()" title="WebSocket Activity" style="position:relative;">
@@ -1532,6 +1533,31 @@
             </button>
             <span id="userDisplay" style="display:none;"></span>
             <button id="logoutBtn" class="btn btn-secondary" onclick="logout()" style="display:none;">Logout</button>
+        </div>
+    </div>
+
+    <!-- Raw JSON Modal (uses same modal system as editModal) -->
+    <div class="modal-overlay" id="rawJsonModal">
+        <div class="modal" id="rawJsonModalContent">
+            <div class="modal-header" onmousedown="startDrag(event, 'rawJsonModalContent')">
+                <h3>Raw JSON → setObject</h3>
+                <button class="modal-close" onclick="closeRawJson()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <table class="ge"><colgroup><col style="width:100px"><col></colgroup><tbody>
+                    <tr>
+                        <td class="ge-key">class_id</td>
+                        <td class="ge-val"><input type="text" id="rawJsonClass" value="@class"></td>
+                    </tr>
+                </tbody></table>
+                <textarea id="rawJsonBody" style="width:100%;height:300px;font-family:monospace;font-size:12px;margin-top:8px;padding:8px;border:1px solid #d1d5db;border-radius:4px;resize:vertical" placeholder='{"id":"...","name":"..."}'></textarea>
+                <div id="rawJsonResult" style="display:none;padding:8px;border-radius:4px;font-size:12px;font-family:monospace;max-height:200px;overflow:auto;margin-top:8px;white-space:pre-wrap"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeRawJson()">Close</button>
+                <button class="btn btn-success" onclick="sendRawJson()">Send</button>
+            </div>
+            <div class="modal-resize-handle" onmousedown="startModalResize(event, 'rawJsonModalContent')"></div>
         </div>
     </div>
 

@@ -240,7 +240,8 @@ class Prop extends EntityObj
      */
     public static function create(array $data, ?\Phalcon\Di\DiInterface $di = null): static
     {
-        return new static(Constants::K_PROP, $data, $di);
+        $classId = $data[Constants::F_CLASS_ID] ?? Constants::K_PROP;
+        return new static($classId, $data, $di);
     }
 
     /**

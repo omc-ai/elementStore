@@ -1,932 +1,1001 @@
 {
-  "version": "1.0.0",
-  "namespace": "infra",
-  "description": "Infrastructure classes \u2014 VMs, networks, databases, Kubernetes resources. Shared by infrastructure management applications.",
-  "classes": [
-    {
-      "id": "infra:vm",
-      "class_id": "@class",
-      "name": "Virtual Machine",
-      "namespace_id": "infra",
-      "extends_id": "core:baseContainer",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "server",
-      "color": "#3b82f6",
-      "description": "Virtual machine instance",
-      "props": [
+    "version": "1.0.0",
+    "namespace": "infra",
+    "description": "Infrastructure classes — VMs, networks, databases, Kubernetes resources. Shared by infrastructure management applications.",
+    "classes": [
         {
-          "key": "cpu",
-          "data_type": "integer",
-          "default_value": 2,
-          "description": "Number of vCPUs"
-        },
-        {
-          "key": "memory",
-          "data_type": "integer",
-          "default_value": 4,
-          "description": "Memory in GB"
-        },
-        {
-          "key": "disk",
-          "data_type": "integer",
-          "default_value": 40,
-          "description": "Disk size in GB"
-        },
-        {
-          "key": "os",
-          "data_type": "string",
-          "default_value": "ubuntu-22.04",
-          "description": "Operating system",
-          "options": {
-            "values": [
-              "ubuntu-22.04",
-              "debian-12",
-              "centos-9",
-              "windows-2022"
-            ]
-          }
-        },
-        {
-          "key": "provider",
-          "data_type": "string",
-          "description": "Cloud provider ID"
-        }
-      ],
-      "defaults": {
-        "isServerLinkable": true,
-        "cpu": 2,
-        "memory": 4,
-        "disk": 40,
-        "os": "ubuntu-22.04",
-        "size": {
-          "width": 300,
-          "height": 250,
-          "depth": 80
-        },
-        "canvasElement": {
-          "icon": "server",
-          "color": "#3b82f6",
-          "shape": "rounded-rect",
-          "labelPosition": "bottom"
-        }
-      }
-    },
-    {
-      "id": "infra:service",
-      "class_id": "@class",
-      "name": "Service",
-      "namespace_id": "infra",
-      "extends_id": "core:baseElement",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "box",
-      "color": "#10b981",
-      "description": "Service running on infrastructure",
-      "props": [
-        {
-          "key": "port",
-          "data_type": "integer",
-          "default_value": 80,
-          "description": "Service port"
-        },
-        {
-          "key": "protocol",
-          "data_type": "string",
-          "default_value": "http",
-          "description": "Protocol",
-          "options": {
-            "values": [
-              "tcp",
-              "udp",
-              "http",
-              "https",
-              "grpc"
-            ]
-          }
-        },
-        {
-          "key": "healthCheck",
-          "data_type": "string",
-          "description": "Health check endpoint"
-        }
-      ],
-      "defaults": {
-        "port": 80,
-        "protocol": "http",
-        "canvasElement": {
-          "icon": "box",
-          "color": "#10b981",
-          "shape": "circle",
-          "labelPosition": "bottom"
-        }
-      }
-    },
-    {
-      "id": "infra:network",
-      "class_id": "@class",
-      "name": "Network",
-      "namespace_id": "infra",
-      "extends_id": "core:baseContainer",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "network",
-      "color": "#8b5cf6",
-      "description": "Virtual network",
-      "props": [
-        {
-          "key": "cidr",
-          "data_type": "string",
-          "default_value": "10.0.0.0/16",
-          "description": "CIDR block"
-        },
-        {
-          "key": "isPublic",
-          "data_type": "boolean",
-          "default_value": false,
-          "description": "Has public IP access"
-        }
-      ],
-      "defaults": {
-        "cidr": "10.0.0.0/16",
-        "isPublic": false,
-        "size": {
-          "width": 400,
-          "height": 300,
-          "depth": 80
-        },
-        "canvasElement": {
-          "icon": "network",
-          "color": "#8b5cf6",
-          "shape": "rect",
-          "labelPosition": "top"
-        }
-      }
-    },
-    {
-      "id": "infra:database",
-      "class_id": "@class",
-      "name": "Database",
-      "namespace_id": "infra",
-      "extends_id": "core:baseElement",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "database",
-      "color": "#f59e0b",
-      "description": "Database instance",
-      "props": [
-        {
-          "key": "engine",
-          "data_type": "string",
-          "default_value": "postgresql",
-          "description": "Database engine",
-          "options": {
-            "values": [
-              "postgresql",
-              "mysql",
-              "mongodb",
-              "redis",
-              "elasticsearch"
-            ]
-          }
-        },
-        {
-          "key": "version",
-          "data_type": "string",
-          "default_value": "15",
-          "description": "Engine version"
-        },
-        {
-          "key": "storage",
-          "data_type": "integer",
-          "default_value": 20,
-          "description": "Storage size in GB"
-        }
-      ],
-      "defaults": {
-        "engine": "postgresql",
-        "version": "15",
-        "storage": 20,
-        "canvasElement": {
-          "icon": "database",
-          "color": "#f59e0b",
-          "shape": "rounded-rect",
-          "labelPosition": "bottom"
-        }
-      }
-    },
-    {
-      "id": "infra:loadbalancer",
-      "class_id": "@class",
-      "name": "Load Balancer",
-      "namespace_id": "infra",
-      "extends_id": "core:baseElement",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "split",
-      "color": "#ec4899",
-      "description": "Load balancer for traffic distribution",
-      "props": [
-        {
-          "key": "algorithm",
-          "data_type": "string",
-          "default_value": "round-robin",
-          "description": "Load balancing algorithm",
-          "options": {
-            "values": [
-              "round-robin",
-              "least-connections",
-              "ip-hash"
-            ]
-          }
-        },
-        {
-          "key": "healthCheckPath",
-          "data_type": "string",
-          "default_value": "/health",
-          "description": "Health check path"
-        }
-      ],
-      "defaults": {
-        "algorithm": "round-robin",
-        "healthCheckPath": "/health",
-        "canvasElement": {
-          "icon": "split",
-          "color": "#ec4899",
-          "shape": "diamond",
-          "labelPosition": "bottom"
-        }
-      }
-    },
-    {
-      "id": "infra:k8sCluster",
-      "class_id": "@class",
-      "name": "Kubernetes Cluster",
-      "namespace_id": "infra",
-      "extends_id": "core:baseContainer",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "boxes",
-      "color": "#326CE5",
-      "description": "Kubernetes cluster with master and worker nodes",
-      "props": [
-        {
-          "key": "clusterTag",
-          "data_type": "string",
-          "description": "Cluster tag for provider identification (e.g. cluster-prod)"
-        },
-        {
-          "key": "version",
-          "data_type": "string",
-          "default_value": "1.30",
-          "description": "Kubernetes version"
-        },
-        {
-          "key": "provider",
-          "data_type": "string",
-          "default_value": "Self-managed",
-          "description": "Kubernetes provider",
-          "options": {
-            "values": [
-              "EKS",
-              "GKE",
-              "AKS",
-              "Self-managed",
-              "K3s",
-              "Minikube",
-              "Kamatera"
-            ]
-          }
-        },
-        {
-          "key": "region",
-          "data_type": "string",
-          "description": "Deployment region or datacenter"
-        },
-        {
-          "key": "cni",
-          "data_type": "string",
-          "default_value": "Calico",
-          "description": "Container Network Interface plugin",
-          "options": {
-            "values": [
-              "Calico",
-              "Flannel",
-              "Cilium",
-              "WeaveNet"
-            ]
-          }
-        },
-        {
-          "key": "podCidr",
-          "data_type": "string",
-          "default_value": "10.244.0.0/16",
-          "description": "Pod network CIDR"
-        },
-        {
-          "key": "serviceCidr",
-          "data_type": "string",
-          "default_value": "10.96.0.0/12",
-          "description": "Service network CIDR"
-        },
-        {
-          "key": "linkedClusterId",
-          "data_type": "string",
-          "description": "Linked remote cluster ID (from provider API)"
-        },
-        {
-          "key": "linkedProvider",
-          "data_type": "string",
-          "description": "Provider config ID this cluster is linked to"
-        },
-        {
-          "key": "highAvailability",
-          "data_type": "boolean",
-          "default_value": false,
-          "description": "Multi-master HA setup"
-        }
-      ],
-      "defaults": {
-        "isK8sLinkable": true,
-        "version": "1.30",
-        "provider": "Self-managed",
-        "cni": "Calico",
-        "podCidr": "10.244.0.0/16",
-        "serviceCidr": "10.96.0.0/12",
-        "highAvailability": false,
-        "size": {
-          "width": 500,
-          "height": 400,
-          "depth": 100
-        },
-        "canvasElement": {
-          "icon": "boxes",
-          "color": "#326CE5",
-          "shape": "rounded-rect",
-          "labelPosition": "top"
-        }
-      },
-      "default_children": [
-        {
-          "class_id": "infra:k8sNode",
-          "name": "Master Node",
-          "role": "master",
-          "cpu": 2,
-          "memory": 4,
-          "disk": 50,
-          "os": "ubuntu-22.04"
-        },
-        {
-          "class_id": "infra:k8sNodepool",
-          "name": "Default Pool",
-          "poolName": "default",
-          "nodeCount": 2,
-          "default_children": [
-            {
-              "class_id": "infra:k8sNode",
-              "name": "Worker 1",
-              "role": "worker",
-              "cpu": 2,
-              "memory": 4,
-              "disk": 50,
-              "os": "ubuntu-22.04"
-            },
-            {
-              "class_id": "infra:k8sNode",
-              "name": "Worker 2",
-              "role": "worker",
-              "cpu": 2,
-              "memory": 4,
-              "disk": 50,
-              "os": "ubuntu-22.04"
+            "id": "infra:vm",
+            "class_id": "@class",
+            "name": "Virtual Machine",
+            "namespace_id": "infra",
+            "extends_id": "core:baseContainer",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "server",
+            "color": "#3b82f6",
+            "description": "Virtual machine instance",
+            "props": [
+                {
+                    "key": "cpu",
+                    "data_type": "integer",
+                    "default_value": 2,
+                    "description": "Number of vCPUs",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "memory",
+                    "data_type": "integer",
+                    "default_value": 4,
+                    "description": "Memory in GB",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "disk",
+                    "data_type": "integer",
+                    "default_value": 40,
+                    "description": "Disk size in GB",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "os",
+                    "data_type": "string",
+                    "default_value": "ubuntu-22.04",
+                    "description": "Operating system",
+                    "options": {
+                        "values": [
+                            "ubuntu-22.04",
+                            "debian-12",
+                            "centos-9",
+                            "windows-2022"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "provider",
+                    "data_type": "string",
+                    "description": "Cloud provider ID",
+                    "class_id": "@prop_string"
+                }
+            ],
+            "defaults": {
+                "isServerLinkable": true,
+                "cpu": 2,
+                "memory": 4,
+                "disk": 40,
+                "os": "ubuntu-22.04",
+                "size": {
+                    "width": 300,
+                    "height": 250,
+                    "depth": 80
+                },
+                "canvasElement": {
+                    "icon": "server",
+                    "color": "#3b82f6",
+                    "shape": "rounded-rect",
+                    "labelPosition": "bottom"
+                }
             }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "infra:k8sNodepool",
-      "class_id": "@class",
-      "name": "Node Pool",
-      "namespace_id": "infra",
-      "extends_id": "core:baseContainer",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "layers",
-      "color": "#4F46E5",
-      "description": "Group of worker nodes with shared configuration",
-      "props": [
-        {
-          "key": "poolName",
-          "data_type": "string",
-          "description": "Pool name for tagging and identification"
         },
         {
-          "key": "nodeCount",
-          "data_type": "integer",
-          "default_value": 2,
-          "description": "Desired node count"
+            "id": "infra:service",
+            "class_id": "@class",
+            "name": "Service",
+            "namespace_id": "infra",
+            "extends_id": "core:baseElement",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "box",
+            "color": "#10b981",
+            "description": "Service running on infrastructure",
+            "props": [
+                {
+                    "key": "port",
+                    "data_type": "integer",
+                    "default_value": 80,
+                    "description": "Service port",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "protocol",
+                    "data_type": "string",
+                    "default_value": "http",
+                    "description": "Protocol",
+                    "options": {
+                        "values": [
+                            "tcp",
+                            "udp",
+                            "http",
+                            "https",
+                            "grpc"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "healthCheck",
+                    "data_type": "string",
+                    "description": "Health check endpoint",
+                    "class_id": "@prop_string"
+                }
+            ],
+            "defaults": {
+                "port": 80,
+                "protocol": "http",
+                "canvasElement": {
+                    "icon": "box",
+                    "color": "#10b981",
+                    "shape": "circle",
+                    "labelPosition": "bottom"
+                }
+            }
         },
         {
-          "key": "minNodes",
-          "data_type": "integer",
-          "default_value": 1,
-          "description": "Minimum nodes for autoscaling"
+            "id": "infra:network",
+            "class_id": "@class",
+            "name": "Network",
+            "namespace_id": "infra",
+            "extends_id": "core:baseContainer",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "network",
+            "color": "#8b5cf6",
+            "description": "Virtual network",
+            "props": [
+                {
+                    "key": "cidr",
+                    "data_type": "string",
+                    "default_value": "10.0.0.0/16",
+                    "description": "CIDR block",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "isPublic",
+                    "data_type": "boolean",
+                    "default_value": false,
+                    "description": "Has public IP access",
+                    "class_id": "@prop_boolean"
+                }
+            ],
+            "defaults": {
+                "cidr": "10.0.0.0/16",
+                "isPublic": false,
+                "size": {
+                    "width": 400,
+                    "height": 300,
+                    "depth": 80
+                },
+                "canvasElement": {
+                    "icon": "network",
+                    "color": "#8b5cf6",
+                    "shape": "rect",
+                    "labelPosition": "top"
+                }
+            }
         },
         {
-          "key": "maxNodes",
-          "data_type": "integer",
-          "default_value": 10,
-          "description": "Maximum nodes for autoscaling"
+            "id": "infra:database",
+            "class_id": "@class",
+            "name": "Database",
+            "namespace_id": "infra",
+            "extends_id": "core:baseElement",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "database",
+            "color": "#f59e0b",
+            "description": "Database instance",
+            "props": [
+                {
+                    "key": "engine",
+                    "data_type": "string",
+                    "default_value": "postgresql",
+                    "description": "Database engine",
+                    "options": {
+                        "values": [
+                            "postgresql",
+                            "mysql",
+                            "mongodb",
+                            "redis",
+                            "elasticsearch"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "version",
+                    "data_type": "string",
+                    "default_value": "15",
+                    "description": "Engine version",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "storage",
+                    "data_type": "integer",
+                    "default_value": 20,
+                    "description": "Storage size in GB",
+                    "class_id": "@prop_number"
+                }
+            ],
+            "defaults": {
+                "engine": "postgresql",
+                "version": "15",
+                "storage": 20,
+                "canvasElement": {
+                    "icon": "database",
+                    "color": "#f59e0b",
+                    "shape": "rounded-rect",
+                    "labelPosition": "bottom"
+                }
+            }
         },
         {
-          "key": "autoScaling",
-          "data_type": "boolean",
-          "default_value": true,
-          "description": "Enable cluster autoscaler"
+            "id": "infra:loadbalancer",
+            "class_id": "@class",
+            "name": "Load Balancer",
+            "namespace_id": "infra",
+            "extends_id": "core:baseElement",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "split",
+            "color": "#ec4899",
+            "description": "Load balancer for traffic distribution",
+            "props": [
+                {
+                    "key": "algorithm",
+                    "data_type": "string",
+                    "default_value": "round-robin",
+                    "description": "Load balancing algorithm",
+                    "options": {
+                        "values": [
+                            "round-robin",
+                            "least-connections",
+                            "ip-hash"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "healthCheckPath",
+                    "data_type": "string",
+                    "default_value": "/health",
+                    "description": "Health check path",
+                    "class_id": "@prop_string"
+                }
+            ],
+            "defaults": {
+                "algorithm": "round-robin",
+                "healthCheckPath": "/health",
+                "canvasElement": {
+                    "icon": "split",
+                    "color": "#ec4899",
+                    "shape": "diamond",
+                    "labelPosition": "bottom"
+                }
+            }
         },
         {
-          "key": "instanceType",
-          "data_type": "string",
-          "description": "Instance type or CPU spec (e.g. 2B, t3.medium)"
-        },
-        {
-          "key": "labels",
-          "data_type": "object",
-          "default_value": {},
-          "description": "Kubernetes node labels applied to pool nodes"
-        },
-        {
-          "key": "taints",
-          "data_type": "object",
-          "is_array": true,
-          "description": "Kubernetes node taints"
-        }
-      ],
-      "defaults": {
-        "nodeCount": 2,
-        "minNodes": 1,
-        "maxNodes": 10,
-        "autoScaling": true,
-        "canvasElement": {
-          "icon": "layers",
-          "color": "#4F46E5",
-          "shape": "rounded-rect",
-          "labelPosition": "top"
-        }
-      }
-    },
-    {
-      "id": "infra:k8sNode",
-      "class_id": "@class",
-      "name": "K8s Node",
-      "namespace_id": "infra",
-      "extends_id": "infra:vm",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "hard-drive",
-      "color": "#326CE5",
-      "description": "Kubernetes node - a VM serving as master or worker in a cluster",
-      "props": [
-        {
-          "key": "role",
-          "data_type": "string",
-          "default_value": "worker",
-          "description": "Node role in the cluster",
-          "options": {
-            "values": [
-              "master",
-              "worker"
+            "id": "infra:k8sCluster",
+            "class_id": "@class",
+            "name": "Kubernetes Cluster",
+            "namespace_id": "infra",
+            "extends_id": "core:baseContainer",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "boxes",
+            "color": "#326CE5",
+            "description": "Kubernetes cluster with master and worker nodes",
+            "props": [
+                {
+                    "key": "clusterTag",
+                    "data_type": "string",
+                    "description": "Cluster tag for provider identification (e.g. cluster-prod)",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "version",
+                    "data_type": "string",
+                    "default_value": "1.30",
+                    "description": "Kubernetes version",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "provider",
+                    "data_type": "string",
+                    "default_value": "Self-managed",
+                    "description": "Kubernetes provider",
+                    "options": {
+                        "values": [
+                            "EKS",
+                            "GKE",
+                            "AKS",
+                            "Self-managed",
+                            "K3s",
+                            "Minikube",
+                            "Kamatera"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "region",
+                    "data_type": "string",
+                    "description": "Deployment region or datacenter",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "cni",
+                    "data_type": "string",
+                    "default_value": "Calico",
+                    "description": "Container Network Interface plugin",
+                    "options": {
+                        "values": [
+                            "Calico",
+                            "Flannel",
+                            "Cilium",
+                            "WeaveNet"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "podCidr",
+                    "data_type": "string",
+                    "default_value": "10.244.0.0/16",
+                    "description": "Pod network CIDR",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "serviceCidr",
+                    "data_type": "string",
+                    "default_value": "10.96.0.0/12",
+                    "description": "Service network CIDR",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "linkedClusterId",
+                    "data_type": "string",
+                    "description": "Linked remote cluster ID (from provider API)",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "linkedProvider",
+                    "data_type": "string",
+                    "description": "Provider config ID this cluster is linked to",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "highAvailability",
+                    "data_type": "boolean",
+                    "default_value": false,
+                    "description": "Multi-master HA setup",
+                    "class_id": "@prop_boolean"
+                }
+            ],
+            "defaults": {
+                "isK8sLinkable": true,
+                "version": "1.30",
+                "provider": "Self-managed",
+                "cni": "Calico",
+                "podCidr": "10.244.0.0/16",
+                "serviceCidr": "10.96.0.0/12",
+                "highAvailability": false,
+                "size": {
+                    "width": 500,
+                    "height": 400,
+                    "depth": 100
+                },
+                "canvasElement": {
+                    "icon": "boxes",
+                    "color": "#326CE5",
+                    "shape": "rounded-rect",
+                    "labelPosition": "top"
+                }
+            },
+            "default_children": [
+                {
+                    "class_id": "infra:k8sNode",
+                    "name": "Master Node",
+                    "role": "master",
+                    "cpu": 2,
+                    "memory": 4,
+                    "disk": 50,
+                    "os": "ubuntu-22.04"
+                },
+                {
+                    "class_id": "infra:k8sNodepool",
+                    "name": "Default Pool",
+                    "poolName": "default",
+                    "nodeCount": 2,
+                    "default_children": [
+                        {
+                            "class_id": "infra:k8sNode",
+                            "name": "Worker 1",
+                            "role": "worker",
+                            "cpu": 2,
+                            "memory": 4,
+                            "disk": 50,
+                            "os": "ubuntu-22.04"
+                        },
+                        {
+                            "class_id": "infra:k8sNode",
+                            "name": "Worker 2",
+                            "role": "worker",
+                            "cpu": 2,
+                            "memory": 4,
+                            "disk": 50,
+                            "os": "ubuntu-22.04"
+                        }
+                    ]
+                }
             ]
-          }
         },
         {
-          "key": "kubeletVersion",
-          "data_type": "string",
-          "description": "Kubelet version running on this node"
+            "id": "infra:k8sNodepool",
+            "class_id": "@class",
+            "name": "Node Pool",
+            "namespace_id": "infra",
+            "extends_id": "core:baseContainer",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "layers",
+            "color": "#4F46E5",
+            "description": "Group of worker nodes with shared configuration",
+            "props": [
+                {
+                    "key": "poolName",
+                    "data_type": "string",
+                    "description": "Pool name for tagging and identification",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "nodeCount",
+                    "data_type": "integer",
+                    "default_value": 2,
+                    "description": "Desired node count",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "minNodes",
+                    "data_type": "integer",
+                    "default_value": 1,
+                    "description": "Minimum nodes for autoscaling",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "maxNodes",
+                    "data_type": "integer",
+                    "default_value": 10,
+                    "description": "Maximum nodes for autoscaling",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "autoScaling",
+                    "data_type": "boolean",
+                    "default_value": true,
+                    "description": "Enable cluster autoscaler",
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "instanceType",
+                    "data_type": "string",
+                    "description": "Instance type or CPU spec (e.g. 2B, t3.medium)",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "labels",
+                    "data_type": "object",
+                    "default_value": {},
+                    "description": "Kubernetes node labels applied to pool nodes",
+                    "class_id": "@prop_object"
+                },
+                {
+                    "key": "taints",
+                    "data_type": "object",
+                    "is_array": true,
+                    "description": "Kubernetes node taints",
+                    "class_id": "@prop_object"
+                }
+            ],
+            "defaults": {
+                "nodeCount": 2,
+                "minNodes": 1,
+                "maxNodes": 10,
+                "autoScaling": true,
+                "canvasElement": {
+                    "icon": "layers",
+                    "color": "#4F46E5",
+                    "shape": "rounded-rect",
+                    "labelPosition": "top"
+                }
+            }
         },
         {
-          "key": "nodeLabels",
-          "data_type": "object",
-          "default_value": {},
-          "description": "Kubernetes labels on this node"
+            "id": "infra:k8sNode",
+            "class_id": "@class",
+            "name": "K8s Node",
+            "namespace_id": "infra",
+            "extends_id": "infra:vm",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "hard-drive",
+            "color": "#326CE5",
+            "description": "Kubernetes node - a VM serving as master or worker in a cluster",
+            "props": [
+                {
+                    "key": "role",
+                    "data_type": "string",
+                    "default_value": "worker",
+                    "description": "Node role in the cluster",
+                    "options": {
+                        "values": [
+                            "master",
+                            "worker"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "kubeletVersion",
+                    "data_type": "string",
+                    "description": "Kubelet version running on this node",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "nodeLabels",
+                    "data_type": "object",
+                    "default_value": {},
+                    "description": "Kubernetes labels on this node",
+                    "class_id": "@prop_object"
+                },
+                {
+                    "key": "nodeConditions",
+                    "data_type": "object",
+                    "default_value": {},
+                    "description": "Node conditions (Ready, MemoryPressure, etc.)",
+                    "class_id": "@prop_object"
+                }
+            ],
+            "defaults": {
+                "role": "worker",
+                "cpu": 2,
+                "memory": 4,
+                "disk": 50,
+                "os": "ubuntu-22.04",
+                "isServerLinkable": true,
+                "canvasElement": {
+                    "icon": "hard-drive",
+                    "color": "#326CE5",
+                    "shape": "rounded-rect",
+                    "labelPosition": "bottom"
+                }
+            }
         },
         {
-          "key": "nodeConditions",
-          "data_type": "object",
-          "default_value": {},
-          "description": "Node conditions (Ready, MemoryPressure, etc.)"
+            "id": "infra:k8sNamespace",
+            "class_id": "@class",
+            "name": "K8s Namespace",
+            "namespace_id": "infra",
+            "extends_id": "core:baseContainer",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "folder-open",
+            "color": "#7C3AED",
+            "description": "Kubernetes namespace for workload isolation",
+            "props": [
+                {
+                    "key": "resourceQuota",
+                    "data_type": "boolean",
+                    "default_value": false,
+                    "description": "Whether resource quotas are enforced",
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "cpuLimit",
+                    "data_type": "string",
+                    "description": "CPU resource quota limit (e.g. 4000m)",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "memoryLimit",
+                    "data_type": "string",
+                    "description": "Memory resource quota limit (e.g. 8Gi)",
+                    "class_id": "@prop_string"
+                }
+            ],
+            "defaults": {
+                "resourceQuota": false,
+                "canvasElement": {
+                    "icon": "folder-open",
+                    "color": "#7C3AED",
+                    "shape": "rounded-rect",
+                    "labelPosition": "top"
+                }
+            }
+        },
+        {
+            "id": "infra:k8sService",
+            "class_id": "@class",
+            "name": "K8s Service",
+            "namespace_id": "infra",
+            "extends_id": "core:baseElement",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "network",
+            "color": "#326CE5",
+            "description": "Kubernetes service for pod network exposure",
+            "props": [
+                {
+                    "key": "serviceType",
+                    "data_type": "string",
+                    "default_value": "ClusterIP",
+                    "description": "Kubernetes service type",
+                    "options": {
+                        "values": [
+                            "ClusterIP",
+                            "NodePort",
+                            "LoadBalancer",
+                            "ExternalName"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "port",
+                    "data_type": "integer",
+                    "default_value": 80,
+                    "description": "Service port",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "targetPort",
+                    "data_type": "integer",
+                    "description": "Container target port",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "nodePort",
+                    "data_type": "integer",
+                    "description": "NodePort (30000-32767) when serviceType is NodePort",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "protocol",
+                    "data_type": "string",
+                    "default_value": "TCP",
+                    "description": "Protocol",
+                    "options": {
+                        "values": [
+                            "TCP",
+                            "UDP"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "selector",
+                    "data_type": "object",
+                    "default_value": {},
+                    "description": "Label selector for target pods",
+                    "class_id": "@prop_object"
+                },
+                {
+                    "key": "clusterIP",
+                    "data_type": "string",
+                    "description": "Assigned cluster IP",
+                    "class_id": "@prop_string"
+                }
+            ],
+            "defaults": {
+                "serviceType": "ClusterIP",
+                "port": 80,
+                "protocol": "TCP",
+                "canvasElement": {
+                    "icon": "network",
+                    "color": "#326CE5",
+                    "shape": "circle",
+                    "labelPosition": "bottom"
+                }
+            }
+        },
+        {
+            "id": "infra:k8sIngress",
+            "class_id": "@class",
+            "name": "K8s Ingress",
+            "namespace_id": "infra",
+            "extends_id": "core:baseElement",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "arrow-right-left",
+            "color": "#059669",
+            "description": "Kubernetes ingress for HTTP/HTTPS routing",
+            "props": [
+                {
+                    "key": "ingressClass",
+                    "data_type": "string",
+                    "default_value": "nginx",
+                    "description": "Ingress controller class",
+                    "options": {
+                        "values": [
+                            "nginx",
+                            "traefik",
+                            "haproxy",
+                            "istio",
+                            "kong"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "host",
+                    "data_type": "string",
+                    "description": "Hostname for routing (e.g. app.example.com)",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "tlsEnabled",
+                    "data_type": "boolean",
+                    "default_value": false,
+                    "description": "Enable TLS termination",
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "tlsSecretName",
+                    "data_type": "string",
+                    "description": "TLS secret name in the namespace",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "rules",
+                    "data_type": "object",
+                    "is_array": true,
+                    "description": "Ingress routing rules (path, pathType, serviceName, servicePort)",
+                    "class_id": "@prop_object"
+                },
+                {
+                    "key": "annotations",
+                    "data_type": "object",
+                    "default_value": {},
+                    "description": "Ingress annotations",
+                    "class_id": "@prop_object"
+                }
+            ],
+            "defaults": {
+                "ingressClass": "nginx",
+                "tlsEnabled": false,
+                "canvasElement": {
+                    "icon": "arrow-right-left",
+                    "color": "#059669",
+                    "shape": "diamond",
+                    "labelPosition": "bottom"
+                }
+            }
+        },
+        {
+            "id": "infra:k8sDeployment",
+            "class_id": "@class",
+            "name": "K8s Deployment",
+            "namespace_id": "infra",
+            "extends_id": "core:baseContainer",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "rocket",
+            "color": "#326CE5",
+            "description": "Kubernetes deployment managing pod replicas",
+            "props": [
+                {
+                    "key": "replicas",
+                    "data_type": "integer",
+                    "default_value": 1,
+                    "description": "Desired pod replica count",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "image",
+                    "data_type": "string",
+                    "description": "Container image (e.g. nginx:latest)",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "containerPort",
+                    "data_type": "integer",
+                    "description": "Container port to expose",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "strategy",
+                    "data_type": "string",
+                    "default_value": "RollingUpdate",
+                    "description": "Update strategy",
+                    "options": {
+                        "values": [
+                            "RollingUpdate",
+                            "Recreate"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "cpuRequest",
+                    "data_type": "string",
+                    "description": "CPU request (e.g. 100m)",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "cpuLimit",
+                    "data_type": "string",
+                    "description": "CPU limit (e.g. 500m)",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "memoryRequest",
+                    "data_type": "string",
+                    "description": "Memory request (e.g. 128Mi)",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "memoryLimit",
+                    "data_type": "string",
+                    "description": "Memory limit (e.g. 256Mi)",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "env",
+                    "data_type": "object",
+                    "default_value": {},
+                    "description": "Environment variables",
+                    "class_id": "@prop_object"
+                }
+            ],
+            "defaults": {
+                "replicas": 1,
+                "strategy": "RollingUpdate",
+                "canvasElement": {
+                    "icon": "rocket",
+                    "color": "#326CE5",
+                    "shape": "rounded-rect",
+                    "labelPosition": "bottom"
+                }
+            }
+        },
+        {
+            "id": "infra:k8sConfigMap",
+            "class_id": "@class",
+            "name": "K8s ConfigMap",
+            "namespace_id": "infra",
+            "extends_id": "core:baseElement",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "file-cog",
+            "color": "#326CE5",
+            "description": "Kubernetes ConfigMap for non-sensitive configuration",
+            "props": [
+                {
+                    "key": "data",
+                    "data_type": "object",
+                    "default_value": {},
+                    "description": "Key-value configuration data",
+                    "class_id": "@prop_object"
+                }
+            ],
+            "defaults": {
+                "canvasElement": {
+                    "icon": "file-cog",
+                    "color": "#326CE5",
+                    "shape": "rounded-rect",
+                    "labelPosition": "bottom"
+                }
+            }
+        },
+        {
+            "id": "infra:k8sSecret",
+            "class_id": "@class",
+            "name": "K8s Secret",
+            "namespace_id": "infra",
+            "extends_id": "core:baseElement",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "key-round",
+            "color": "#EF4444",
+            "description": "Kubernetes Secret for sensitive data",
+            "props": [
+                {
+                    "key": "secretType",
+                    "data_type": "string",
+                    "default_value": "Opaque",
+                    "description": "Secret type",
+                    "options": {
+                        "values": [
+                            "Opaque",
+                            "kubernetes.io/tls",
+                            "kubernetes.io/dockerconfigjson",
+                            "kubernetes.io/service-account-token"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "keys",
+                    "data_type": "string",
+                    "is_array": true,
+                    "description": "Secret key names (values are never stored)",
+                    "class_id": "@prop_string"
+                }
+            ],
+            "defaults": {
+                "secretType": "Opaque",
+                "canvasElement": {
+                    "icon": "key-round",
+                    "color": "#EF4444",
+                    "shape": "rounded-rect",
+                    "labelPosition": "bottom"
+                }
+            }
+        },
+        {
+            "id": "infra:k8sPersistentVolume",
+            "class_id": "@class",
+            "name": "K8s Persistent Volume",
+            "namespace_id": "infra",
+            "extends_id": "core:baseElement",
+            "is_system": false,
+            "is_seed": true,
+            "icon": "hard-drive",
+            "color": "#F59E0B",
+            "description": "Kubernetes persistent volume for stateful storage",
+            "props": [
+                {
+                    "key": "capacity",
+                    "data_type": "integer",
+                    "default_value": 10,
+                    "description": "Storage capacity in GB",
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "storageClass",
+                    "data_type": "string",
+                    "description": "Storage class name",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "accessMode",
+                    "data_type": "string",
+                    "default_value": "ReadWriteOnce",
+                    "description": "Volume access mode",
+                    "options": {
+                        "values": [
+                            "ReadWriteOnce",
+                            "ReadOnlyMany",
+                            "ReadWriteMany"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "reclaimPolicy",
+                    "data_type": "string",
+                    "default_value": "Retain",
+                    "description": "What happens when PVC is released",
+                    "options": {
+                        "values": [
+                            "Retain",
+                            "Delete",
+                            "Recycle"
+                        ]
+                    },
+                    "class_id": "@prop_string"
+                }
+            ],
+            "defaults": {
+                "capacity": 10,
+                "accessMode": "ReadWriteOnce",
+                "reclaimPolicy": "Retain",
+                "canvasElement": {
+                    "icon": "hard-drive",
+                    "color": "#F59E0B",
+                    "shape": "rounded-rect",
+                    "labelPosition": "bottom"
+                }
+            }
         }
-      ],
-      "defaults": {
-        "role": "worker",
-        "cpu": 2,
-        "memory": 4,
-        "disk": 50,
-        "os": "ubuntu-22.04",
-        "isServerLinkable": true,
-        "canvasElement": {
-          "icon": "hard-drive",
-          "color": "#326CE5",
-          "shape": "rounded-rect",
-          "labelPosition": "bottom"
-        }
-      }
-    },
-    {
-      "id": "infra:k8sNamespace",
-      "class_id": "@class",
-      "name": "K8s Namespace",
-      "namespace_id": "infra",
-      "extends_id": "core:baseContainer",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "folder-open",
-      "color": "#7C3AED",
-      "description": "Kubernetes namespace for workload isolation",
-      "props": [
-        {
-          "key": "resourceQuota",
-          "data_type": "boolean",
-          "default_value": false,
-          "description": "Whether resource quotas are enforced"
-        },
-        {
-          "key": "cpuLimit",
-          "data_type": "string",
-          "description": "CPU resource quota limit (e.g. 4000m)"
-        },
-        {
-          "key": "memoryLimit",
-          "data_type": "string",
-          "description": "Memory resource quota limit (e.g. 8Gi)"
-        }
-      ],
-      "defaults": {
-        "resourceQuota": false,
-        "canvasElement": {
-          "icon": "folder-open",
-          "color": "#7C3AED",
-          "shape": "rounded-rect",
-          "labelPosition": "top"
-        }
-      }
-    },
-    {
-      "id": "infra:k8sService",
-      "class_id": "@class",
-      "name": "K8s Service",
-      "namespace_id": "infra",
-      "extends_id": "core:baseElement",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "network",
-      "color": "#326CE5",
-      "description": "Kubernetes service for pod network exposure",
-      "props": [
-        {
-          "key": "serviceType",
-          "data_type": "string",
-          "default_value": "ClusterIP",
-          "description": "Kubernetes service type",
-          "options": {
-            "values": [
-              "ClusterIP",
-              "NodePort",
-              "LoadBalancer",
-              "ExternalName"
-            ]
-          }
-        },
-        {
-          "key": "port",
-          "data_type": "integer",
-          "default_value": 80,
-          "description": "Service port"
-        },
-        {
-          "key": "targetPort",
-          "data_type": "integer",
-          "description": "Container target port"
-        },
-        {
-          "key": "nodePort",
-          "data_type": "integer",
-          "description": "NodePort (30000-32767) when serviceType is NodePort"
-        },
-        {
-          "key": "protocol",
-          "data_type": "string",
-          "default_value": "TCP",
-          "description": "Protocol",
-          "options": {
-            "values": [
-              "TCP",
-              "UDP"
-            ]
-          }
-        },
-        {
-          "key": "selector",
-          "data_type": "object",
-          "default_value": {},
-          "description": "Label selector for target pods"
-        },
-        {
-          "key": "clusterIP",
-          "data_type": "string",
-          "description": "Assigned cluster IP"
-        }
-      ],
-      "defaults": {
-        "serviceType": "ClusterIP",
-        "port": 80,
-        "protocol": "TCP",
-        "canvasElement": {
-          "icon": "network",
-          "color": "#326CE5",
-          "shape": "circle",
-          "labelPosition": "bottom"
-        }
-      }
-    },
-    {
-      "id": "infra:k8sIngress",
-      "class_id": "@class",
-      "name": "K8s Ingress",
-      "namespace_id": "infra",
-      "extends_id": "core:baseElement",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "arrow-right-left",
-      "color": "#059669",
-      "description": "Kubernetes ingress for HTTP/HTTPS routing",
-      "props": [
-        {
-          "key": "ingressClass",
-          "data_type": "string",
-          "default_value": "nginx",
-          "description": "Ingress controller class",
-          "options": {
-            "values": [
-              "nginx",
-              "traefik",
-              "haproxy",
-              "istio",
-              "kong"
-            ]
-          }
-        },
-        {
-          "key": "host",
-          "data_type": "string",
-          "description": "Hostname for routing (e.g. app.example.com)"
-        },
-        {
-          "key": "tlsEnabled",
-          "data_type": "boolean",
-          "default_value": false,
-          "description": "Enable TLS termination"
-        },
-        {
-          "key": "tlsSecretName",
-          "data_type": "string",
-          "description": "TLS secret name in the namespace"
-        },
-        {
-          "key": "rules",
-          "data_type": "object",
-          "is_array": true,
-          "description": "Ingress routing rules (path, pathType, serviceName, servicePort)"
-        },
-        {
-          "key": "annotations",
-          "data_type": "object",
-          "default_value": {},
-          "description": "Ingress annotations"
-        }
-      ],
-      "defaults": {
-        "ingressClass": "nginx",
-        "tlsEnabled": false,
-        "canvasElement": {
-          "icon": "arrow-right-left",
-          "color": "#059669",
-          "shape": "diamond",
-          "labelPosition": "bottom"
-        }
-      }
-    },
-    {
-      "id": "infra:k8sDeployment",
-      "class_id": "@class",
-      "name": "K8s Deployment",
-      "namespace_id": "infra",
-      "extends_id": "core:baseContainer",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "rocket",
-      "color": "#326CE5",
-      "description": "Kubernetes deployment managing pod replicas",
-      "props": [
-        {
-          "key": "replicas",
-          "data_type": "integer",
-          "default_value": 1,
-          "description": "Desired pod replica count"
-        },
-        {
-          "key": "image",
-          "data_type": "string",
-          "description": "Container image (e.g. nginx:latest)"
-        },
-        {
-          "key": "containerPort",
-          "data_type": "integer",
-          "description": "Container port to expose"
-        },
-        {
-          "key": "strategy",
-          "data_type": "string",
-          "default_value": "RollingUpdate",
-          "description": "Update strategy",
-          "options": {
-            "values": [
-              "RollingUpdate",
-              "Recreate"
-            ]
-          }
-        },
-        {
-          "key": "cpuRequest",
-          "data_type": "string",
-          "description": "CPU request (e.g. 100m)"
-        },
-        {
-          "key": "cpuLimit",
-          "data_type": "string",
-          "description": "CPU limit (e.g. 500m)"
-        },
-        {
-          "key": "memoryRequest",
-          "data_type": "string",
-          "description": "Memory request (e.g. 128Mi)"
-        },
-        {
-          "key": "memoryLimit",
-          "data_type": "string",
-          "description": "Memory limit (e.g. 256Mi)"
-        },
-        {
-          "key": "env",
-          "data_type": "object",
-          "default_value": {},
-          "description": "Environment variables"
-        }
-      ],
-      "defaults": {
-        "replicas": 1,
-        "strategy": "RollingUpdate",
-        "canvasElement": {
-          "icon": "rocket",
-          "color": "#326CE5",
-          "shape": "rounded-rect",
-          "labelPosition": "bottom"
-        }
-      }
-    },
-    {
-      "id": "infra:k8sConfigMap",
-      "class_id": "@class",
-      "name": "K8s ConfigMap",
-      "namespace_id": "infra",
-      "extends_id": "core:baseElement",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "file-cog",
-      "color": "#326CE5",
-      "description": "Kubernetes ConfigMap for non-sensitive configuration",
-      "props": [
-        {
-          "key": "data",
-          "data_type": "object",
-          "default_value": {},
-          "description": "Key-value configuration data"
-        }
-      ],
-      "defaults": {
-        "canvasElement": {
-          "icon": "file-cog",
-          "color": "#326CE5",
-          "shape": "rounded-rect",
-          "labelPosition": "bottom"
-        }
-      }
-    },
-    {
-      "id": "infra:k8sSecret",
-      "class_id": "@class",
-      "name": "K8s Secret",
-      "namespace_id": "infra",
-      "extends_id": "core:baseElement",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "key-round",
-      "color": "#EF4444",
-      "description": "Kubernetes Secret for sensitive data",
-      "props": [
-        {
-          "key": "secretType",
-          "data_type": "string",
-          "default_value": "Opaque",
-          "description": "Secret type",
-          "options": {
-            "values": [
-              "Opaque",
-              "kubernetes.io/tls",
-              "kubernetes.io/dockerconfigjson",
-              "kubernetes.io/service-account-token"
-            ]
-          }
-        },
-        {
-          "key": "keys",
-          "data_type": "string",
-          "is_array": true,
-          "description": "Secret key names (values are never stored)"
-        }
-      ],
-      "defaults": {
-        "secretType": "Opaque",
-        "canvasElement": {
-          "icon": "key-round",
-          "color": "#EF4444",
-          "shape": "rounded-rect",
-          "labelPosition": "bottom"
-        }
-      }
-    },
-    {
-      "id": "infra:k8sPersistentVolume",
-      "class_id": "@class",
-      "name": "K8s Persistent Volume",
-      "namespace_id": "infra",
-      "extends_id": "core:baseElement",
-      "is_system": false,
-      "is_seed": true,
-      "icon": "hard-drive",
-      "color": "#F59E0B",
-      "description": "Kubernetes persistent volume for stateful storage",
-      "props": [
-        {
-          "key": "capacity",
-          "data_type": "integer",
-          "default_value": 10,
-          "description": "Storage capacity in GB"
-        },
-        {
-          "key": "storageClass",
-          "data_type": "string",
-          "description": "Storage class name"
-        },
-        {
-          "key": "accessMode",
-          "data_type": "string",
-          "default_value": "ReadWriteOnce",
-          "description": "Volume access mode",
-          "options": {
-            "values": [
-              "ReadWriteOnce",
-              "ReadOnlyMany",
-              "ReadWriteMany"
-            ]
-          }
-        },
-        {
-          "key": "reclaimPolicy",
-          "data_type": "string",
-          "default_value": "Retain",
-          "description": "What happens when PVC is released",
-          "options": {
-            "values": [
-              "Retain",
-              "Delete",
-              "Recycle"
-            ]
-          }
-        }
-      ],
-      "defaults": {
-        "capacity": 10,
-        "accessMode": "ReadWriteOnce",
-        "reclaimPolicy": "Retain",
-        "canvasElement": {
-          "icon": "hard-drive",
-          "color": "#F59E0B",
-          "shape": "rounded-rect",
-          "labelPosition": "bottom"
-        }
-      }
-    }
-  ]
+    ]
 }

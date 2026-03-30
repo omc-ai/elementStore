@@ -1,161 +1,219 @@
 {
-  "version": "1.0.0",
-  "namespace": "mcp",
-  "description": "MCP (Model Context Protocol) server definitions — enables elementStore to be used as a Claude Code plugin. Uses ai:tool for tool bindings (type: mcp).",
-  "classes": [
-    {
-      "id": "mcp:server",
-      "class_id": "@class",
-      "name": "MCP Server",
-      "description": "An MCP server instance that exposes elementStore as tools to AI assistants. Tracks connection config and discovery state.",
-      "props": [
+    "version": "1.0.0",
+    "namespace": "mcp",
+    "description": "MCP (Model Context Protocol) server definitions — enables elementStore to be used as a Claude Code plugin. Uses ai:tool for tool bindings (type: mcp).",
+    "classes": [
         {
-          "key": "name",
-          "data_type": "string",
-          "display_order": 1,
-          "flags": { "required": true },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "description",
-          "data_type": "string",
-          "editor": { "id": "textarea" },
-          "display_order": 2,
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "es_url",
-          "label": "ElementStore URL",
-          "description": "Base URL of the elementStore instance this server connects to",
-          "data_type": "string",
-          "display_order": 3,
-          "flags": { "required": true },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "agent_id",
-          "label": "Agent",
-          "description": "The ai:agent whose prompt and rules drive this server",
-          "data_type": "relation",
-          "object_class_id": ["ai:agent"],
-          "display_order": 4,
-          "class_id": "@prop_relation"
-        },
-        {
-          "key": "transport",
-          "description": "MCP transport type",
-          "data_type": "string",
-          "display_order": 5,
-          "options": { "values": ["stdio", "sse", "http"] },
-          "default_value": "stdio",
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "mode",
-          "description": "Tool generation mode: generic (9 tools), typed (per-class CRUD), filter (selected classes)",
-          "data_type": "string",
-          "display_order": 6,
-          "options": { "values": ["generic", "typed", "filter"] },
-          "default_value": "generic",
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "status",
-          "data_type": "string",
-          "display_order": 7,
-          "options": { "values": ["active", "inactive", "error"] },
-          "default_value": "inactive",
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "include_system_classes",
-          "description": "Whether to expose system classes (@class, @prop, etc.) as tools",
-          "data_type": "boolean",
-          "display_order": 8,
-          "default_value": false,
-          "class_id": "@prop"
-        },
-        {
-          "key": "discovered_classes",
-          "description": "Class IDs discovered on last connection",
-          "data_type": "string",
-          "is_array": "indexed",
-          "display_order": 9,
-          "flags": { "readonly": true },
-          "class_id": "@prop_string"
-        },
-        {
-          "key": "tool_count",
-          "description": "Total tools generated",
-          "data_type": "integer",
-          "display_order": 10,
-          "flags": { "readonly": true },
-          "class_id": "@prop_number"
-        },
-        {
-          "key": "last_discovery",
-          "description": "Timestamp of last class discovery",
-          "data_type": "datetime",
-          "display_order": 11,
-          "flags": { "readonly": true },
-          "class_id": "@prop"
+            "id": "mcp:server",
+            "class_id": "@class",
+            "name": "MCP Server",
+            "description": "An MCP server instance that exposes elementStore as tools to AI assistants. Tracks connection config and discovery state.",
+            "props": [
+                {
+                    "key": "name",
+                    "data_type": "string",
+                    "display_order": 1,
+                    "flags": {
+                        "required": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "description",
+                    "data_type": "string",
+                    "editor": {
+                        "id": "textarea"
+                    },
+                    "display_order": 2,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "es_url",
+                    "label": "ElementStore URL",
+                    "description": "Base URL of the elementStore instance this server connects to",
+                    "data_type": "string",
+                    "display_order": 3,
+                    "flags": {
+                        "required": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "agent_id",
+                    "label": "Agent",
+                    "description": "The ai:agent whose prompt and rules drive this server",
+                    "data_type": "relation",
+                    "object_class_id": [
+                        "ai:agent"
+                    ],
+                    "display_order": 4,
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "transport",
+                    "description": "MCP transport type",
+                    "data_type": "string",
+                    "display_order": 5,
+                    "options": {
+                        "values": [
+                            "stdio",
+                            "sse",
+                            "http"
+                        ]
+                    },
+                    "default_value": "stdio",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "mode",
+                    "description": "Tool generation mode: generic (9 tools), typed (per-class CRUD), filter (selected classes)",
+                    "data_type": "string",
+                    "display_order": 6,
+                    "options": {
+                        "values": [
+                            "generic",
+                            "typed",
+                            "filter"
+                        ]
+                    },
+                    "default_value": "generic",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "status",
+                    "data_type": "string",
+                    "display_order": 7,
+                    "options": {
+                        "values": [
+                            "active",
+                            "inactive",
+                            "error"
+                        ]
+                    },
+                    "default_value": "inactive",
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "include_system_classes",
+                    "description": "Whether to expose system classes (@class, @prop, etc.) as tools",
+                    "data_type": "boolean",
+                    "display_order": 8,
+                    "default_value": false,
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "discovered_classes",
+                    "description": "Class IDs discovered on last connection",
+                    "data_type": "string",
+                    "is_array": "indexed",
+                    "display_order": 9,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "tool_count",
+                    "description": "Total tools generated",
+                    "data_type": "integer",
+                    "display_order": 10,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_number"
+                },
+                {
+                    "key": "last_discovery",
+                    "description": "Timestamp of last class discovery",
+                    "data_type": "datetime",
+                    "display_order": 11,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_datetime"
+                }
+            ]
         }
-      ]
-    }
-  ],
-  "seed": [
-    {
-      "id": "mcp:es-default",
-      "class_id": "mcp:server",
-      "name": "elementStore Default",
-      "description": "Default MCP server for the local elementStore instance. Uses agent:owner as the driving agent.",
-      "es_url": "http://arc3d.master.local/elementStore",
-      "agent_id": "agent:owner",
-      "transport": "stdio",
-      "mode": "generic",
-      "status": "active",
-      "include_system_classes": false
-    },
-    {
-      "id": "tool-mcp-store",
-      "class_id": "ai:tool",
-      "description": "MCP bridge — full elementStore access via MCP protocol tools (es_query, es_create, es_update, etc.)",
-      "category": "mcp",
-      "type": "mcp",
-      "enabled": true,
-      "requires_confirmation": false,
-      "allowed_actions": [
+    ],
+    "seed": [
         {
-          "type": "class",
-          "ref_class_id": "ai:agent",
-          "actions": ["get", "list"]
+            "id": "mcp:es-default",
+            "class_id": "mcp:server",
+            "name": "elementStore Default",
+            "description": "Default MCP server for the local elementStore instance. Uses agent:owner as the driving agent.",
+            "es_url": "http://arc3d.master.local/elementStore",
+            "agent_id": "agent:owner",
+            "transport": "stdio",
+            "mode": "generic",
+            "status": "active",
+            "include_system_classes": false
         },
         {
-          "type": "class",
-          "ref_class_id": "ai:task",
-          "actions": ["get", "list", "create", "set", "delete"]
-        },
-        {
-          "type": "class",
-          "ref_class_id": "ai:tool",
-          "actions": ["get", "list"]
-        },
-        {
-          "type": "class",
-          "ref_class_id": "@feature",
-          "actions": ["get", "list", "create", "set"]
-        },
-        {
-          "type": "class",
-          "ref_class_id": "@app_feature",
-          "actions": ["get", "list", "create", "set"]
-        },
-        {
-          "type": "class",
-          "ref_class_id": "mcp:server",
-          "actions": ["get", "list", "set"]
+            "id": "tool-mcp-store",
+            "class_id": "ai:tool",
+            "description": "MCP bridge — full elementStore access via MCP protocol tools (es_query, es_create, es_update, etc.)",
+            "category": "mcp",
+            "type": "mcp",
+            "enabled": true,
+            "requires_confirmation": false,
+            "allowed_actions": [
+                {
+                    "type": "class",
+                    "ref_class_id": "ai:agent",
+                    "actions": [
+                        "get",
+                        "list"
+                    ]
+                },
+                {
+                    "type": "class",
+                    "ref_class_id": "ai:task",
+                    "actions": [
+                        "get",
+                        "list",
+                        "create",
+                        "set",
+                        "delete"
+                    ]
+                },
+                {
+                    "type": "class",
+                    "ref_class_id": "ai:tool",
+                    "actions": [
+                        "get",
+                        "list"
+                    ]
+                },
+                {
+                    "type": "class",
+                    "ref_class_id": "@feature",
+                    "actions": [
+                        "get",
+                        "list",
+                        "create",
+                        "set"
+                    ]
+                },
+                {
+                    "type": "class",
+                    "ref_class_id": "@app_feature",
+                    "actions": [
+                        "get",
+                        "list",
+                        "create",
+                        "set"
+                    ]
+                },
+                {
+                    "type": "class",
+                    "ref_class_id": "mcp:server",
+                    "actions": [
+                        "get",
+                        "list",
+                        "set"
+                    ]
+                }
+            ]
         }
-      ]
-    }
-  ]
+    ]
 }

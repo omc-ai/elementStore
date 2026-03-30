@@ -712,6 +712,8 @@ class ClassModel
             }
         }
 
+        // Note: class_id on props is resolved in normalizeClassData() during onChange
+
         // Step 2b-scope: Apply scope fields (auto-fill from session)
         $data = $this->applyScopeFields($class_id, $data, $oldData);
 
@@ -780,23 +782,6 @@ class ClassModel
                 ];
             }
 
-            // Resolve class_id on props from data_type — the prop's class_id must match its data_type
-            if (!empty($data[Constants::F_PROPS]) && is_array($data[Constants::F_PROPS])) {
-                foreach ($data[Constants::F_PROPS] as &$propData) {
-                    if (!is_array($propData) || empty($propData['data_type'])) continue;
-                    $propData['class_id'] = match($propData['data_type']) {
-                        'string'   => '@prop_string',
-                        'integer', 'float' => '@prop_number',
-                        'boolean'  => '@prop_boolean',
-                        'datetime' => '@prop_datetime',
-                        'object'   => '@prop_object',
-                        'relation' => '@prop_relation',
-                        'function' => '@prop_function',
-                        default    => '@prop',
-                    };
-                }
-                unset($propData);
-            }
         }
 
         // Step 3: Stamp security fields for new objects (non-system classes)
@@ -1520,6 +1505,12 @@ class ClassModel
                         }
                         // Use primary target class for validation (first in array)
                         $targetClass = $prop->getPrimaryTargetClass();
+                        // Use item's own class_id if it's a child of the target
+                        // e.g. @prop_string extends @prop — validate against @prop_string to include its own props
+                        $itemClass = $item[Constants::F_CLASS_ID] ?? null;
+                        if ($itemClass && $itemClass !== $targetClass && $this->isClassOrChild($targetClass, $itemClass)) {
+                            $targetClass = $itemClass;
+                        }
                         if ($targetClass && !$this->isInlineReference($targetClass, $item)) {
                             $nestedResult = $this->validate($targetClass, $item, $oldItem, $depth + 1);
                             $mergedArray[] = $nestedResult['data'];
@@ -2222,12 +2213,22 @@ class ClassModel
             $props = $propsArray;
         }
 
-        // Set prop IDs as class_id.key
+        // Set prop IDs as class_id.key, resolve class_id from data_type
         if (is_array($props) && $classId) {
+            // Read data_type → class_id map from @prop.data_type.options.values
+            $propMeta = $this->getClass(Constants::K_PROP);
+            $dtProp = $propMeta ? $propMeta->getProp('data_type') : null;
+            $dtMap = $dtProp ? ($dtProp->options['values'] ?? []) : [];
+
             foreach ($props as &$prop) {
                 if (is_array($prop) && isset($prop['key'])) {
                     $prop['id'] = $classId . '.' . $prop['key'];
-                    $prop['class_id'] = Constants::K_PROP;
+                    // Resolve class_id from data_type map, keep existing if map unavailable
+                    if (!empty($dtMap) && isset($prop['data_type'])) {
+                        $prop['class_id'] = $dtMap[$prop['data_type']] ?? Constants::K_PROP;
+                    } elseif (!isset($prop['class_id'])) {
+                        $prop['class_id'] = Constants::K_PROP;
+                    }
                 }
             }
             unset($prop);

@@ -93,6 +93,53 @@ function clearScope() {
     refreshData();
 }
 
+// =====================
+// Raw JSON Dialog
+// =====================
+function openRawJson() {
+    document.getElementById('rawJsonModal').classList.add('active');
+    document.getElementById('rawJsonResult').style.display = 'none';
+}
+
+function closeRawJson() {
+    document.getElementById('rawJsonModal').classList.remove('active');
+}
+
+async function sendRawJson() {
+    const classId = document.getElementById('rawJsonClass').value.trim();
+    const bodyText = document.getElementById('rawJsonBody').value.trim();
+    const resultEl = document.getElementById('rawJsonResult');
+
+    if (!classId || !bodyText) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = '#fef2f2';
+        resultEl.textContent = 'Class ID and JSON body required';
+        return;
+    }
+
+    let body;
+    try {
+        body = JSON.parse(bodyText);
+    } catch (e) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = '#fef2f2';
+        resultEl.textContent = 'Invalid JSON: ' + e.message;
+        return;
+    }
+
+    try {
+        const endpoint = `/store/${classId}`;
+        const result = await api('POST', endpoint, body);
+        resultEl.style.display = 'block';
+        resultEl.style.background = '#f0fdf4';
+        resultEl.textContent = JSON.stringify(result, null, 2);
+    } catch (e) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = '#fef2f2';
+        resultEl.textContent = e.message;
+    }
+}
+
 // Global ES admin context — accessible from console: es.store, es.ws, es.editors, etc.
 window.es = {
     get store() { return typeof store !== 'undefined' ? store : null; },

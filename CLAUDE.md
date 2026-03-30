@@ -2,6 +2,23 @@
 
 Instructions for Claude Code when working in this repository.
 
+## Rule: Reuse UI Components — No Ad-Hoc Widgets
+
+**When building admin pages or UI elements, ALWAYS use existing shared components.**
+
+- Dialogs → use the existing DraggableDialog/modal system with drag, resize, dock support
+- Editors → use the generic editor (renderEditor) that reads class props
+- Grids → use ag-grid with buildGridColumns from class meta
+- Forms → use the prop-driven form rendering, not hand-built HTML inputs
+- Buttons/actions → follow existing patterns from the toolbar/panel system
+
+**NEVER create one-off HTML widgets, inline styles, or ad-hoc dialogs without asking first.** If a reusable component doesn't exist for the need, STOP and ask the owner:
+- Which existing UI element to use
+- Whether to create a new shared widget
+- Or if ad-hoc is acceptable for this case
+
+**Always check for existing components first.** If you cannot find what you need, ask the owner how to proceed.
+
 ## Rule: Declare Before You Code
 
 **Before writing any code, check if the data structure, action, or function can be declared as elementStore classes and objects.**

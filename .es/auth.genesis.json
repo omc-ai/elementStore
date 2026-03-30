@@ -746,7 +746,7 @@
                     "key": "role_name",
                     "data_type": "string",
                     "display_order": 1,
-                    "class_id": "@prop",
+                    "class_id": "@prop_string",
                     "flags": {
                         "required": true
                     },
@@ -756,7 +756,7 @@
                     "key": "app_id",
                     "data_type": "relation",
                     "display_order": 2,
-                    "class_id": "@prop",
+                    "class_id": "@prop_relation",
                     "options": {
                         "class_id": "@app"
                     },
@@ -767,7 +767,7 @@
                     "data_type": "relation",
                     "is_array": "indexed",
                     "display_order": 3,
-                    "class_id": "@prop",
+                    "class_id": "@prop_relation",
                     "options": {
                         "class_id": "auth:permission"
                     },
@@ -777,14 +777,14 @@
                     "key": "is_system",
                     "data_type": "boolean",
                     "display_order": 4,
-                    "class_id": "@prop",
+                    "class_id": "@prop_boolean",
                     "id": "auth:role.is_system"
                 },
                 {
                     "key": "is_default",
                     "data_type": "boolean",
                     "display_order": 5,
-                    "class_id": "@prop",
+                    "class_id": "@prop_boolean",
                     "id": "auth:role.is_default"
                 }
             ],
@@ -804,7 +804,7 @@
                     "key": "module",
                     "data_type": "string",
                     "display_order": 1,
-                    "class_id": "@prop",
+                    "class_id": "@prop_string",
                     "flags": {
                         "required": true
                     },
@@ -814,7 +814,7 @@
                     "key": "action",
                     "data_type": "string",
                     "display_order": 2,
-                    "class_id": "@prop",
+                    "class_id": "@prop_string",
                     "flags": {
                         "required": true
                     },
@@ -824,7 +824,7 @@
                     "key": "app_id",
                     "data_type": "relation",
                     "display_order": 3,
-                    "class_id": "@prop",
+                    "class_id": "@prop_relation",
                     "options": {
                         "class_id": "@app"
                     },
@@ -847,7 +847,7 @@
                     "key": "module_name",
                     "data_type": "string",
                     "display_order": 1,
-                    "class_id": "@prop",
+                    "class_id": "@prop_string",
                     "flags": {
                         "required": true
                     },
@@ -857,7 +857,7 @@
                     "key": "app_id",
                     "data_type": "relation",
                     "display_order": 2,
-                    "class_id": "@prop",
+                    "class_id": "@prop_relation",
                     "options": {
                         "class_id": "@app"
                     },
@@ -868,7 +868,7 @@
                     "data_type": "relation",
                     "is_array": "indexed",
                     "display_order": 3,
-                    "class_id": "@prop",
+                    "class_id": "@prop_relation",
                     "options": {
                         "class_id": "auth:permission",
                         "foreign_key": "module"
@@ -892,7 +892,7 @@
                     "key": "credential_name",
                     "data_type": "string",
                     "display_order": 1,
-                    "class_id": "@prop",
+                    "class_id": "@prop_string",
                     "flags": {
                         "required": true
                     },
@@ -902,14 +902,14 @@
                     "key": "provider",
                     "data_type": "string",
                     "display_order": 2,
-                    "class_id": "@prop",
+                    "class_id": "@prop_string",
                     "id": "auth:credential.provider"
                 },
                 {
                     "key": "user_id",
                     "data_type": "relation",
                     "display_order": 3,
-                    "class_id": "@prop",
+                    "class_id": "@prop_relation",
                     "options": {
                         "class_id": "@user"
                     },
@@ -919,7 +919,7 @@
                     "key": "key",
                     "data_type": "string",
                     "display_order": 4,
-                    "class_id": "@prop",
+                    "class_id": "@prop_string",
                     "flags": {
                         "server_only": true
                     },
@@ -929,7 +929,7 @@
                     "key": "secret",
                     "data_type": "string",
                     "display_order": 5,
-                    "class_id": "@prop",
+                    "class_id": "@prop_string",
                     "flags": {
                         "server_only": true
                     },
@@ -939,7 +939,7 @@
                     "key": "token",
                     "data_type": "string",
                     "display_order": 6,
-                    "class_id": "@prop",
+                    "class_id": "@prop_string",
                     "flags": {
                         "server_only": true
                     },
@@ -949,21 +949,21 @@
                     "key": "metadata",
                     "data_type": "object",
                     "display_order": 7,
-                    "class_id": "@prop",
+                    "class_id": "@prop_object",
                     "id": "auth:credential.metadata"
                 },
                 {
                     "key": "expires_at",
                     "data_type": "string",
                     "display_order": 8,
-                    "class_id": "@prop",
+                    "class_id": "@prop_string",
                     "id": "auth:credential.expires_at"
                 },
                 {
                     "key": "is_active",
                     "data_type": "boolean",
                     "display_order": 9,
-                    "class_id": "@prop",
+                    "class_id": "@prop_boolean",
                     "id": "auth:credential.is_active"
                 }
             ],
