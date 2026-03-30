@@ -5,104 +5,10 @@
         {
             "id": "@class",
             "class_id": "@class",
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a08093d66"
-            },
-            "updated_at": "2026-03-30 06:54:13",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Class",
             "description": "Defines a data class with its properties and behaviors",
+            "is_system": true,
             "props": [
-                {
-                    "data_type": "object",
-                    "key": "@state",
-                    "label": "State",
-                    "is_array": "false",
-                    "display_order": 999,
-                    "flags": {
-                        "required": false,
-                        "readonly": false,
-                        "hidden": false,
-                        "create_only": false,
-                        "server_only": true,
-                        "master_only": false,
-                        "from_parent": false
-                    },
-                    "class_id": "@prop",
-                    "id": "@class.@state"
-                },
-                {
-                    "data_type": "string",
-                    "key": "updated_at",
-                    "label": "Updated",
-                    "is_array": "false",
-                    "display_order": -1,
-                    "flags": {
-                        "required": false,
-                        "readonly": true,
-                        "hidden": false,
-                        "create_only": false,
-                        "server_only": true,
-                        "master_only": false,
-                        "from_parent": false
-                    },
-                    "class_id": "@prop",
-                    "id": "@class.updated_at"
-                },
-                {
-                    "data_type": "string",
-                    "key": "created_at",
-                    "label": "Created",
-                    "is_array": "false",
-                    "display_order": -2,
-                    "flags": {
-                        "required": false,
-                        "readonly": true,
-                        "hidden": false,
-                        "create_only": false,
-                        "server_only": true,
-                        "master_only": false,
-                        "from_parent": false
-                    },
-                    "class_id": "@prop",
-                    "id": "@class.created_at"
-                },
-                {
-                    "data_type": "string",
-                    "key": "class_id",
-                    "label": "Class",
-                    "is_array": "false",
-                    "display_order": -3,
-                    "flags": {
-                        "required": false,
-                        "readonly": true,
-                        "hidden": false,
-                        "create_only": false,
-                        "server_only": false,
-                        "master_only": false,
-                        "from_parent": false
-                    },
-                    "class_id": "@prop",
-                    "id": "@class.class_id"
-                },
-                {
-                    "data_type": "string",
-                    "key": "id",
-                    "label": "ID",
-                    "is_array": "false",
-                    "display_order": -4,
-                    "flags": {
-                        "required": false,
-                        "readonly": true,
-                        "hidden": false,
-                        "create_only": false,
-                        "server_only": false,
-                        "master_only": false,
-                        "from_parent": false
-                    },
-                    "class_id": "@prop",
-                    "id": "@class.id"
-                },
                 {
                     "key": "name",
                     "label": "Name",
@@ -112,8 +18,7 @@
                     "flags": {
                         "required": true
                     },
-                    "class_id": "@prop",
-                    "id": "@class.name"
+                    "class_id": "@prop_string"
                 },
                 {
                     "key": "description",
@@ -124,8 +29,7 @@
                         "id": "textarea"
                     },
                     "display_order": 2,
-                    "class_id": "@prop",
-                    "id": "@class.description"
+                    "class_id": "@prop_string"
                 },
                 {
                     "key": "extends_id",
@@ -139,8 +43,7 @@
                     "flags": {
                         "create_only": true
                     },
-                    "class_id": "@prop",
-                    "id": "@class.extends_id"
+                    "class_id": "@prop_relation"
                 },
                 {
                     "key": "props",
@@ -152,8 +55,7 @@
                         "@prop"
                     ],
                     "display_order": 4,
-                    "class_id": "@prop",
-                    "id": "@class.props"
+                    "class_id": "@prop_object"
                 },
                 {
                     "key": "table_name",
@@ -161,8 +63,7 @@
                     "description": "Custom table/collection name for storage",
                     "data_type": "string",
                     "display_order": 5,
-                    "class_id": "@prop",
-                    "id": "@class.table_name"
+                    "class_id": "@prop_string"
                 },
                 {
                     "key": "storage_id",
@@ -173,8 +74,28 @@
                         "@storage"
                     ],
                     "display_order": 6,
-                    "class_id": "@prop",
-                    "id": "@class.storage_id"
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "is_system",
+                    "label": "System Class",
+                    "description": "Protected system class (cannot be deleted)",
+                    "data_type": "boolean",
+                    "default_value": false,
+                    "display_order": 7,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "is_abstract",
+                    "label": "Abstract",
+                    "description": "Cannot create instances directly (only via child classes)",
+                    "data_type": "boolean",
+                    "default_value": false,
+                    "display_order": 8,
+                    "class_id": "@prop_boolean"
                 },
                 {
                     "key": "contexts",
@@ -191,8 +112,23 @@
                         }
                     },
                     "display_order": 9,
-                    "class_id": "@prop",
-                    "id": "@class.contexts"
+                    "class_id": "@prop_object"
+                },
+                {
+                    "key": "icon",
+                    "label": "Icon",
+                    "description": "Default icon name for objects of this class (used in cards, lists, tabs)",
+                    "data_type": "string",
+                    "display_order": 9,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "color",
+                    "label": "Color",
+                    "description": "Accent color for this class (hex or CSS value, e.g. #6366f1). Used in cards, badges, navigation.",
+                    "data_type": "string",
+                    "display_order": 10,
+                    "class_id": "@prop_string"
                 },
                 {
                     "key": "providers",
@@ -204,26 +140,34 @@
                         "@provider"
                     ],
                     "display_order": 11,
-                    "class_id": "@prop",
-                    "id": "@class.providers"
+                    "class_id": "@prop_relation"
+                },
+                {
+                    "key": "unique",
+                    "label": "Unique Constraints",
+                    "description": "Field uniqueness constraints. Each entry: {id, fields[]}. The 'id' field is always unique by default. Additional constraints enforce uniqueness on field combinations.",
+                    "data_type": "object",
+                    "is_array": "indexed",
+                    "display_order": 11,
+                    "class_id": "@prop_object"
                 },
                 {
                     "key": "version",
                     "label": "Schema Version",
                     "description": "Incremented on breaking schema changes. Objects track their version — on read, if object.version < class.version, normalizeObjectData casts to current schema.",
                     "data_type": "integer",
+                    "default_value": 1,
                     "display_order": 12,
-                    "class_id": "@prop",
-                    "id": "@class.version"
+                    "class_id": "@prop_number"
                 },
                 {
                     "key": "track_changes",
                     "label": "Track Changes",
                     "description": "When true (default), every setObject creates a @changes version record. Set false for classes that should not create version history (e.g. @changes itself, logs, temporary data).",
                     "data_type": "boolean",
+                    "default_value": true,
                     "display_order": 13,
-                    "class_id": "@prop",
-                    "id": "@class.track_changes"
+                    "class_id": "@prop_boolean"
                 },
                 {
                     "key": "_links",
@@ -235,181 +179,172 @@
                         "server_only": true,
                         "hidden": true
                     },
-                    "class_id": "@prop",
-                    "id": "@class._links"
+                    "class_id": "@prop_object"
                 },
                 {
-                    "data_type": "object",
-                    "key": "keys",
-                    "label": "Unique Keys",
-                    "description": "Unique key definitions. Assoc keyed by name. Inherited merge+override.",
-                    "is_array": "assoc",
-                    "display_order": 14,
-                    "class_id": "@prop",
-                    "id": "@class.keys"
-                },
-                {
-                    "data_type": "string",
                     "key": "prompt",
                     "label": "Prompt",
-                    "description": "Markdown prompt describing class behavior, actions, execution flow, binding rules.",
-                    "is_array": "false",
+                    "description": "Markdown prompt describing class behavior, actions (setObject/getObject), execution flow, binding rules, and AI agent instructions. Used by AI agents to understand how to operate on objects of this class.",
+                    "data_type": "string",
                     "editor": {
                         "id": "textarea"
                     },
-                    "display_order": 15,
-                    "class_id": "@prop",
-                    "id": "@class.prompt"
-                },
-                {
-                    "data_type": "string",
-                    "key": "scope",
-                    "label": "Scope",
-                    "description": "List of prop keys that define object visibility scope. Values auto-filled from session, auto-filtered on query. Inherited via extends_id.",
-                    "is_array": "indexed",
-                    "display_order": 16,
-                    "class_id": "@prop",
-                    "id": "@class.scope"
+                    "display_order": 102,
+                    "flags": {
+                        "hidden": true
+                    },
+                    "class_id": "@prop_string"
                 }
-            ],
-            "keys": {
-                "primary": {
-                    "fields": [
-                        "id"
-                    ]
-                }
-            }
+            ]
         },
         {
             "id": "@prop",
             "class_id": "@class",
-            "updated_at": "2026-03-30 06:55:11",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Property",
             "description": "Base property definition — common fields inherited by all @prop_* child classes",
+            "is_system": true,
             "props": [
                 {
-                    "data_type": "string",
                     "key": "data_type",
                     "label": "Data Type",
                     "description": "Type of value — determines which @prop_* child class to use",
-                    "display_order": 1,
+                    "data_type": "string",
                     "flags": {
                         "required": true,
                         "create_only": true
                     },
-                    "class_id": "@prop",
-                    "id": "@prop.data_type"
+                    "default_value": "string",
+                    "options": {
+                        "values": {
+                            "string": "@prop_string",
+                            "boolean": "@prop_boolean",
+                            "integer": "@prop_number",
+                            "float": "@prop_number",
+                            "datetime": "@prop_datetime",
+                            "object": "@prop_object",
+                            "relation": "@prop_relation",
+                            "function": "@prop_function"
+                        }
+                    },
+                    "display_order": 1,
+                    "class_id": "@prop_string"
                 },
                 {
-                    "data_type": "string",
                     "key": "key",
                     "label": "Key",
                     "description": "Property key (field name in data)",
-                    "display_order": 2,
+                    "data_type": "string",
                     "flags": {
                         "required": true
                     },
-                    "class_id": "@prop",
-                    "id": "@prop.key"
+                    "display_order": 2,
+                    "class_id": "@prop_string"
                 },
                 {
-                    "data_type": "string",
                     "key": "label",
                     "label": "Label",
                     "description": "Display label in UI",
+                    "data_type": "string",
                     "display_order": 3,
-                    "class_id": "@prop",
-                    "id": "@prop.label"
+                    "class_id": "@prop_string"
                 },
                 {
-                    "data_type": "string",
                     "key": "description",
                     "label": "Description",
                     "description": "Help text shown to users",
+                    "data_type": "string",
                     "editor": {
                         "id": "textarea"
                     },
                     "display_order": 4,
-                    "class_id": "@prop",
-                    "id": "@prop.description"
+                    "class_id": "@prop_string"
                 },
                 {
-                    "data_type": "string",
                     "key": "is_array",
                     "label": "Is Array",
                     "description": "Multiplicity: false=scalar, indexed=ordered array, assoc=key-value map",
+                    "data_type": "string",
+                    "default_value": "false",
+                    "options": {
+                        "values": [
+                            "false",
+                            "indexed",
+                            "assoc"
+                        ]
+                    },
                     "display_order": 5,
-                    "class_id": "@prop",
-                    "id": "@prop.is_array"
+                    "class_id": "@prop_string"
                 },
                 {
-                    "data_type": "object",
                     "key": "editor",
                     "label": "Editor",
                     "description": "UI editor widget — inline @editor instance with per-prop configuration. 'type' references the @editor definition, additional props are per-instance overrides.",
+                    "data_type": "object",
+                    "object_class_id": [
+                        "@editor"
+                    ],
                     "display_order": 10,
-                    "class_id": "@prop",
-                    "id": "@prop.editor"
+                    "class_id": "@prop_object"
                 },
                 {
-                    "data_type": "integer",
                     "key": "display_order",
                     "label": "Display Order",
                     "description": "Sort order in forms (lower = first)",
+                    "data_type": "integer",
+                    "default_value": 0,
                     "display_order": 11,
-                    "class_id": "@prop",
-                    "id": "@prop.display_order"
+                    "class_id": "@prop_number"
                 },
                 {
-                    "data_type": "object",
                     "key": "flags",
                     "label": "Flags",
                     "description": "Behavior flags: required, readonly, hidden, create_only, server_only, master_only",
+                    "data_type": "object",
+                    "object_class_id": [
+                        "@prop_flags"
+                    ],
                     "display_order": 20,
-                    "class_id": "@prop",
-                    "id": "@prop.flags"
+                    "class_id": "@prop_object"
                 },
                 {
-                    "data_type": "object",
                     "key": "default_value",
                     "label": "Default Value",
                     "description": "Default value for new objects — type determined by this @prop's data_type",
+                    "data_type": "object",
+                    "object_class_id": [
+                        "@obj_ref"
+                    ],
+                    "options": {
+                        "ref": "self"
+                    },
                     "display_order": 30,
-                    "class_id": "@prop",
-                    "id": "@prop.default_value"
+                    "class_id": "@prop_object"
                 },
                 {
-                    "data_type": "object",
                     "key": "contexts",
                     "label": "Contexts",
                     "description": "Per-context overrides (grid, form, compact, etc.)",
-                    "is_array": "assoc",
-                    "display_order": 40,
-                    "class_id": "@prop",
-                    "id": "@prop.contexts"
-                },
-                {
                     "data_type": "object",
-                    "key": "setter",
-                    "label": "Setter",
-                    "description": "Function that generates value on create. Reference to @function with params.",
-                    "display_order": 35,
-                    "class_id": "@prop",
-                    "id": "@prop.setter"
+                    "is_array": "assoc",
+                    "object_class_id": [
+                        "@prop_context"
+                    ],
+                    "options": {
+                        "keys": {
+                            "extensible": true
+                        }
+                    },
+                    "display_order": 40,
+                    "class_id": "@prop_object"
                 }
-            ],
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a080959d5"
-            }
+            ]
         },
         {
             "id": "@prop_string",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:44",
-            "created_at": "2026-03-29 14:42:45",
             "name": "String Property",
             "extends_id": "@prop",
+            "is_system": true,
             "props": [
                 {
                     "key": "options",
@@ -427,11 +362,10 @@
         {
             "id": "@prop_number",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Number Property",
             "description": "For integer and float data types",
             "extends_id": "@prop",
+            "is_system": true,
             "props": [
                 {
                     "key": "options",
@@ -449,19 +383,17 @@
         {
             "id": "@prop_boolean",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Boolean Property",
             "extends_id": "@prop",
+            "is_system": true,
             "props": []
         },
         {
             "id": "@prop_datetime",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "DateTime Property",
             "extends_id": "@prop",
+            "is_system": true,
             "props": [
                 {
                     "key": "options",
@@ -480,173 +412,126 @@
             "id": "@prop_object",
             "class_id": "@class",
             "name": "Object Property",
-            "description": "Property holding inline object data. Structural props on root. Validation in options.",
             "extends_id": "@prop",
+            "is_system": true,
             "props": [
                 {
-                    "data_type": "string",
                     "key": "object_class_id",
                     "label": "Target Classes",
+                    "description": "Class IDs for embedded objects",
+                    "data_type": "string",
                     "is_array": "indexed",
                     "display_order": 50,
-                    "class_id": "@prop",
-                    "id": "@prop_object.object_class_id"
+                    "class_id": "@prop_string"
                 },
                 {
-                    "data_type": "boolean",
                     "key": "object_class_strict",
                     "label": "Strict Class",
-                    "is_array": "false",
-                    "display_order": 51,
-                    "class_id": "@prop",
-                    "id": "@prop_object.object_class_strict"
-                },
-                {
+                    "description": "Only accept exact class match",
                     "data_type": "boolean",
-                    "key": "extensible",
-                    "label": "Extensible",
-                    "description": "Allow extra keys beyond defined fields",
-                    "is_array": "false",
+                    "default_value": false,
+                    "display_order": 51,
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "on_orphan",
+                    "label": "On Orphan",
+                    "description": "Action when referenced object deleted",
+                    "data_type": "string",
+                    "options": {
+                        "type": "string_options",
+                        "values": [
+                            "keep",
+                            "delete",
+                            "nullify"
+                        ]
+                    },
+                    "default_value": "keep",
                     "display_order": 52,
-                    "class_id": "@prop",
-                    "id": "@prop_object.extensible"
+                    "class_id": "@prop_string"
                 },
                 {
-                    "data_type": "string",
-                    "key": "display_field",
-                    "label": "Display Field",
-                    "is_array": "false",
-                    "display_order": 53,
-                    "class_id": "@prop",
-                    "id": "@prop_object.display_field"
-                },
-                {
-                    "data_type": "string",
-                    "key": "link",
-                    "label": "Link Mode",
-                    "description": "null=inline, embedded=IDs, foreign_key, chain",
-                    "is_array": "false",
-                    "display_order": 54,
-                    "class_id": "@prop",
-                    "id": "@prop_object.link"
-                },
-                {
-                    "data_type": "string",
-                    "key": "link_field",
-                    "label": "Link Field",
-                    "is_array": "false",
-                    "display_order": 55,
-                    "class_id": "@prop",
-                    "id": "@prop_object.link_field"
-                },
-                {
-                    "data_type": "string",
-                    "key": "merge",
-                    "label": "Merge Strategy",
-                    "is_array": "false",
-                    "display_order": 56,
-                    "class_id": "@prop",
-                    "id": "@prop_object.merge"
-                },
-                {
-                    "data_type": "string",
-                    "key": "group_by",
-                    "label": "Group By",
-                    "is_array": "false",
-                    "display_order": 57,
-                    "class_id": "@prop",
-                    "id": "@prop_object.group_by"
-                },
-                {
-                    "data_type": "string",
-                    "key": "on_delete",
-                    "label": "On Delete",
-                    "is_array": "false",
-                    "display_order": 58,
-                    "class_id": "@prop",
-                    "id": "@prop_object.on_delete"
-                },
-                {
-                    "data_type": "object",
                     "key": "options",
                     "label": "Object Options",
-                    "is_array": "false",
-                    "display_order": 60,
-                    "class_id": "@prop",
-                    "id": "@prop_object.options"
+                    "description": "Object-specific options",
+                    "data_type": "object",
+                    "object_class_id": [
+                        "@options_object"
+                    ],
+                    "display_order": 53,
+                    "class_id": "@prop_object"
                 }
-            ],
-            "updated_at": "2026-03-29 17:19:33"
+            ]
         },
         {
             "id": "@prop_relation",
             "class_id": "@class",
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a08030255"
-            },
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Relation Property",
-            "description": "Pointer to another object. Extends @prop_object with locked defaults.",
-            "extends_id": "@prop_object",
+            "extends_id": "@prop",
+            "is_system": true,
             "props": [
                 {
+                    "key": "object_class_id",
+                    "label": "Target Classes",
+                    "description": "Class IDs for referenced objects",
+                    "data_type": "string",
+                    "is_array": "indexed",
+                    "display_order": 50,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "object_class_strict",
+                    "label": "Strict Class",
+                    "description": "Only accept exact class match",
                     "data_type": "boolean",
-                    "key": "extensible",
-                    "label": "Extensible",
-                    "description": "Locked to false for relations",
-                    "is_array": "false",
-                    "display_order": 52,
-                    "flags": {
-                        "required": false,
-                        "readonly": true,
-                        "hidden": false,
-                        "create_only": false,
-                        "server_only": false,
-                        "master_only": false,
-                        "from_parent": false
+                    "default_value": false,
+                    "display_order": 51,
+                    "class_id": "@prop_boolean"
+                },
+                {
+                    "key": "on_orphan",
+                    "label": "On Orphan",
+                    "description": "Action when referenced object deleted",
+                    "data_type": "string",
+                    "options": {
+                        "type": "string_options",
+                        "values": [
+                            "keep",
+                            "delete",
+                            "nullify"
+                        ]
                     },
-                    "class_id": "@prop",
-                    "id": "@prop_relation.extensible"
+                    "default_value": "keep",
+                    "display_order": 52,
+                    "class_id": "@prop_string"
                 },
                 {
-                    "data_type": "string",
-                    "key": "link",
-                    "label": "Link Mode",
-                    "description": "Default: embedded",
-                    "is_array": "false",
-                    "display_order": 54,
-                    "class_id": "@prop",
-                    "id": "@prop_relation.link"
-                },
-                {
-                    "data_type": "string",
-                    "key": "on_delete",
-                    "label": "On Delete",
-                    "description": "Default: nullify",
-                    "is_array": "false",
-                    "display_order": 58,
-                    "class_id": "@prop",
-                    "id": "@prop_relation.on_delete"
+                    "key": "options",
+                    "label": "Relation Options",
+                    "description": "Relation-specific options",
+                    "data_type": "object",
+                    "object_class_id": [
+                        "@options_relation"
+                    ],
+                    "display_order": 53,
+                    "class_id": "@prop_object"
                 }
             ]
         },
         {
             "id": "@prop_function",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Function Property",
             "extends_id": "@prop",
+            "is_system": true,
             "props": []
         },
         {
             "id": "@editor",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:42",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Editor",
             "description": "Defines a UI editor component for editing property values. Instances are seed data (text, textarea, select, etc.)",
+            "is_system": true,
             "props": [
                 {
                     "key": "name",
@@ -760,10 +645,9 @@
         {
             "id": "@storage",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:44",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Storage",
             "description": "Storage provider configuration — defines where and how class data is persisted. 'api' and 'composite' types proxy through @provider.",
+            "is_system": true,
             "props": [
                 {
                     "key": "name",
@@ -877,10 +761,9 @@
         {
             "id": "@function",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:42",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Function",
             "description": "Defines a reusable function — validators, transformers, generators, or computed fields",
+            "is_system": true,
             "props": [
                 {
                     "key": "name",
@@ -977,10 +860,9 @@
         {
             "id": "@action",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:42",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Action",
             "description": "Universal execution unit — follows a fixed pipeline: input → input_mapping → [execute] → output_mapping → output. The type determines HOW it executes: api (HTTP call), cli (shell command), function (registry lookup), event (bus dispatch), composite (chain), ui (JS handler). Universal mappings: input_mapping renames params before dispatch, output_mapping renames result after execution. Type-specific mappings: request_mapping and response_mapping apply inside api execution.",
+            "is_system": true,
             "props": [
                 {
                     "key": "name",
@@ -1273,10 +1155,9 @@
         {
             "id": "@event",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:42",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Event",
             "description": "Defines an event that can be subscribed to and triggered",
+            "is_system": true,
             "props": [
                 {
                     "key": "name",
@@ -1381,10 +1262,10 @@
         {
             "id": "@provider",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:44",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Provider",
             "description": "Abstract base for data providers — defines how to connect to an external API. Extend this class to create concrete providers per external system. Use extends_id to inherit base_url and auth across multiple class-specific providers.",
+            "is_system": true,
+            "is_abstract": true,
             "props": [
                 {
                     "key": "name",
@@ -1485,11 +1366,10 @@
         {
             "id": "crud_provider",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:48",
-            "created_at": "2026-03-29 14:42:45",
+            "extends_id": "@provider",
             "name": "CRUD Provider",
             "description": "Concrete provider template for standard REST CRUD APIs. Inherits base_url and auth from @provider. Adds URL patterns and pagination config. Create instances for each class that uses a CRUD API.",
-            "extends_id": "@provider",
+            "is_system": true,
             "props": [
                 {
                     "key": "get_one",
@@ -1553,10 +1433,9 @@
         {
             "id": "auth_config",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:47",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Auth Config",
             "description": "Auth-service connection configuration for this elementStore installation. One object per installation. All endpoint paths are configurable here.",
+            "is_system": true,
             "props": [
                 {
                     "key": "app_id",
@@ -1753,10 +1632,9 @@
         {
             "id": "auth_app",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:47",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Auth App Registration",
             "description": "Credentials returned after registering this app with auth-service. One object per app_id. client_secret is server_only.",
+            "is_system": true,
             "props": [
                 {
                     "key": "config_id",
@@ -1822,10 +1700,9 @@
         {
             "id": "@prop_context",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Property Context",
             "description": "Per-context override for a property — controls visibility, editability, label, editor, and display order within a named context (grid, form, compact, etc.)",
+            "is_system": true,
             "props": [
                 {
                     "key": "visible",
@@ -1925,10 +1802,9 @@
         {
             "id": "@class_context",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:42",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Class Context",
             "description": "Named view context for a class — defines which fields to show, sort order, and available actions. Inherited via extends_id (child overrides parent by context name).",
+            "is_system": true,
             "props": [
                 {
                     "key": "fields",
@@ -2090,10 +1966,9 @@
         {
             "id": "@visual_column",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:44",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Visual Column",
             "description": "Grid/table column declaration — defines how a prop renders in a tabular context: width, render type, sort behavior.",
+            "is_system": true,
             "props": [
                 {
                     "key": "field",
@@ -2178,10 +2053,9 @@
         {
             "id": "@visual_section",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:44",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Visual Section",
             "description": "Form layout section — groups fields under an optional heading with a configurable column grid.",
+            "is_system": true,
             "props": [
                 {
                     "key": "title",
@@ -2223,10 +2097,9 @@
         {
             "id": "@prop_flags",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Property Flags",
             "description": "Boolean behavior flags for @prop — required, readonly, hidden, create_only, server_only, master_only, from_parent",
+            "is_system": true,
             "props": [
                 {
                     "key": "required",
@@ -2296,10 +2169,9 @@
         {
             "id": "@obj_ref",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Object Reference Value",
             "description": "Core system class — dynamic typed value whose type, editor, and validation are determined by a referenced @prop definition.\n\nThe ref field points to the @prop that defines the value's behavior:\n- 'self': the @prop this @obj_ref belongs to (e.g., default_value on @prop uses the prop's own data_type/options)\n- '@class.prop_key': a specific @prop by ID\n- Any resolvable @prop reference\n\nThe editor resolves the ref at render time, reads the referenced @prop's data_type, options, and editor, then renders the value field accordingly. The server validates the value against the referenced @prop's type and constraints.\n\nThis is a core ES pattern for dynamic typing — used wherever a value's type is not fixed but determined by context (default values, template fields, computed results).",
+            "is_system": true,
             "props": [
                 {
                     "key": "ref",
@@ -2325,10 +2197,9 @@
         {
             "id": "@options_string",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "String Options",
             "description": "Options for data_type: string — enum values, length constraints, pattern validation",
+            "is_system": true,
             "props": [
                 {
                     "key": "values",
@@ -2377,10 +2248,9 @@
         {
             "id": "@options_number",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Number Options",
             "description": "Options for data_type: integer/float — range, step, enum values",
+            "is_system": true,
             "props": [
                 {
                     "key": "min",
@@ -2420,10 +2290,9 @@
         {
             "id": "@options_datetime",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "DateTime Options",
             "description": "Options for data_type: datetime — format, date range, granularity",
+            "is_system": true,
             "props": [
                 {
                     "key": "format",
@@ -2479,43 +2348,42 @@
         {
             "id": "@options_object",
             "class_id": "@class",
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a0803111a"
-            },
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Object Options",
-            "description": "Validation options for object/relation props.",
+            "description": "Options for data_type: object — key constraints, class discriminator",
+            "is_system": true,
             "props": [
                 {
-                    "data_type": "string",
-                    "key": "fields",
-                    "label": "Fields",
-                    "description": "Which fields to expose/allow",
-                    "is_array": "indexed",
+                    "key": "keys",
+                    "label": "Keys",
+                    "description": "Key constraints: {allowed: [...], extensible: bool}",
+                    "data_type": "object",
                     "display_order": 1,
-                    "class_id": "@prop",
-                    "id": "@options_object.fields"
+                    "class_id": "@prop_object"
                 },
                 {
-                    "data_type": "object",
                     "key": "filter_by",
                     "label": "Filter By",
-                    "description": "Filter conditions",
-                    "is_array": "false",
+                    "description": "Filter available objects: {field, source}",
+                    "data_type": "object",
                     "display_order": 2,
-                    "class_id": "@prop",
-                    "id": "@options_object.filter_by"
+                    "class_id": "@prop_object"
+                },
+                {
+                    "key": "class_by",
+                    "label": "Class By",
+                    "description": "Select object class from sibling field: {source, map}",
+                    "data_type": "object",
+                    "display_order": 3,
+                    "class_id": "@prop_object"
                 }
             ]
         },
         {
             "id": "@options_relation",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Relation Options",
             "description": "Options for data_type: relation — foreign key binding, filtering, display, cascade behavior",
+            "is_system": true,
             "props": [
                 {
                     "key": "foreign_key",
@@ -2564,10 +2432,9 @@
         {
             "id": "@seed",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:44",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Seed",
             "description": "Declarative data loading definition — classes to create and storage descriptors to load data from. Objects without class_id at root level are assumed to be @seed.",
+            "is_system": true,
             "props": [
                 {
                     "key": "name",
@@ -2631,10 +2498,9 @@
         {
             "id": "auth_machine",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:47",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Auth Machine",
             "description": "Per-instance machine registration with auth-service. One object created/updated on each elementStore boot.",
+            "is_system": true,
             "props": [
                 {
                     "key": "config_id",
@@ -2741,21 +2607,14 @@
             ]
         },
         {
-            "id": "@state",
-            "class_id": "@class",
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a08034abe"
-            },
-            "updated_at": "2026-03-29 17:20:44",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Object State",
-            "description": "Object lifecycle state. Server-managed. system+abstract are class-only.",
+            "description": "Server-managed state of every object. Read-only for clients. Tracks lifecycle (readonly, archived, deleted) and version history.",
             "props": [
                 {
                     "data_type": "boolean",
                     "key": "readonly",
-                    "label": "Readonly",
-                    "description": "Sealed, no modifications",
+                    "label": "Read Only",
+                    "description": "Object is sealed, no changes allowed",
                     "is_array": "false",
                     "display_order": 1,
                     "class_id": "@prop",
@@ -2765,7 +2624,7 @@
                     "data_type": "boolean",
                     "key": "archived",
                     "label": "Archived",
-                    "description": "Hidden from active use",
+                    "description": "Object is soft-archived, hidden from default queries",
                     "is_array": "false",
                     "display_order": 2,
                     "class_id": "@prop",
@@ -2775,7 +2634,7 @@
                     "data_type": "boolean",
                     "key": "deleted",
                     "label": "Deleted",
-                    "description": "Soft deleted",
+                    "description": "Object is soft-deleted",
                     "is_array": "false",
                     "display_order": 3,
                     "class_id": "@prop",
@@ -2785,75 +2644,45 @@
                     "data_type": "string",
                     "key": "version",
                     "label": "Version",
-                    "description": "Last @changes record ID",
+                    "description": "ID of latest @changes record for this object",
                     "is_array": "false",
                     "display_order": 4,
                     "class_id": "@prop",
                     "id": "@state.version"
-                },
-                {
-                    "data_type": "boolean",
-                    "key": "system",
-                    "label": "System",
-                    "description": "Protected system object (class-only)",
-                    "is_array": "false",
-                    "display_order": 5,
-                    "class_id": "@prop",
-                    "id": "@state.system"
-                },
-                {
-                    "data_type": "boolean",
-                    "key": "abstract",
-                    "label": "Abstract",
-                    "description": "Cannot create instances directly (class-only)",
-                    "is_array": "false",
-                    "display_order": 6,
-                    "class_id": "@prop",
-                    "id": "@state.abstract"
                 }
             ],
-            "version": "13c6da1d4d5ebc1ee1e67ff1adda69bf"
+            "is_system": true,
+            "is_abstract": false,
+            "version": "13c6da1d4d5ebc1ee1e67ff1adda69bf",
+            "id": "@state",
+            "class_id": "@class"
         },
         {
+            "name": "Key Definition",
+            "description": "Unique constraint on a class. Each key is an array of field names that must be unique together. Used by setObject validation.",
+            "props": [
+                {
+                    "key": "fields",
+                    "label": "Fields",
+                    "description": "Array of prop keys that form this unique key",
+                    "data_type": "string",
+                    "is_array": "indexed",
+                    "display_order": 1,
+                    "class_id": "@prop",
+                    "flags": {
+                        "required": true
+                    },
+                    "id": "@key.fields"
+                }
+            ],
+            "is_system": true,
             "id": "@key",
             "class_id": "@class",
             "@state": {
-                "version": "3a297baf861c6e8c8b983c9a08093e6e"
-            },
-            "updated_at": "2026-03-30 06:54:30",
-            "created_at": "2026-03-29 14:42:45",
-            "name": "Key Definition",
-            "description": "Unique constraint. fields[] is the composite key. Uniqueness check always includes class scope.",
-            "props": [
-                {
-                    "data_type": "string",
-                    "key": "fields",
-                    "label": "Fields",
-                    "description": "Prop keys forming the unique key",
-                    "is_array": "indexed",
-                    "display_order": 1,
-                    "flags": {
-                        "required": true,
-                        "readonly": false,
-                        "hidden": false,
-                        "create_only": false,
-                        "server_only": false,
-                        "master_only": false,
-                        "from_parent": false
-                    },
-                    "class_id": "@prop",
-                    "id": "@key.fields"
-                }
-            ]
+                "version": "3a297baf861c6e8c8b983c9a08016033"
+            }
         },
         {
-            "id": "@user",
-            "class_id": "@class",
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a0808211e"
-            },
-            "updated_at": "2026-03-29 17:32:55",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Current User",
             "description": "Logged-in user context. GET /store/@user/me resolves to current user from JWT.",
             "extends_id": "core:atomObj",
@@ -2952,27 +2781,14 @@
                     "id": "@user.last_login"
                 }
             ],
-            "keys": {
-                "user_id": {
-                    "fields": [
-                        "user_id"
-                    ]
-                },
-                "email": {
-                    "fields": [
-                        "email"
-                    ]
-                }
+            "is_system": true,
+            "id": "@user",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a0801758e"
             }
         },
         {
-            "id": "@tenant",
-            "class_id": "@class",
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a080191d4"
-            },
-            "updated_at": "2026-03-29 17:20:44",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Platform Tenant",
             "description": "Tenant isolation unit.",
             "extends_id": "core:atomObj",
@@ -3040,19 +2856,19 @@
                     "class_id": "@prop",
                     "id": "@tenant.is_active"
                 }
-            ]
+            ],
+            "is_system": true,
+            "id": "@tenant",
+            "class_id": "@class",
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a080191d4"
+            }
         },
         {
             "id": "@session",
             "class_id": "@class",
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a08018833"
-            },
-            "updated_at": "2026-03-29 17:20:44",
-            "created_at": "2026-03-29 14:42:45",
-            "name": "User Session",
-            "description": "Active user session. Created on login, destroyed on logout.",
             "extends_id": "core:atomObj",
+            "description": "Active user session. Created on login, destroyed on logout.",
             "props": [
                 {
                     "key": "session_id",
@@ -3137,16 +2953,16 @@
                     "id": "@session.last_activity"
                 }
             ],
-            "track_changes": false
+            "seed_file": "@session.json",
+            "id_prefix": "Session",
+            "name": "User Session",
+            "is_system": true,
+            "track_changes": false,
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a08018833"
+            }
         },
         {
-            "id": "@changes",
-            "class_id": "@class",
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a080101c8"
-            },
-            "updated_at": "2026-03-29 17:20:42",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Change Set",
             "description": "Represents a set of object changes broadcast via WebSocket. Each item contains the changed object data with _old holding previous values of changed fields.",
             "props": [
@@ -3190,13 +3006,16 @@
                     "id": "@changes.schema_hash"
                 }
             ],
-            "track_changes": false
+            "is_system": true,
+            "is_abstract": false,
+            "id": "@changes",
+            "class_id": "@class",
+            "track_changes": false,
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a080101c8"
+            }
         },
         {
-            "id": "@log",
-            "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
-            "created_at": "2026-03-29 14:42:45",
             "description": "System log entry — errors, warnings, info. Persisted in the store and auto-broadcast via WebSocket for real-time monitoring.",
             "props": [
                 {
@@ -3274,13 +3093,14 @@
                     "class_id": "@prop_string",
                     "id": "@log.time"
                 }
-            ]
+            ],
+            "is_system": true,
+            "is_abstract": false,
+            "id": "@log",
+            "class_id": "@class",
+            "id_prefix": "log:"
         },
         {
-            "id": "@exception",
-            "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:42",
-            "created_at": "2026-03-29 14:42:45",
             "name": "Exception",
             "description": "Defines an exception type with HTTP code and a chain of actions to execute on the client. Actions are @action objects executed in order (log, show dialog, retry, redirect, etc.).",
             "props": [
@@ -3379,97 +3199,12 @@
                     "id": "@exception.severity"
                 }
             ],
+            "is_system": true,
+            "is_abstract": false,
             "version": 1,
+            "id": "@exception",
+            "class_id": "@class",
             "prompt": "## @exception — Exception Handler\n\nAn @exception defines structured error handling for elementStore operations. Each exception has an error_code in PPPCEEE format (PPP=project, C=severity 8=critical/9=die, EEE=sequence) that uniquely identifies the error type.\n\nFlow: When a StorageException is thrown, the error_code is looked up against registered @exception definitions. The matched definition specifies: the user-facing message template, severity level, whether to log, and optionally an action chain to execute for recovery or notification.\n\nClient behavior: The client receives the error_code and message in API error responses. It can match on error_code to show contextual UI (e.g. validation_failed triggers field highlighting, not_found shows a missing-object dialog, forbidden shows access denied).\n\nAction chain: An @exception can reference @action ids to execute on error — for example, logging to @log, sending a notification, or triggering a rollback composite action.\n\nValidation errors: The special code validation_failed carries an errors[] array with per-field path, message, and code for granular UI feedback."
-        },
-        {
-            "id": "@counter",
-            "name": "Counter",
-            "description": "Persistent counter for auto-increment. Keyed by class+prop+scope.",
-            "props": [
-                {
-                    "data_type": "string",
-                    "key": "class_ref",
-                    "label": "Class",
-                    "display_order": 1,
-                    "flags": {
-                        "required": true,
-                        "readonly": true
-                    },
-                    "class_id": "@prop",
-                    "id": "@counter.class_ref"
-                },
-                {
-                    "data_type": "string",
-                    "key": "prop_key",
-                    "label": "Property",
-                    "display_order": 2,
-                    "flags": {
-                        "required": true,
-                        "readonly": true
-                    },
-                    "class_id": "@prop",
-                    "id": "@counter.prop_key"
-                },
-                {
-                    "data_type": "string",
-                    "key": "scope_key",
-                    "label": "Scope",
-                    "display_order": 3,
-                    "flags": {
-                        "readonly": true
-                    },
-                    "class_id": "@prop",
-                    "id": "@counter.scope_key"
-                },
-                {
-                    "data_type": "integer",
-                    "key": "value",
-                    "label": "Value",
-                    "display_order": 4,
-                    "class_id": "@prop",
-                    "id": "@counter.value"
-                }
-            ],
-            "track_changes": false,
-            "keys": {
-                "primary": {
-                    "fields": [
-                        "id"
-                    ]
-                },
-                "counter_key": {
-                    "fields": [
-                        "class_ref",
-                        "prop_key",
-                        "scope_key"
-                    ]
-                }
-            },
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a08096100"
-            },
-            "class_id": "@class",
-            "created_at": "2026-03-30 06:55:28",
-            "updated_at": "2026-03-30 06:55:28"
-        },
-        {
-            "id": "@group",
-            "name": "Group",
-            "keys": {
-                "identity": {
-                    "fields": [
-                        "group_type",
-                        "name"
-                    ]
-                }
-            },
-            "@state": {
-                "version": "3a297baf861c6e8c8b983c9a08083783"
-            },
-            "class_id": "@class",
-            "created_at": "2026-03-29 17:33:07",
-            "updated_at": "2026-03-29 17:33:07"
         }
     ]
 }

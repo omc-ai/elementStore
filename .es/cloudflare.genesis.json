@@ -1,317 +1,319 @@
 {
-    "version": "1.0.0",
-    "namespace": "cloudflare",
-    "description": "Cloudflare API provider — DNS record and zone management via the Cloudflare REST API v4.",
-    "classes": [
+  "version": "1.0.0",
+  "namespace": "cloudflare",
+  "description": "Cloudflare API provider \u2014 DNS record and zone management via the Cloudflare REST API v4.",
+  "classes": [
+    {
+      "id": "@cloudflare",
+      "class_id": "@class",
+      "name": "Cloudflare Provider",
+      "description": "Cloudflare API crud_provider. Extends @provider with Cloudflare-specific fields (zone_id, account_id). Supports DNS record creation/update and zone listing via REST API v4.",
+      "extends_id": "@provider",
+      "is_system": false,
+      "is_abstract": false,
+      "is_seed": true,
+      "namespace_id": "cloudflare",
+      "props": [
         {
-            "id": "@cloudflare",
-            "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:42",
-            "created_at": "2026-03-29 14:42:46",
-            "name": "Cloudflare Provider",
-            "description": "Cloudflare API crud_provider. Extends @provider with Cloudflare-specific fields (zone_id, account_id). Supports DNS record creation/update and zone listing via REST API v4.",
-            "extends_id": "@provider",
-            "props": [
-                {
-                    "key": "zone_id",
-                    "label": "Zone ID",
-                    "description": "Default Cloudflare Zone ID used for DNS record operations. Can be overridden per action via params.",
-                    "data_type": "string",
-                    "display_order": 10,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "account_id",
-                    "label": "Account ID",
-                    "description": "Cloudflare Account ID. Used for account-scoped API calls.",
-                    "data_type": "string",
-                    "display_order": 11,
-                    "class_id": "@prop_string"
-                }
-            ]
+          "key": "zone_id",
+          "label": "Zone ID",
+          "description": "Default Cloudflare Zone ID used for DNS record operations. Can be overridden per action via params.",
+          "data_type": "string",
+          "display_order": 10,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "account_id",
+          "label": "Account ID",
+          "description": "Cloudflare Account ID. Used for account-scoped API calls.",
+          "data_type": "string",
+          "display_order": 11,
+          "class_id": "@prop_string"
         }
-    ],
-    "objects": [
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "id": "act:cf-list-zones",
+      "class_id": "@action",
+      "name": "List Zones",
+      "description": "List all Cloudflare zones accessible by the API token. Returns zone id, name, status, and nameservers.",
+      "type": "api",
+      "group_name": "cloudflare",
+      "method": "GET",
+      "endpoint": "/zones",
+      "returns": "list",
+      "params": [
         {
-            "id": "act:cf-list-zones",
-            "class_id": "@action",
-            "name": "List Zones",
-            "description": "List all Cloudflare zones accessible by the API token. Returns zone id, name, status, and nameservers.",
-            "type": "api",
-            "group_name": "cloudflare",
-            "method": "GET",
-            "endpoint": "/zones",
-            "returns": "list",
-            "params": [
-                {
-                    "key": "per_page",
-                    "label": "Per Page",
-                    "description": "Results per page (max 50)",
-                    "data_type": "integer",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "page",
-                    "label": "Page",
-                    "description": "Page number for pagination",
-                    "data_type": "integer",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "name",
-                    "label": "Zone Name",
-                    "description": "Filter by zone name (exact match, e.g. example.com)",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "status",
-                    "label": "Status",
-                    "description": "Filter by zone status",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                }
-            ],
-            "response_mapping": {
-                "id": "id",
-                "name": "name",
-                "status": "status",
-                "name_servers": "name_servers",
-                "original_name_servers": "original_name_servers",
-                "account": "account",
-                "plan": "plan"
-            },
-            "requires_selection": false,
-            "bulk": false
+          "key": "per_page",
+          "label": "Per Page",
+          "description": "Results per page (max 50)",
+          "data_type": "integer",
+          "class_id": "@prop"
         },
         {
-            "id": "act:cf-create-record",
-            "class_id": "@action",
-            "name": "Create DNS Record",
-            "description": "Create a new DNS record in a Cloudflare zone. Supports A, AAAA, CNAME, MX, TXT, NS, SRV, CAA record types. zone_id is required.",
-            "type": "api",
-            "group_name": "cloudflare",
-            "method": "POST",
-            "endpoint": "/zones/{zone_id}/dns_records",
-            "returns": "object",
-            "params": [
-                {
-                    "key": "zone_id",
-                    "label": "Zone ID",
-                    "description": "Cloudflare Zone ID. Falls back to provider zone_id if not specified.",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "type",
-                    "label": "Record Type",
-                    "description": "DNS record type",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "name",
-                    "label": "Name",
-                    "description": "DNS record name (e.g. example.com, sub.example.com, @ for root)",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "content",
-                    "label": "Content",
-                    "description": "Record content: IP address for A/AAAA, hostname for CNAME/MX/NS, text string for TXT",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "ttl",
-                    "label": "TTL",
-                    "description": "Time to live in seconds. 1 = automatic (Cloudflare-managed TTL for proxied records)",
-                    "data_type": "integer",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "proxied",
-                    "label": "Proxied",
-                    "description": "Route traffic through Cloudflare (orange cloud). Only for A, AAAA, CNAME.",
-                    "data_type": "boolean",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "priority",
-                    "label": "Priority",
-                    "description": "Record priority — required for MX and SRV. Lower = higher priority.",
-                    "data_type": "integer",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "comment",
-                    "label": "Comment",
-                    "description": "Optional free-text comment for the DNS record",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "tags",
-                    "label": "Tags",
-                    "description": "Custom tags for filtering and organizing DNS records",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                }
-            ],
-            "request_mapping": {
-                "type": "type",
-                "name": "name",
-                "content": "content",
-                "ttl": "ttl",
-                "proxied": "proxied",
-                "priority": "priority",
-                "comment": "comment",
-                "tags": "tags"
-            },
-            "response_mapping": {
-                "id": "id",
-                "type": "type",
-                "name": "name",
-                "content": "content",
-                "ttl": "ttl",
-                "proxied": "proxied",
-                "zone_id": "zone_id",
-                "zone_name": "zone_name",
-                "created_on": "created_on",
-                "modified_on": "modified_on"
-            },
-            "requires_selection": false,
-            "bulk": false
+          "key": "page",
+          "label": "Page",
+          "description": "Page number for pagination",
+          "data_type": "integer",
+          "class_id": "@prop"
         },
         {
-            "id": "act:cf-update-record",
-            "class_id": "@action",
-            "name": "Update DNS Record",
-            "description": "Update an existing DNS record in a Cloudflare zone by record ID. Uses PATCH — only provided fields are updated.",
-            "type": "api",
-            "group_name": "cloudflare",
-            "method": "PATCH",
-            "endpoint": "/zones/{zone_id}/dns_records/{record_id}",
-            "returns": "object",
-            "params": [
-                {
-                    "key": "zone_id",
-                    "label": "Zone ID",
-                    "description": "Cloudflare Zone ID containing the record.",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "record_id",
-                    "label": "Record ID",
-                    "description": "DNS Record ID to update (from Cloudflare API response or act:cf-list-dns-records)",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "type",
-                    "label": "Record Type",
-                    "description": "New DNS record type (if changing)",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "name",
-                    "label": "Name",
-                    "description": "New DNS record name (if changing)",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "content",
-                    "label": "Content",
-                    "description": "New record content (if changing)",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "ttl",
-                    "label": "TTL",
-                    "description": "New time to live in seconds (if changing). 1 = automatic.",
-                    "data_type": "integer",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "proxied",
-                    "label": "Proxied",
-                    "description": "Toggle Cloudflare proxy (if changing). Only for A, AAAA, CNAME.",
-                    "data_type": "boolean",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "priority",
-                    "label": "Priority",
-                    "description": "MX/SRV priority (if changing)",
-                    "data_type": "integer",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "comment",
-                    "label": "Comment",
-                    "description": "Record comment (if changing)",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                },
-                {
-                    "key": "tags",
-                    "label": "Tags",
-                    "description": "Custom tags (if changing)",
-                    "data_type": "string",
-                    "class_id": "@prop"
-                }
-            ],
-            "request_mapping": {
-                "type": "type",
-                "name": "name",
-                "content": "content",
-                "ttl": "ttl",
-                "proxied": "proxied",
-                "priority": "priority",
-                "comment": "comment",
-                "tags": "tags"
-            },
-            "response_mapping": {
-                "id": "id",
-                "type": "type",
-                "name": "name",
-                "content": "content",
-                "ttl": "ttl",
-                "proxied": "proxied",
-                "zone_id": "zone_id",
-                "zone_name": "zone_name",
-                "modified_on": "modified_on"
-            },
-            "requires_selection": false,
-            "bulk": false
+          "key": "name",
+          "label": "Zone Name",
+          "description": "Filter by zone name (exact match, e.g. example.com)",
+          "data_type": "string",
+          "class_id": "@prop"
         },
         {
-            "id": "provider:cloudflare",
-            "class_id": "@cloudflare",
-            "name": "Cloudflare",
-            "description": "Cloudflare API provider instance. Manages DNS records and zones. Configure auth.token with your API token (CF_API_TOKEN). For Global API Key: set auth.type=apikey, auth.header=X-Auth-Key, auth.key=<key> and add X-Auth-Email to headers.",
-            "base_url": "https://api.cloudflare.com/client/v4",
-            "write_mode": "crud",
-            "auth": {
-                "type": "bearer",
-                "token": "${CF_API_TOKEN}",
-                "_note": "Replace ${CF_API_TOKEN} with your token or set CF_API_TOKEN environment variable."
-            },
-            "id_field": "id",
-            "actions": [
-                "act:cf-list-zones",
-                "act:cf-create-record",
-                "act:cf-update-record"
-            ],
-            "mapping": {
-                "id": "id",
-                "name": "name"
-            }
+          "key": "status",
+          "label": "Status",
+          "description": "Filter by zone status",
+          "data_type": "string",
+          "class_id": "@prop"
         }
-    ]
+      ],
+      "response_mapping": {
+        "id": "id",
+        "name": "name",
+        "status": "status",
+        "name_servers": "name_servers",
+        "original_name_servers": "original_name_servers",
+        "account": "account",
+        "plan": "plan"
+      },
+      "requires_selection": false,
+      "bulk": false
+    },
+    {
+      "id": "act:cf-create-record",
+      "class_id": "@action",
+      "name": "Create DNS Record",
+      "description": "Create a new DNS record in a Cloudflare zone. Supports A, AAAA, CNAME, MX, TXT, NS, SRV, CAA record types. zone_id is required.",
+      "type": "api",
+      "group_name": "cloudflare",
+      "method": "POST",
+      "endpoint": "/zones/{zone_id}/dns_records",
+      "returns": "object",
+      "params": [
+        {
+          "key": "zone_id",
+          "label": "Zone ID",
+          "description": "Cloudflare Zone ID. Falls back to provider zone_id if not specified.",
+          "data_type": "string",
+          "class_id": "@prop"
+        },
+        {
+          "key": "type",
+          "label": "Record Type",
+          "description": "DNS record type",
+          "data_type": "string",
+          "class_id": "@prop"
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "description": "DNS record name (e.g. example.com, sub.example.com, @ for root)",
+          "data_type": "string",
+          "class_id": "@prop"
+        },
+        {
+          "key": "content",
+          "label": "Content",
+          "description": "Record content: IP address for A/AAAA, hostname for CNAME/MX/NS, text string for TXT",
+          "data_type": "string",
+          "class_id": "@prop"
+        },
+        {
+          "key": "ttl",
+          "label": "TTL",
+          "description": "Time to live in seconds. 1 = automatic (Cloudflare-managed TTL for proxied records)",
+          "data_type": "integer",
+          "class_id": "@prop"
+        },
+        {
+          "key": "proxied",
+          "label": "Proxied",
+          "description": "Route traffic through Cloudflare (orange cloud). Only for A, AAAA, CNAME.",
+          "data_type": "boolean",
+          "class_id": "@prop"
+        },
+        {
+          "key": "priority",
+          "label": "Priority",
+          "description": "Record priority \u2014 required for MX and SRV. Lower = higher priority.",
+          "data_type": "integer",
+          "class_id": "@prop"
+        },
+        {
+          "key": "comment",
+          "label": "Comment",
+          "description": "Optional free-text comment for the DNS record",
+          "data_type": "string",
+          "class_id": "@prop"
+        },
+        {
+          "key": "tags",
+          "label": "Tags",
+          "description": "Custom tags for filtering and organizing DNS records",
+          "data_type": "string",
+          "class_id": "@prop"
+        }
+      ],
+      "request_mapping": {
+        "type": "type",
+        "name": "name",
+        "content": "content",
+        "ttl": "ttl",
+        "proxied": "proxied",
+        "priority": "priority",
+        "comment": "comment",
+        "tags": "tags"
+      },
+      "response_mapping": {
+        "id": "id",
+        "type": "type",
+        "name": "name",
+        "content": "content",
+        "ttl": "ttl",
+        "proxied": "proxied",
+        "zone_id": "zone_id",
+        "zone_name": "zone_name",
+        "created_on": "created_on",
+        "modified_on": "modified_on"
+      },
+      "requires_selection": false,
+      "bulk": false
+    },
+    {
+      "id": "act:cf-update-record",
+      "class_id": "@action",
+      "name": "Update DNS Record",
+      "description": "Update an existing DNS record in a Cloudflare zone by record ID. Uses PATCH \u2014 only provided fields are updated.",
+      "type": "api",
+      "group_name": "cloudflare",
+      "method": "PATCH",
+      "endpoint": "/zones/{zone_id}/dns_records/{record_id}",
+      "returns": "object",
+      "params": [
+        {
+          "key": "zone_id",
+          "label": "Zone ID",
+          "description": "Cloudflare Zone ID containing the record.",
+          "data_type": "string",
+          "class_id": "@prop"
+        },
+        {
+          "key": "record_id",
+          "label": "Record ID",
+          "description": "DNS Record ID to update (from Cloudflare API response or act:cf-list-dns-records)",
+          "data_type": "string",
+          "class_id": "@prop"
+        },
+        {
+          "key": "type",
+          "label": "Record Type",
+          "description": "New DNS record type (if changing)",
+          "data_type": "string",
+          "class_id": "@prop"
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "description": "New DNS record name (if changing)",
+          "data_type": "string",
+          "class_id": "@prop"
+        },
+        {
+          "key": "content",
+          "label": "Content",
+          "description": "New record content (if changing)",
+          "data_type": "string",
+          "class_id": "@prop"
+        },
+        {
+          "key": "ttl",
+          "label": "TTL",
+          "description": "New time to live in seconds (if changing). 1 = automatic.",
+          "data_type": "integer",
+          "class_id": "@prop"
+        },
+        {
+          "key": "proxied",
+          "label": "Proxied",
+          "description": "Toggle Cloudflare proxy (if changing). Only for A, AAAA, CNAME.",
+          "data_type": "boolean",
+          "class_id": "@prop"
+        },
+        {
+          "key": "priority",
+          "label": "Priority",
+          "description": "MX/SRV priority (if changing)",
+          "data_type": "integer",
+          "class_id": "@prop"
+        },
+        {
+          "key": "comment",
+          "label": "Comment",
+          "description": "Record comment (if changing)",
+          "data_type": "string",
+          "class_id": "@prop"
+        },
+        {
+          "key": "tags",
+          "label": "Tags",
+          "description": "Custom tags (if changing)",
+          "data_type": "string",
+          "class_id": "@prop"
+        }
+      ],
+      "request_mapping": {
+        "type": "type",
+        "name": "name",
+        "content": "content",
+        "ttl": "ttl",
+        "proxied": "proxied",
+        "priority": "priority",
+        "comment": "comment",
+        "tags": "tags"
+      },
+      "response_mapping": {
+        "id": "id",
+        "type": "type",
+        "name": "name",
+        "content": "content",
+        "ttl": "ttl",
+        "proxied": "proxied",
+        "zone_id": "zone_id",
+        "zone_name": "zone_name",
+        "modified_on": "modified_on"
+      },
+      "requires_selection": false,
+      "bulk": false
+    },
+    {
+      "id": "provider:cloudflare",
+      "class_id": "@cloudflare",
+      "name": "Cloudflare",
+      "description": "Cloudflare API provider instance. Manages DNS records and zones. Configure auth.token with your API token (CF_API_TOKEN). For Global API Key: set auth.type=apikey, auth.header=X-Auth-Key, auth.key=<key> and add X-Auth-Email to headers.",
+      "base_url": "https://api.cloudflare.com/client/v4",
+      "write_mode": "crud",
+      "auth": {
+        "type": "bearer",
+        "token": "${CF_API_TOKEN}",
+        "_note": "Replace ${CF_API_TOKEN} with your token or set CF_API_TOKEN environment variable."
+      },
+      "id_field": "id",
+      "actions": [
+        "act:cf-list-zones",
+        "act:cf-create-record",
+        "act:cf-update-record"
+      ],
+      "mapping": {
+        "id": "id",
+        "name": "name"
+      }
+    }
+  ]
 }

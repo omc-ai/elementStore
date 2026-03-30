@@ -676,12 +676,28 @@ class ClassModel
             }
         }
 
+        // Step 2-pre: When saving @prop class, cache the incoming definition
+        // so validate() uses the new props (not the old/broken DB version).
+        $cachedPropMeta = null;
+        if ($class_id === Constants::K_CLASS && $id === Constants::K_PROP) {
+            $tempData = array_merge($oldData ?? [], $data);
+            $cachedPropMeta = $this->fromCache(Constants::K_CLASS, Constants::K_PROP);
+            $newPropMeta = new ClassMeta(Constants::K_CLASS, $tempData, $this->getDi());
+            $this->toCache($newPropMeta);
+        }
+
         // Step 2: Validate and build merged object
         if ($meta !== null) {
             $t1 = microtime(true);
             $result = $this->validate($class_id, $data, $oldData);
             $timings['validate'] = round((microtime(true) - $t1) * 1000, 1);
             if (!empty($result['errors'])) {
+                // Rollback cache on validation failure
+                if ($cachedPropMeta !== null) {
+                    $this->toCache($cachedPropMeta);
+                } elseif ($class_id === Constants::K_CLASS && $id === Constants::K_PROP) {
+                    unset($this->objectCache[Constants::K_CLASS][Constants::K_PROP]);
+                }
                 throw new StorageException(
                     'Validation failed',
                     'validation_failed',
@@ -755,12 +771,31 @@ class ClassModel
             }
         }
 
-        // Step 3a: Auto-add primary key on new @class objects if no keys defined
-        if ($oldData === null && $class_id === Constants::K_CLASS) {
-            if (empty($data['keys'])) {
+        // Step 3a: @class-specific normalizations
+        if ($class_id === Constants::K_CLASS) {
+            // Auto-add primary key on new class if no keys defined
+            if ($oldData === null && empty($data['keys'])) {
                 $data['keys'] = [
                     'primary' => ['fields' => ['id'], 'auto_field' => 'id', 'auto_type' => 'uuid']
                 ];
+            }
+
+            // Resolve class_id on props from data_type — the prop's class_id must match its data_type
+            if (!empty($data[Constants::F_PROPS]) && is_array($data[Constants::F_PROPS])) {
+                foreach ($data[Constants::F_PROPS] as &$propData) {
+                    if (!is_array($propData) || empty($propData['data_type'])) continue;
+                    $propData['class_id'] = match($propData['data_type']) {
+                        'string'   => '@prop_string',
+                        'integer', 'float' => '@prop_number',
+                        'boolean'  => '@prop_boolean',
+                        'datetime' => '@prop_datetime',
+                        'object'   => '@prop_object',
+                        'relation' => '@prop_relation',
+                        'function' => '@prop_function',
+                        default    => '@prop',
+                    };
+                }
+                unset($propData);
             }
         }
 
@@ -1667,6 +1702,13 @@ class ClassModel
 
         $checkValue = $prop->is_array ? ($value[0] ?? null) : $value;
         if ($checkValue === null) {
+            return null;
+        }
+
+        // Dynamic typed fields — skip type checking
+        // default_value: type determined by sibling data_type (any value accepted)
+        // editor: can be string ID or inline object
+        if ($prop->key === 'default_value') {
             return null;
         }
 

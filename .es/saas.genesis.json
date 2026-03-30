@@ -1,187 +1,231 @@
 {
-    "id": "es-saas",
-    "class_id": "@seed",
-    "name": "SaaS Pricing & Tenant Management",
-    "description": "Pricing tiers and tenant quota management for arc3d.ai SaaS platform",
-    "version": "1.0.0",
-    "classes": [
+  "id": "es-saas",
+  "class_id": "@seed",
+  "name": "SaaS Pricing & Tenant Management",
+  "description": "Pricing tiers and tenant quota management for arc3d.ai SaaS platform",
+  "version": "1.0.0",
+  "classes": [
+    {
+      "id": "saas:pricing_tier",
+      "class_id": "@class",
+      "name": "Pricing Tier",
+      "description": "A SaaS pricing plan — defines feature limits, quotas, and cost for arc3d.ai tenants",
+      "icon": "tag",
+      "color": "#6366f1",
+      "props": [
         {
-            "id": "saas:pricing_tier",
-            "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:49",
-            "created_at": "2026-03-29 14:42:46",
-            "name": "Pricing Tier",
-            "description": "A SaaS pricing plan — defines feature limits, quotas, and cost for arc3d.ai tenants",
-            "props": [
-                {
-                    "key": "name",
-                    "label": "Tier Name",
-                    "description": "Display name of the pricing tier",
-                    "data_type": "string",
-                    "display_order": 1,
-                    "flags": {
-                        "required": true
-                    },
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "slug",
-                    "label": "Slug",
-                    "description": "URL-safe identifier (free, pro, enterprise)",
-                    "data_type": "string",
-                    "display_order": 2,
-                    "flags": {
-                        "required": true
-                    },
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "description",
-                    "label": "Description",
-                    "description": "Short description for marketing pages",
-                    "data_type": "string",
-                    "editor": {
-                        "id": "textarea"
-                    },
-                    "display_order": 3,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "price_monthly_usd",
-                    "label": "Monthly Price (USD/user)",
-                    "description": "Price in USD per user per month. 0 = free. null = custom/contact sales.",
-                    "data_type": "number",
-                    "display_order": 4,
-                    "class_id": "@prop_number"
-                },
-                {
-                    "key": "price_annual_usd",
-                    "label": "Annual Price (USD/user/mo, billed annually)",
-                    "description": "Effective monthly price when billed annually. null = not available.",
-                    "data_type": "number",
-                    "display_order": 5,
-                    "class_id": "@prop_number"
-                },
-                {
-                    "key": "max_tenants",
-                    "label": "Max Tenants",
-                    "description": "Maximum number of tenants per account. -1 = unlimited.",
-                    "data_type": "number",
-                    "display_order": 6,
-                    "class_id": "@prop_number"
-                },
-                {
-                    "key": "max_classes",
-                    "label": "Max Classes",
-                    "description": "Maximum number of user-defined classes. -1 = unlimited.",
-                    "data_type": "number",
-                    "display_order": 7,
-                    "class_id": "@prop_number"
-                },
-                {
-                    "key": "max_objects",
-                    "label": "Max Objects",
-                    "description": "Maximum stored objects across all classes. -1 = unlimited.",
-                    "data_type": "number",
-                    "display_order": 8,
-                    "class_id": "@prop_number"
-                },
-                {
-                    "key": "max_users",
-                    "label": "Max Users",
-                    "description": "Maximum team members per account. -1 = unlimited.",
-                    "data_type": "number",
-                    "display_order": 9,
-                    "class_id": "@prop_number"
-                },
-                {
-                    "key": "max_api_calls_per_day",
-                    "label": "Max API Calls/Day",
-                    "description": "Daily API call quota. -1 = unlimited.",
-                    "data_type": "number",
-                    "display_order": 10,
-                    "class_id": "@prop_number"
-                },
-                {
-                    "key": "features",
-                    "label": "Included Features",
-                    "description": "List of feature flags included in this tier",
-                    "data_type": "string",
-                    "editor": {
-                        "id": "tags"
-                    },
-                    "display_order": 11,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "cta_label",
-                    "label": "CTA Label",
-                    "description": "Call-to-action button label (e.g. 'Get started', 'Upgrade', 'Contact sales')",
-                    "data_type": "string",
-                    "display_order": 12,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "cta_url",
-                    "label": "CTA URL",
-                    "description": "URL for the call-to-action button",
-                    "data_type": "string",
-                    "editor": {
-                        "id": "url"
-                    },
-                    "display_order": 13,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "highlight",
-                    "label": "Highlighted",
-                    "description": "Whether this tier is shown as recommended/most popular",
-                    "data_type": "boolean",
-                    "display_order": 14,
-                    "class_id": "@prop_number"
-                },
-                {
-                    "key": "sort_order",
-                    "label": "Sort Order",
-                    "description": "Display order on pricing page (lower = first)",
-                    "data_type": "number",
-                    "display_order": 15,
-                    "class_id": "@prop_number"
-                },
-                {
-                    "key": "status",
-                    "label": "Status",
-                    "description": "Tier availability status",
-                    "data_type": "string",
-                    "options": {
-                        "values": [
-                            "active",
-                            "beta",
-                            "coming_soon",
-                            "deprecated"
-                        ]
-                    },
-                    "editor": {
-                        "id": "select"
-                    },
-                    "display_order": 16,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "notes",
-                    "label": "Internal Notes",
-                    "description": "Internal notes for the team (not shown to users)",
-                    "data_type": "string",
-                    "editor": {
-                        "id": "textarea"
-                    },
-                    "display_order": 17,
-                    "flags": {
-                        "server_only": true
-                    },
-                    "class_id": "@prop_string"
-                }
-            ]
+          "key": "name",
+          "label": "Tier Name",
+          "description": "Display name of the pricing tier",
+          "data_type": "string",
+          "display_order": 1,
+          "flags": { "required": true },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "slug",
+          "label": "Slug",
+          "description": "URL-safe identifier (free, pro, enterprise)",
+          "data_type": "string",
+          "display_order": 2,
+          "flags": { "required": true },
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "description": "Short description for marketing pages",
+          "data_type": "string",
+          "editor": { "id": "textarea" },
+          "display_order": 3,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "price_monthly_usd",
+          "label": "Monthly Price (USD/user)",
+          "description": "Price in USD per user per month. 0 = free. null = custom/contact sales.",
+          "data_type": "number",
+          "display_order": 4,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "price_annual_usd",
+          "label": "Annual Price (USD/user/mo, billed annually)",
+          "description": "Effective monthly price when billed annually. null = not available.",
+          "data_type": "number",
+          "display_order": 5,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "max_tenants",
+          "label": "Max Tenants",
+          "description": "Maximum number of tenants per account. -1 = unlimited.",
+          "data_type": "number",
+          "display_order": 6,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "max_classes",
+          "label": "Max Classes",
+          "description": "Maximum number of user-defined classes. -1 = unlimited.",
+          "data_type": "number",
+          "display_order": 7,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "max_objects",
+          "label": "Max Objects",
+          "description": "Maximum stored objects across all classes. -1 = unlimited.",
+          "data_type": "number",
+          "display_order": 8,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "max_users",
+          "label": "Max Users",
+          "description": "Maximum team members per account. -1 = unlimited.",
+          "data_type": "number",
+          "display_order": 9,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "max_api_calls_per_day",
+          "label": "Max API Calls/Day",
+          "description": "Daily API call quota. -1 = unlimited.",
+          "data_type": "number",
+          "display_order": 10,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "features",
+          "label": "Included Features",
+          "description": "List of feature flags included in this tier",
+          "data_type": "string",
+          "editor": { "id": "tags" },
+          "display_order": 11,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "cta_label",
+          "label": "CTA Label",
+          "description": "Call-to-action button label (e.g. 'Get started', 'Upgrade', 'Contact sales')",
+          "data_type": "string",
+          "display_order": 12,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "cta_url",
+          "label": "CTA URL",
+          "description": "URL for the call-to-action button",
+          "data_type": "string",
+          "editor": { "id": "url" },
+          "display_order": 13,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "highlight",
+          "label": "Highlighted",
+          "description": "Whether this tier is shown as recommended/most popular",
+          "data_type": "boolean",
+          "display_order": 14,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "sort_order",
+          "label": "Sort Order",
+          "description": "Display order on pricing page (lower = first)",
+          "data_type": "number",
+          "display_order": 15,
+          "class_id": "@prop_number"
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "description": "Tier availability status",
+          "data_type": "string",
+          "options": {
+            "values": ["active", "beta", "coming_soon", "deprecated"]
+          },
+          "editor": { "id": "select" },
+          "display_order": 16,
+          "class_id": "@prop_string"
+        },
+        {
+          "key": "notes",
+          "label": "Internal Notes",
+          "description": "Internal notes for the team (not shown to users)",
+          "data_type": "string",
+          "editor": { "id": "textarea" },
+          "display_order": 17,
+          "flags": { "server_only": true },
+          "class_id": "@prop_string"
         }
-    ]
+      ],
+      "seed": [
+        {
+          "id": "tier:free",
+          "class_id": "saas:pricing_tier",
+          "name": "Free",
+          "slug": "free",
+          "description": "Get started with elementStore — no credit card required. Perfect for personal projects and exploration.",
+          "price_monthly_usd": 0,
+          "price_annual_usd": 0,
+          "max_tenants": 1,
+          "max_classes": 5,
+          "max_objects": 100,
+          "max_users": 1,
+          "max_api_calls_per_day": 1000,
+          "features": ["object_crud", "class_editor", "rest_api", "community_support"],
+          "cta_label": "Get started free",
+          "cta_url": "https://arc3d.ai/register",
+          "highlight": false,
+          "sort_order": 1,
+          "status": "active",
+          "notes": "No credit card required. 1 tenant, 5 user classes, 100 objects total. Designed to showcase the platform and convert to Pro."
+        },
+        {
+          "id": "tier:pro",
+          "class_id": "saas:pricing_tier",
+          "name": "Pro",
+          "slug": "pro",
+          "description": "For teams building real products. Unlimited classes, 10K objects, full API access, and priority support.",
+          "price_monthly_usd": 29,
+          "price_annual_usd": 23,
+          "max_tenants": 1,
+          "max_classes": -1,
+          "max_objects": 10000,
+          "max_users": 10,
+          "max_api_calls_per_day": 50000,
+          "features": ["object_crud", "class_editor", "rest_api", "websocket", "relations", "actions", "providers", "csv_export", "priority_support", "audit_log"],
+          "cta_label": "Start free trial",
+          "cta_url": "https://arc3d.ai/register?plan=pro",
+          "highlight": true,
+          "sort_order": 2,
+          "status": "active",
+          "notes": "Price placeholder: $29/user/mo monthly, $23/user/mo annual (billed annually, 20% discount). Confirm pricing with owner before launch. 14-day free trial."
+        },
+        {
+          "id": "tier:enterprise",
+          "class_id": "saas:pricing_tier",
+          "name": "Enterprise",
+          "slug": "enterprise",
+          "description": "Custom deployment, SLA guarantees, SSO, dedicated support, and unlimited everything. Built for scale.",
+          "price_monthly_usd": null,
+          "price_annual_usd": null,
+          "max_tenants": -1,
+          "max_classes": -1,
+          "max_objects": -1,
+          "max_users": -1,
+          "max_api_calls_per_day": -1,
+          "features": ["object_crud", "class_editor", "rest_api", "websocket", "relations", "actions", "providers", "csv_export", "dedicated_support", "audit_log", "sso", "sla", "on_premise", "custom_domain", "custom_integrations", "volume_discount"],
+          "cta_label": "Contact sales",
+          "cta_url": "https://arc3d.ai/contact",
+          "highlight": false,
+          "sort_order": 3,
+          "status": "active",
+          "notes": "Custom pricing. Minimum contract TBD. Includes dedicated infrastructure option, custom SLAs, 24/7 support. Contact owner to define contract terms."
+        }
+      ]
+    }
+  ]
 }

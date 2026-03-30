@@ -1,263 +1,223 @@
 {
-    "version": "1.0.0",
-    "namespace": "signing",
-    "description": "Action signing policy — every mutation is signed by user+agent and appended to the audit trail.",
-    "classes": [
+  "version": "1.0.0",
+  "namespace": "signing",
+  "description": "Action signing policy \u2014 every mutation is signed by user+agent and appended to the audit trail.",
+  "classes": [
+    {
+      "id": "@signing_policy",
+      "class_id": "@class",
+      "name": "Signing Policy",
+      "description": "Per-scope mutation signing configuration. Defines which identity fields are stamped on mutations and whether audit logging is required. One policy per class pattern; the default policy ('*') applies universally.",
+      "is_system": true,
+      "is_seed": true,
+      "namespace_id": "signing",
+      "props": [
         {
-            "id": "@signing_policy",
-            "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:44",
-            "created_at": "2026-03-29 14:42:46",
-            "name": "Signing Policy",
-            "description": "Per-scope mutation signing configuration. Defines which identity fields are stamped on mutations and whether audit logging is required. One policy per class pattern; the default policy ('*') applies universally.",
-            "props": [
-                {
-                    "key": "name",
-                    "label": "Name",
-                    "description": "Human-readable policy name.",
-                    "data_type": "string",
-                    "display_order": 1,
-                    "class_id": "@prop_string",
-                    "flags": {
-                        "required": true
-                    }
-                },
-                {
-                    "key": "class_pattern",
-                    "label": "Class Pattern",
-                    "description": "Glob/regex pattern of class IDs this policy applies to. '*' = all classes. Examples: 'ai:*', '@action', 'user'.",
-                    "data_type": "string",
-                    "display_order": 2,
-                    "class_id": "@prop_string",
-                    "options": {
-                        "default": "*"
-                    }
-                },
-                {
-                    "key": "require_user",
-                    "label": "Require User",
-                    "description": "Reject mutations that have no user_id in context. Enforces authenticated writes.",
-                    "data_type": "boolean",
-                    "display_order": 3,
-                    "class_id": "@prop_string",
-                    "options": {
-                        "default": false
-                    }
-                },
-                {
-                    "key": "require_agent",
-                    "label": "Require Agent",
-                    "description": "Reject mutations that have no agent_id in context. Enforces agent attribution.",
-                    "data_type": "boolean",
-                    "display_order": 4,
-                    "class_id": "@prop_string",
-                    "options": {
-                        "default": false
-                    }
-                },
-                {
-                    "key": "stamp_created_by",
-                    "label": "Stamp created_by",
-                    "description": "Automatically stamp created_by (user_id) and created_by_agent (agent_id) on object creation.",
-                    "data_type": "boolean",
-                    "display_order": 5,
-                    "class_id": "@prop_string",
-                    "options": {
-                        "default": true
-                    }
-                },
-                {
-                    "key": "stamp_updated_by",
-                    "label": "Stamp updated_by",
-                    "description": "Automatically stamp updated_by (user_id) and updated_by_agent (agent_id) on every update.",
-                    "data_type": "boolean",
-                    "display_order": 6,
-                    "class_id": "@prop_string",
-                    "options": {
-                        "default": true
-                    }
-                },
-                {
-                    "key": "audit_enabled",
-                    "label": "Audit Enabled",
-                    "description": "Write an @audit_entry record for every matching mutation (create, update, delete).",
-                    "data_type": "boolean",
-                    "display_order": 7,
-                    "class_id": "@prop_string",
-                    "options": {
-                        "default": true
-                    }
-                },
-                {
-                    "key": "audit_include_changes",
-                    "label": "Include Changes in Audit",
-                    "description": "Store the full field-level diff ({old, new} per changed field) in the audit entry. Disable for high-volume classes to reduce storage.",
-                    "data_type": "boolean",
-                    "display_order": 8,
-                    "class_id": "@prop_string",
-                    "options": {
-                        "default": true
-                    }
-                }
-            ]
+          "key": "name",
+          "label": "Name",
+          "description": "Human-readable policy name.",
+          "data_type": "string",
+          "display_order": 1,
+          "class_id": "@prop_string",
+          "flags": { "required": true }
         },
         {
-            "id": "@audit_entry",
-            "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:42",
-            "created_at": "2026-03-29 14:42:46",
-            "name": "Audit Entry",
-            "description": "Immutable audit record written after every object mutation (create, update, delete). Captures who made the change, when, and what changed. Never deleted — append-only audit trail.",
-            "props": [
-                {
-                    "key": "target_class_id",
-                    "label": "Target Class",
-                    "description": "The class_id of the object that was mutated.",
-                    "data_type": "string",
-                    "display_order": 1,
-                    "class_id": "@prop_string",
-                    "flags": {
-                        "required": true,
-                        "readonly": true
-                    }
-                },
-                {
-                    "key": "object_id",
-                    "label": "Object ID",
-                    "description": "The id of the object that was mutated.",
-                    "data_type": "string",
-                    "display_order": 2,
-                    "class_id": "@prop_string",
-                    "flags": {
-                        "required": true,
-                        "readonly": true
-                    }
-                },
-                {
-                    "key": "mutation_type",
-                    "label": "Mutation Type",
-                    "description": "Type of mutation: create | update | delete.",
-                    "data_type": "string",
-                    "display_order": 3,
-                    "class_id": "@prop_string",
-                    "flags": {
-                        "required": true,
-                        "readonly": true
-                    },
-                    "options": {
-                        "values": [
-                            "create",
-                            "update",
-                            "delete"
-                        ]
-                    }
-                },
-                {
-                    "key": "user_id",
-                    "label": "User ID",
-                    "description": "ID of the authenticated user who triggered the mutation. Null for system/anonymous writes.",
-                    "data_type": "string",
-                    "display_order": 4,
-                    "class_id": "@prop_string",
-                    "flags": {
-                        "readonly": true
-                    }
-                },
-                {
-                    "key": "agent_id",
-                    "label": "Agent ID",
-                    "description": "ID of the agent (AI or automated system) that performed the mutation. Null for direct user writes.",
-                    "data_type": "string",
-                    "display_order": 5,
-                    "class_id": "@prop_string",
-                    "flags": {
-                        "readonly": true
-                    }
-                },
-                {
-                    "key": "session_id",
-                    "label": "Session ID",
-                    "description": "Optional session/request correlation ID for grouping related mutations.",
-                    "data_type": "string",
-                    "display_order": 6,
-                    "class_id": "@prop_string",
-                    "flags": {
-                        "readonly": true
-                    }
-                },
-                {
-                    "key": "signed_at",
-                    "label": "Signed At",
-                    "description": "ISO 8601 timestamp when this audit entry was written (server time).",
-                    "data_type": "datetime",
-                    "display_order": 7,
-                    "class_id": "@prop_string",
-                    "flags": {
-                        "required": true,
-                        "readonly": true
-                    }
-                },
-                {
-                    "key": "changes",
-                    "label": "Changes",
-                    "description": "Field-level diff: {field_key: {old: ..., new: ...}}. Only populated when audit_include_changes is true on the active policy.",
-                    "data_type": "object",
-                    "display_order": 8,
-                    "class_id": "@prop_object",
-                    "flags": {
-                        "readonly": true
-                    }
-                },
-                {
-                    "key": "policy_id",
-                    "label": "Policy ID",
-                    "description": "ID of the @signing_policy that matched this mutation.",
-                    "data_type": "string",
-                    "display_order": 9,
-                    "class_id": "@prop_string",
-                    "flags": {
-                        "readonly": true
-                    }
-                }
-            ]
+          "key": "class_pattern",
+          "label": "Class Pattern",
+          "description": "Glob/regex pattern of class IDs this policy applies to. '*' = all classes. Examples: 'ai:*', '@action', 'user'.",
+          "data_type": "string",
+          "display_order": 2,
+          "class_id": "@prop_string",
+          "options": { "default": "*" }
+        },
+        {
+          "key": "require_user",
+          "label": "Require User",
+          "description": "Reject mutations that have no user_id in context. Enforces authenticated writes.",
+          "data_type": "boolean",
+          "display_order": 3,
+          "class_id": "@prop_string",
+          "options": { "default": false }
+        },
+        {
+          "key": "require_agent",
+          "label": "Require Agent",
+          "description": "Reject mutations that have no agent_id in context. Enforces agent attribution.",
+          "data_type": "boolean",
+          "display_order": 4,
+          "class_id": "@prop_string",
+          "options": { "default": false }
+        },
+        {
+          "key": "stamp_created_by",
+          "label": "Stamp created_by",
+          "description": "Automatically stamp created_by (user_id) and created_by_agent (agent_id) on object creation.",
+          "data_type": "boolean",
+          "display_order": 5,
+          "class_id": "@prop_string",
+          "options": { "default": true }
+        },
+        {
+          "key": "stamp_updated_by",
+          "label": "Stamp updated_by",
+          "description": "Automatically stamp updated_by (user_id) and updated_by_agent (agent_id) on every update.",
+          "data_type": "boolean",
+          "display_order": 6,
+          "class_id": "@prop_string",
+          "options": { "default": true }
+        },
+        {
+          "key": "audit_enabled",
+          "label": "Audit Enabled",
+          "description": "Write an @audit_entry record for every matching mutation (create, update, delete).",
+          "data_type": "boolean",
+          "display_order": 7,
+          "class_id": "@prop_string",
+          "options": { "default": true }
+        },
+        {
+          "key": "audit_include_changes",
+          "label": "Include Changes in Audit",
+          "description": "Store the full field-level diff ({old, new} per changed field) in the audit entry. Disable for high-volume classes to reduce storage.",
+          "data_type": "boolean",
+          "display_order": 8,
+          "class_id": "@prop_string",
+          "options": { "default": true }
         }
-    ],
-    "objects": [
+      ]
+    },
+    {
+      "id": "@audit_entry",
+      "class_id": "@class",
+      "name": "Audit Entry",
+      "description": "Immutable audit record written after every object mutation (create, update, delete). Captures who made the change, when, and what changed. Never deleted \u2014 append-only audit trail.",
+      "is_system": true,
+      "is_seed": false,
+      "namespace_id": "signing",
+      "props": [
         {
-            "id": "policy:default",
-            "class_id": "@signing_policy",
-            "name": "Default Policy",
-            "class_pattern": "*",
-            "require_user": false,
-            "require_agent": false,
-            "stamp_created_by": true,
-            "stamp_updated_by": true,
-            "audit_enabled": true,
-            "audit_include_changes": true
+          "key": "target_class_id",
+          "label": "Target Class",
+          "description": "The class_id of the object that was mutated.",
+          "data_type": "string",
+          "display_order": 1,
+          "class_id": "@prop_string",
+          "flags": { "required": true, "readonly": true }
         },
         {
-            "id": "policy:system",
-            "class_id": "@signing_policy",
-            "name": "System Class Policy",
-            "class_pattern": "@*",
-            "require_user": true,
-            "require_agent": false,
-            "stamp_created_by": true,
-            "stamp_updated_by": true,
-            "audit_enabled": true,
-            "audit_include_changes": true
+          "key": "object_id",
+          "label": "Object ID",
+          "description": "The id of the object that was mutated.",
+          "data_type": "string",
+          "display_order": 2,
+          "class_id": "@prop_string",
+          "flags": { "required": true, "readonly": true }
         },
         {
-            "id": "policy:ai",
-            "class_id": "@signing_policy",
-            "name": "AI Agent Policy",
-            "class_pattern": "ai:*",
-            "require_user": false,
-            "require_agent": true,
-            "stamp_created_by": true,
-            "stamp_updated_by": true,
-            "audit_enabled": true,
-            "audit_include_changes": true
+          "key": "mutation_type",
+          "label": "Mutation Type",
+          "description": "Type of mutation: create | update | delete.",
+          "data_type": "string",
+          "display_order": 3,
+          "class_id": "@prop_string",
+          "flags": { "required": true, "readonly": true },
+          "options": {
+            "values": ["create", "update", "delete"]
+          }
+        },
+        {
+          "key": "user_id",
+          "label": "User ID",
+          "description": "ID of the authenticated user who triggered the mutation. Null for system/anonymous writes.",
+          "data_type": "string",
+          "display_order": 4,
+          "class_id": "@prop_string",
+          "flags": { "readonly": true }
+        },
+        {
+          "key": "agent_id",
+          "label": "Agent ID",
+          "description": "ID of the agent (AI or automated system) that performed the mutation. Null for direct user writes.",
+          "data_type": "string",
+          "display_order": 5,
+          "class_id": "@prop_string",
+          "flags": { "readonly": true }
+        },
+        {
+          "key": "session_id",
+          "label": "Session ID",
+          "description": "Optional session/request correlation ID for grouping related mutations.",
+          "data_type": "string",
+          "display_order": 6,
+          "class_id": "@prop_string",
+          "flags": { "readonly": true }
+        },
+        {
+          "key": "signed_at",
+          "label": "Signed At",
+          "description": "ISO 8601 timestamp when this audit entry was written (server time).",
+          "data_type": "datetime",
+          "display_order": 7,
+          "class_id": "@prop_string",
+          "flags": { "required": true, "readonly": true }
+        },
+        {
+          "key": "changes",
+          "label": "Changes",
+          "description": "Field-level diff: {field_key: {old: ..., new: ...}}. Only populated when audit_include_changes is true on the active policy.",
+          "data_type": "object",
+          "display_order": 8,
+          "class_id": "@prop_object",
+          "flags": { "readonly": true }
+        },
+        {
+          "key": "policy_id",
+          "label": "Policy ID",
+          "description": "ID of the @signing_policy that matched this mutation.",
+          "data_type": "string",
+          "display_order": 9,
+          "class_id": "@prop_string",
+          "flags": { "readonly": true }
         }
-    ]
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "id": "policy:default",
+      "class_id": "@signing_policy",
+      "name": "Default Policy",
+      "class_pattern": "*",
+      "require_user": false,
+      "require_agent": false,
+      "stamp_created_by": true,
+      "stamp_updated_by": true,
+      "audit_enabled": true,
+      "audit_include_changes": true
+    },
+    {
+      "id": "policy:system",
+      "class_id": "@signing_policy",
+      "name": "System Class Policy",
+      "class_pattern": "@*",
+      "require_user": true,
+      "require_agent": false,
+      "stamp_created_by": true,
+      "stamp_updated_by": true,
+      "audit_enabled": true,
+      "audit_include_changes": true
+    },
+    {
+      "id": "policy:ai",
+      "class_id": "@signing_policy",
+      "name": "AI Agent Policy",
+      "class_pattern": "ai:*",
+      "require_user": false,
+      "require_agent": true,
+      "stamp_created_by": true,
+      "stamp_updated_by": true,
+      "audit_enabled": true,
+      "audit_include_changes": true
+    }
+  ]
 }
