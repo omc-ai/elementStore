@@ -137,6 +137,9 @@ class Prop extends EntityObj
     /** @var int Display order in forms/tables */
     public int $display_order = 0;
 
+    /** Setter function definition — generates value on create */
+    public ?array $setter = null;
+
     // Flag accessors — read from $flags array
     public function isRequired(): bool { return !empty($this->flags['required']); }
     public function isReadonly(): bool { return !empty($this->flags['readonly']); }

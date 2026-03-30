@@ -523,34 +523,18 @@ class ClassModel
     }
 
     /**
-     * Inject payload-bound key filters into a query.
+     * Inject scope filters into a query.
      *
-     * Reads key definitions from the class. For any field with a payload binding
-     * (e.g. {"app_id": "me.session.app_id"}), adds a filter with the current
-     * session value. This ensures users only see objects in their scope.
+     * Reads scope from class definition, resolves values from session,
+     * adds as filters. Users only see objects in their scope.
      */
-    private function injectKeyPayloadFilters(string $classId, array &$filters): void
+    private function injectScopeFilters(string $classId, array &$filters): void
     {
-        $meta = $this->getClass($classId);
-        if (!$meta) return;
-
-        $metaArr = $meta->toArray();
-        $keys = $metaArr['keys'] ?? [];
-
-        foreach ($keys as $keyDef) {
-            $fields = $keyDef['fields'] ?? [];
-            $resolvedFields = $this->resolveKeyFields($fields);
-
-            foreach ($resolvedFields as $rf) {
-                if ($rf['source'] === 'local') continue;
-
-                $propName = $rf['prop'];
-                $value = $this->resolvePayloadValue($rf['source']);
-
-                // Only inject if we have a session value and user hasn't already filtered
-                if ($value !== null && !isset($filters[$propName])) {
-                    $filters[$propName] = $value;
-                }
+        $scope = $this->getClassScope($classId);
+        foreach ($scope as $field) {
+            $value = $this->resolveScopeValue($field);
+            if ($value !== null && !isset($filters[$field])) {
+                $filters[$field] = $value;
             }
         }
     }
@@ -712,9 +696,12 @@ class ClassModel
             }
         }
 
-        // Step 2b-keys: Apply key bindings (auto-fill payload fields, generate auto_inc)
+        // Step 2b-scope: Apply scope fields (auto-fill from session)
+        $data = $this->applyScopeFields($class_id, $data, $oldData);
+
+        // Step 2b-setters: Execute prop setters (auto_inc, etc.)
         if ($meta !== null) {
-            $data = $this->applyKeyBindings($class_id, $data, $oldData);
+            $data = $this->applySetters($class_id, $data, $oldData);
         }
 
         // Step 2b: Check unique constraints
@@ -1032,15 +1019,15 @@ class ClassModel
         // Add class_id filter
         $filters[Constants::F_CLASS_ID] = $class_id;
 
-        // Inject payload-bound key filters from class definition
+        // Inject scope filters from class definition
         // Admin/system roles bypass these filters
         $isPrivileged = in_array('admin', $this->userRoles, true)
             || in_array('system', $this->userRoles, true);
         if (!$isPrivileged) {
-            $this->injectKeyPayloadFilters($class_id, $filters);
+            $this->injectScopeFilters($class_id, $filters);
         }
 
-        // Add security filters for non-system classes
+        // Add legacy security filters for non-system classes (fallback)
         if (!$this->isSystemClass($class_id) && $this->enforceOwnership && !$isPrivileged) {
             $this->injectSecurityFilters($filters);
         }
@@ -2227,101 +2214,75 @@ class ClassModel
     }
 
     /**
-     * Resolve key field definitions.
+     * Get scope fields for a class (walks extends_id chain).
      *
-     * Each field entry can be:
-     * - string "name"                    → local prop, value from object
-     * - object {"app_id": "me.session.app_id"} → local prop, value from session
-     *
-     * Returns normalized array of ['prop' => propName, 'source' => 'local'|sourceExpression]
+     * Returns array of prop keys that define visibility scope.
+     * null scope = inherit from parent. [] = global (no scope).
      */
-    private function resolveKeyFields(array $fields): array
+    public function getClassScope(string $classId): array
     {
-        $resolved = [];
-        foreach ($fields as $field) {
-            if (is_string($field)) {
-                $resolved[] = ['prop' => $field, 'source' => 'local'];
-            } elseif (is_array($field)) {
-                // Object: {"prop_name": "me.session.xxx"}
-                foreach ($field as $propName => $sourcePath) {
-                    $resolved[] = ['prop' => $propName, 'source' => $sourcePath];
-                    break; // Only first key-value pair
-                }
+        $visited = [];
+        $cid = $classId;
+
+        while ($cid && !isset($visited[$cid])) {
+            $visited[$cid] = true;
+            $meta = $this->getClass($cid);
+            if (!$meta) break;
+
+            $metaArr = $meta->toArray();
+            $scope = $metaArr['scope'] ?? null;
+
+            if ($scope !== null) {
+                return is_array($scope) ? $scope : [];
             }
+
+            $cid = $metaArr['extends_id'] ?? null;
         }
-        return $resolved;
+
+        return []; // No scope found in chain = global
     }
 
     /**
-     * Resolve a source path like "me.session.app_id" to a value from the current session.
+     * Resolve scope value from session context by field name.
      */
-    private function resolvePayloadValue(string $sourcePath): mixed
+    private function resolveScopeValue(string $field): mixed
     {
-        // Parse "me.xxx" or "me.session.xxx"
-        $parts = explode('.', $sourcePath);
-        if (empty($parts) || $parts[0] !== 'me') return null;
-
-        // me.user_id, me.app_id, me.tenant_id, me.domain
-        $field = end($parts);
         return match($field) {
             'user_id' => $this->userId,
             'app_id' => $this->appId,
             'tenant_id' => $this->tenantId,
+            'org_id' => $this->appId, // TODO: org from session
             'domain' => $this->domain,
             default => null,
         };
     }
 
     /**
-     * Apply key bindings to object data — auto-fill payload-bound fields.
-     *
-     * Called during setObject for new objects.
-     * - Fills bound fields from session context
-     * - Generates auto_inc values
-     * - Returns modified data
+     * Apply scope fields to object data on create.
+     * Auto-fill from session, reject changes on update.
      */
-    public function applyKeyBindings(string $classId, array $data, ?array $oldData): array
+    public function applyScopeFields(string $classId, array $data, ?array $oldData): array
     {
-        $meta = $this->getClass($classId);
-        if (!$meta) return $data;
+        $scope = $this->getClassScope($classId);
+        if (empty($scope)) return $data;
 
-        $metaArr = $meta->toArray();
-        $keys = $metaArr['keys'] ?? [];
         $isNew = ($oldData === null);
 
-        foreach ($keys as $keyName => $keyDef) {
-            $fields = $keyDef['fields'] ?? [];
-            $autoField = $keyDef['auto_field'] ?? null;
-            $autoType = $keyDef['auto_type'] ?? 'uuid';
+        foreach ($scope as $field) {
+            $sessionValue = $this->resolveScopeValue($field);
+            if ($sessionValue === null) continue;
 
-            $resolvedFields = $this->resolveKeyFields($fields);
-
-            foreach ($resolvedFields as $rf) {
-                $propName = $rf['prop'];
-                $source = $rf['source'];
-
-                if ($source !== 'local') {
-                    // Payload-bound field
-                    $payloadValue = $this->resolvePayloadValue($source);
-                    if ($payloadValue !== null) {
-                        if ($isNew) {
-                            // Auto-fill on create
-                            $data[$propName] = $payloadValue;
-                        } elseif (isset($data[$propName]) && isset($oldData[$propName])
-                                  && $data[$propName] !== $oldData[$propName]) {
-                            // Reject change on update — keep old value
-                            $data[$propName] = $oldData[$propName];
-                        }
-                    }
+            if ($isNew) {
+                // Auto-fill on create (don't override if user provided)
+                if (!isset($data[$field])) {
+                    $data[$field] = $sessionValue;
                 }
-            }
-
-            // Handle auto-generation for the auto_field
-            if ($autoField && $isNew && !isset($data[$autoField])) {
-                if ($autoType === 'auto_inc') {
-                    $data[$autoField] = $this->generateAutoInc($classId, $keyDef, $resolvedFields, $data);
+            } else {
+                // Reject changes on update
+                if (isset($data[$field]) && isset($oldData[$field])
+                    && $data[$field] !== $oldData[$field]) {
+                    $data[$field] = $oldData[$field];
                 }
-                // 'uuid' is handled by storage layer (CouchDB auto-generates ID)
             }
         }
 
@@ -2329,119 +2290,165 @@ class ClassModel
     }
 
     /**
-     * Generate next auto-increment value for a key field.
+     * Apply prop setters — execute setter functions for props that need generated values.
+     * Called during setObject for new objects.
      */
-    private function generateAutoInc(string $classId, array $keyDef, array $resolvedFields, array $data): string
+    public function applySetters(string $classId, array $data, ?array $oldData): array
     {
-        $autoField = $keyDef['auto_field'];
-        $prefix = $keyDef['prefix'] ?? '';
-        $start = (int)($keyDef['start'] ?? 1);
-        $step = (int)($keyDef['step'] ?? 1);
+        if ($oldData !== null) return $data; // Setters only on create
 
-        // Build scope filter from non-auto fields
-        $scopeFilters = [Constants::F_CLASS_ID => $classId];
-        foreach ($resolvedFields as $rf) {
-            if ($rf['prop'] === $autoField) continue;
-            $val = $data[$rf['prop']] ?? null;
-            if ($val !== null) {
-                $scopeFilters[$rf['prop']] = $val;
+        $props = $this->getClassProps($classId);
+        foreach ($props as $prop) {
+            $key = $prop->key;
+            if (isset($data[$key])) continue; // Already has value
+
+            $setter = $prop->setter;
+            if (!$setter) continue;
+
+            // Resolve setter function
+            $funcId = $setter['id'] ?? $setter['code'] ?? null;
+            $params = $setter['params'] ?? $setter['parameters'] ?? [];
+
+            if ($funcId === 'auto_inc' || (is_string($funcId) && str_contains($funcId, 'auto_inc'))) {
+                $data[$key] = $this->executeAutoInc($classId, $key, $data, $params);
+            }
+            // Future: other setter types (uuid, timestamp, formula)
+        }
+
+        return $data;
+    }
+
+    /**
+     * Execute auto_inc setter — uses @counter for persistent counters.
+     * Falls back to scanning existing objects if no counter exists.
+     * CouchDB _rev provides optimistic locking for concurrency.
+     */
+    private function executeAutoInc(string $classId, string $propKey, array $data, array $params): string
+    {
+        $prefix = $params['prefix'] ?? '';
+        $start = (int)($params['start'] ?? 1);
+        $step = (int)($params['step'] ?? 1);
+
+        // Build scope key from class scope fields
+        $scope = $this->getClassScope($classId);
+        $scopeParts = [];
+        foreach ($scope as $field) {
+            $scopeParts[] = $data[$field] ?? '_';
+        }
+        $scopeKey = !empty($scopeParts) ? implode('.', $scopeParts) : '_global';
+        $counterId = "{$classId}.{$propKey}.{$scopeKey}";
+
+        // Retry loop for CouchDB conflict resolution
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            // Try to read existing counter
+            $counter = $this->storage->getobj('@counter', $counterId);
+
+            if ($counter) {
+                $nextVal = (int)$counter['value'] + $step;
+                $counter['value'] = $nextVal;
+                try {
+                    $this->storage->setobj('@counter', $counter);
+                    return $prefix . $nextVal;
+                } catch (\Throwable $e) {
+                    // Conflict — retry
+                    continue;
+                }
+            }
+
+            // No counter — find max from existing objects
+            $scopeFilters = [Constants::F_CLASS_ID => $classId];
+            foreach ($scope as $field) {
+                $val = $data[$field] ?? null;
+                if ($val !== null) $scopeFilters[$field] = $val;
+            }
+
+            $existing = $this->storage->query($classId, $scopeFilters, ['limit' => 10000]);
+            $maxNum = $start - $step;
+            foreach ($existing as $obj) {
+                $val = $obj[$propKey] ?? null;
+                if ($val === null) continue;
+                $numStr = $prefix ? str_replace($prefix, '', (string)$val) : (string)$val;
+                if (is_numeric($numStr)) {
+                    $num = (int)$numStr;
+                    if ($num > $maxNum) $maxNum = $num;
+                }
+            }
+
+            $nextVal = $maxNum + $step;
+
+            // Create counter
+            try {
+                $this->storage->setobj('@counter', [
+                    'id' => $counterId,
+                    Constants::F_CLASS_ID => '@counter',
+                    'class_ref' => $classId,
+                    'prop_key' => $propKey,
+                    'scope_key' => $scopeKey,
+                    'value' => $nextVal,
+                ]);
+                return $prefix . $nextVal;
+            } catch (\Throwable $e) {
+                continue; // Conflict — retry
             }
         }
 
-        // Find max value within scope
-        $existing = $this->storage->query($classId, $scopeFilters, ['limit' => 1000]);
-        $maxNum = $start - $step;
-        foreach ($existing as $obj) {
-            $val = $obj[$autoField] ?? null;
-            if ($val === null) continue;
-            // Strip prefix to get numeric part
-            $numStr = $prefix ? str_replace($prefix, '', (string)$val) : (string)$val;
-            if (is_numeric($numStr)) {
-                $num = (int)$numStr;
-                if ($num > $maxNum) $maxNum = $num;
-            }
-        }
-
-        $nextNum = $maxNum + $step;
-        return $prefix . $nextNum;
+        throw new StorageException(
+            "Failed to generate auto_inc for {$classId}.{$propKey} after 5 attempts",
+            'generation_failed'
+        );
     }
 
     /**
      * Check unique constraints defined on a class.
      *
-     * Handles:
-     * - Assoc keys: {"keyName": {fields, auto_field, auto_type}}
-     * - Legacy indexed: [{fields}]
-     * - Bound fields: {"app_id": "me.session.app_id"} → resolved from session
+     * Keys define field uniqueness. Scope fields are automatically added
+     * to every key check — uniqueness is always within scope.
      */
     private function checkUniqueConstraints(string $classId, array $data, ClassMeta $meta): void
     {
         $objectId = $data[Constants::F_ID] ?? null;
         $metaArr = $meta->toArray();
 
-        // Collect all key definitions
+        // Collect key definitions
         $allKeys = [];
-
-        // Legacy: unique[] constraints
-        $constraints = $metaArr['unique'] ?? [];
-        foreach ($constraints as $c) {
-            if (!empty($c['fields'])) {
-                $allKeys[] = ['fields' => $c['fields'], 'id' => $c['id'] ?? implode('+', $c['fields'])];
-            }
-        }
-
-        // New: keys from @class (assoc or legacy indexed)
         $keys = $metaArr['keys'] ?? [];
         foreach ($keys as $keyName => $k) {
             $fields = $k['fields'] ?? [];
             if (!empty($fields)) {
                 $id = is_string($keyName) ? $keyName : implode('+', $fields);
-                $allKeys[] = [
-                    'fields' => $fields,
-                    'id' => $id,
-                    'auto_field' => $k['auto_field'] ?? null,
-                    'auto_type' => $k['auto_type'] ?? null,
-                ];
+                $allKeys[] = ['fields' => $fields, 'id' => $id];
             }
         }
 
         if (empty($allKeys)) return;
 
-        foreach ($allKeys as $keyDef) {
-            $rawFields = $keyDef['fields'];
-            $keyId = $keyDef['id'];
-            $autoField = $keyDef['auto_field'] ?? null;
+        // Get scope fields — added to every key check
+        $scope = $this->getClassScope($classId);
 
-            // Resolve field names (handle object bindings)
-            $resolvedFields = $this->resolveKeyFields($rawFields);
+        foreach ($allKeys as $keyDef) {
+            $fields = $keyDef['fields'];
+            $keyId = $keyDef['id'];
 
             // Skip primary key on 'id' — CouchDB handles uniqueness natively
-            if (count($resolvedFields) === 1 && $resolvedFields[0]['prop'] === 'id') continue;
+            if (count($fields) === 1 && $fields[0] === 'id') continue;
 
-            // Build filter from resolved field values
+            // Build filter: scope fields + key fields
             $filters = [];
             $skip = false;
-            $fieldNames = [];
 
-            foreach ($resolvedFields as $rf) {
-                $propName = $rf['prop'];
-                $fieldNames[] = $propName;
-
-                // Skip auto_field if not yet generated
-                if ($propName === $autoField && !isset($data[$propName])) {
-                    $skip = true;
-                    break;
+            // Add scope fields first
+            foreach ($scope as $scopeField) {
+                $value = $data[$scopeField] ?? null;
+                if ($value !== null) {
+                    $filters[$scopeField] = $value;
                 }
+            }
 
-                $value = $data[$propName] ?? null;
-
-                // For bound fields, resolve from session if not in data
-                if ($value === null && $rf['source'] !== 'local') {
-                    $value = $this->resolvePayloadValue($rf['source']);
-                }
-
+            // Add key fields
+            foreach ($fields as $field) {
+                $value = $data[$field] ?? null;
                 if ($value === null) { $skip = true; break; }
-                $filters[$propName] = $value;
+                $filters[$field] = $value;
             }
             if ($skip) continue;
 
@@ -2450,11 +2457,11 @@ class ClassModel
             foreach ($matches as $existing) {
                 $existingId = $existing[Constants::F_ID] ?? null;
                 if ($objectId !== null && $existingId == $objectId) continue;
-                $fieldList = implode(', ', $fieldNames);
+                $fieldList = implode(', ', $fields);
                 throw new StorageException(
                     "Unique key '{$keyId}' violated on [{$fieldList}]",
                     'validation_failed',
-                    [['path' => $fieldNames[0], 'message' => "Duplicate value for key '{$keyId}'", 'code' => 'unique']]
+                    [['path' => $fields[0], 'message' => "Duplicate value for key '{$keyId}'", 'code' => 'unique']]
                 );
             }
         }
