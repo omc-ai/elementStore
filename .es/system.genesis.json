@@ -6,9 +6,9 @@
             "id": "@class",
             "class_id": "@class",
             "@state": {
-                "version": "3a297baf861c6e8c8b983c9a08038a76"
+                "version": "3a297baf861c6e8c8b983c9a08093d66"
             },
-            "updated_at": "2026-03-29 17:20:02",
+            "updated_at": "2026-03-30 06:54:13",
             "created_at": "2026-03-29 14:42:45",
             "name": "Class",
             "description": "Defines a data class with its properties and behaviors",
@@ -260,151 +260,148 @@
                     "display_order": 15,
                     "class_id": "@prop",
                     "id": "@class.prompt"
+                },
+                {
+                    "data_type": "string",
+                    "key": "scope",
+                    "label": "Scope",
+                    "description": "List of prop keys that define object visibility scope. Values auto-filled from session, auto-filtered on query. Inherited via extends_id.",
+                    "is_array": "indexed",
+                    "display_order": 16,
+                    "class_id": "@prop",
+                    "id": "@class.scope"
                 }
-            ]
+            ],
+            "keys": {
+                "primary": {
+                    "fields": [
+                        "id"
+                    ]
+                }
+            }
         },
         {
             "id": "@prop",
             "class_id": "@class",
-            "updated_at": "2026-03-29 17:20:43",
+            "updated_at": "2026-03-30 06:55:11",
             "created_at": "2026-03-29 14:42:45",
             "name": "Property",
             "description": "Base property definition — common fields inherited by all @prop_* child classes",
             "props": [
                 {
+                    "data_type": "string",
                     "key": "data_type",
                     "label": "Data Type",
                     "description": "Type of value — determines which @prop_* child class to use",
-                    "data_type": "string",
+                    "display_order": 1,
                     "flags": {
                         "required": true,
                         "create_only": true
                     },
-                    "default_value": "string",
-                    "options": {
-                        "values": {
-                            "string": "@prop_string",
-                            "boolean": "@prop_boolean",
-                            "integer": "@prop_number",
-                            "float": "@prop_number",
-                            "datetime": "@prop_datetime",
-                            "object": "@prop_object",
-                            "relation": "@prop_relation",
-                            "function": "@prop_function"
-                        }
-                    },
-                    "display_order": 1,
-                    "class_id": "@prop_string"
+                    "class_id": "@prop",
+                    "id": "@prop.data_type"
                 },
                 {
+                    "data_type": "string",
                     "key": "key",
                     "label": "Key",
                     "description": "Property key (field name in data)",
-                    "data_type": "string",
+                    "display_order": 2,
                     "flags": {
                         "required": true
                     },
-                    "display_order": 2,
-                    "class_id": "@prop_string"
+                    "class_id": "@prop",
+                    "id": "@prop.key"
                 },
                 {
+                    "data_type": "string",
                     "key": "label",
                     "label": "Label",
                     "description": "Display label in UI",
-                    "data_type": "string",
                     "display_order": 3,
-                    "class_id": "@prop_string"
+                    "class_id": "@prop",
+                    "id": "@prop.label"
                 },
                 {
+                    "data_type": "string",
                     "key": "description",
                     "label": "Description",
                     "description": "Help text shown to users",
-                    "data_type": "string",
                     "editor": {
                         "id": "textarea"
                     },
                     "display_order": 4,
-                    "class_id": "@prop_string"
+                    "class_id": "@prop",
+                    "id": "@prop.description"
                 },
                 {
+                    "data_type": "string",
                     "key": "is_array",
                     "label": "Is Array",
                     "description": "Multiplicity: false=scalar, indexed=ordered array, assoc=key-value map",
-                    "data_type": "string",
-                    "default_value": "false",
-                    "options": {
-                        "values": [
-                            "false",
-                            "indexed",
-                            "assoc"
-                        ]
-                    },
                     "display_order": 5,
-                    "class_id": "@prop_string"
+                    "class_id": "@prop",
+                    "id": "@prop.is_array"
                 },
                 {
+                    "data_type": "object",
                     "key": "editor",
                     "label": "Editor",
                     "description": "UI editor widget — inline @editor instance with per-prop configuration. 'type' references the @editor definition, additional props are per-instance overrides.",
-                    "data_type": "object",
-                    "object_class_id": [
-                        "@editor"
-                    ],
                     "display_order": 10,
-                    "class_id": "@prop_object"
+                    "class_id": "@prop",
+                    "id": "@prop.editor"
                 },
                 {
+                    "data_type": "integer",
                     "key": "display_order",
                     "label": "Display Order",
                     "description": "Sort order in forms (lower = first)",
-                    "data_type": "integer",
-                    "default_value": 0,
                     "display_order": 11,
-                    "class_id": "@prop_number"
+                    "class_id": "@prop",
+                    "id": "@prop.display_order"
                 },
                 {
+                    "data_type": "object",
                     "key": "flags",
                     "label": "Flags",
                     "description": "Behavior flags: required, readonly, hidden, create_only, server_only, master_only",
-                    "data_type": "object",
-                    "object_class_id": [
-                        "@prop_flags"
-                    ],
                     "display_order": 20,
-                    "class_id": "@prop_object"
+                    "class_id": "@prop",
+                    "id": "@prop.flags"
                 },
                 {
+                    "data_type": "object",
                     "key": "default_value",
                     "label": "Default Value",
                     "description": "Default value for new objects — type determined by this @prop's data_type",
-                    "data_type": "object",
-                    "object_class_id": [
-                        "@obj_ref"
-                    ],
-                    "options": {
-                        "ref": "self"
-                    },
                     "display_order": 30,
-                    "class_id": "@prop_object"
+                    "class_id": "@prop",
+                    "id": "@prop.default_value"
                 },
                 {
+                    "data_type": "object",
                     "key": "contexts",
                     "label": "Contexts",
                     "description": "Per-context overrides (grid, form, compact, etc.)",
-                    "data_type": "object",
                     "is_array": "assoc",
-                    "object_class_id": [
-                        "@prop_context"
-                    ],
-                    "options": {
-                        "keys": {
-                            "extensible": true
-                        }
-                    },
                     "display_order": 40,
-                    "class_id": "@prop_object"
+                    "class_id": "@prop",
+                    "id": "@prop.contexts"
+                },
+                {
+                    "data_type": "object",
+                    "key": "setter",
+                    "label": "Setter",
+                    "description": "Function that generates value on create. Reference to @function with params.",
+                    "display_order": 35,
+                    "class_id": "@prop",
+                    "id": "@prop.setter"
                 }
-            ]
+            ],
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a080959d5"
+            }
         },
         {
             "id": "@prop_string",
@@ -2821,12 +2818,12 @@
             "id": "@key",
             "class_id": "@class",
             "@state": {
-                "version": "3a297baf861c6e8c8b983c9a08031efd"
+                "version": "3a297baf861c6e8c8b983c9a08093e6e"
             },
-            "updated_at": "2026-03-29 17:20:43",
+            "updated_at": "2026-03-30 06:54:30",
             "created_at": "2026-03-29 14:42:45",
             "name": "Key Definition",
-            "description": "Unique constraint. fields[] is composite key. Optional auto_field for auto-increment.",
+            "description": "Unique constraint. fields[] is the composite key. Uniqueness check always includes class scope.",
             "props": [
                 {
                     "data_type": "string",
@@ -2846,46 +2843,6 @@
                     },
                     "class_id": "@prop",
                     "id": "@key.fields"
-                },
-                {
-                    "data_type": "string",
-                    "key": "auto_field",
-                    "label": "Auto Field",
-                    "description": "Which field auto-increments (last field)",
-                    "is_array": "false",
-                    "display_order": 2,
-                    "class_id": "@prop",
-                    "id": "@key.auto_field"
-                },
-                {
-                    "data_type": "string",
-                    "key": "prefix",
-                    "label": "Prefix",
-                    "description": "Auto-inc prefix (e.g. GRP-)",
-                    "is_array": "false",
-                    "display_order": 3,
-                    "class_id": "@prop",
-                    "id": "@key.prefix"
-                },
-                {
-                    "data_type": "integer",
-                    "key": "start",
-                    "label": "Start",
-                    "description": "Auto-inc start value",
-                    "is_array": "false",
-                    "display_order": 4,
-                    "class_id": "@prop",
-                    "id": "@key.start"
-                },
-                {
-                    "data_type": "integer",
-                    "key": "step",
-                    "label": "Step",
-                    "description": "Auto-inc step",
-                    "is_array": "false",
-                    "display_order": 5,
-                    "class_id": "@prop",
-                    "id": "@key.step"
                 }
             ]
         },
@@ -2893,9 +2850,9 @@
             "id": "@user",
             "class_id": "@class",
             "@state": {
-                "version": "3a297baf861c6e8c8b983c9a0801758e"
+                "version": "3a297baf861c6e8c8b983c9a0808211e"
             },
-            "updated_at": "2026-03-29 17:20:44",
+            "updated_at": "2026-03-29 17:32:55",
             "created_at": "2026-03-29 14:42:45",
             "name": "Current User",
             "description": "Logged-in user context. GET /store/@user/me resolves to current user from JWT.",
@@ -2994,7 +2951,19 @@
                     },
                     "id": "@user.last_login"
                 }
-            ]
+            ],
+            "keys": {
+                "user_id": {
+                    "fields": [
+                        "user_id"
+                    ]
+                },
+                "email": {
+                    "fields": [
+                        "email"
+                    ]
+                }
+            }
         },
         {
             "id": "@tenant",
@@ -3412,6 +3381,95 @@
             ],
             "version": 1,
             "prompt": "## @exception — Exception Handler\n\nAn @exception defines structured error handling for elementStore operations. Each exception has an error_code in PPPCEEE format (PPP=project, C=severity 8=critical/9=die, EEE=sequence) that uniquely identifies the error type.\n\nFlow: When a StorageException is thrown, the error_code is looked up against registered @exception definitions. The matched definition specifies: the user-facing message template, severity level, whether to log, and optionally an action chain to execute for recovery or notification.\n\nClient behavior: The client receives the error_code and message in API error responses. It can match on error_code to show contextual UI (e.g. validation_failed triggers field highlighting, not_found shows a missing-object dialog, forbidden shows access denied).\n\nAction chain: An @exception can reference @action ids to execute on error — for example, logging to @log, sending a notification, or triggering a rollback composite action.\n\nValidation errors: The special code validation_failed carries an errors[] array with per-field path, message, and code for granular UI feedback."
+        },
+        {
+            "id": "@counter",
+            "name": "Counter",
+            "description": "Persistent counter for auto-increment. Keyed by class+prop+scope.",
+            "props": [
+                {
+                    "data_type": "string",
+                    "key": "class_ref",
+                    "label": "Class",
+                    "display_order": 1,
+                    "flags": {
+                        "required": true,
+                        "readonly": true
+                    },
+                    "class_id": "@prop",
+                    "id": "@counter.class_ref"
+                },
+                {
+                    "data_type": "string",
+                    "key": "prop_key",
+                    "label": "Property",
+                    "display_order": 2,
+                    "flags": {
+                        "required": true,
+                        "readonly": true
+                    },
+                    "class_id": "@prop",
+                    "id": "@counter.prop_key"
+                },
+                {
+                    "data_type": "string",
+                    "key": "scope_key",
+                    "label": "Scope",
+                    "display_order": 3,
+                    "flags": {
+                        "readonly": true
+                    },
+                    "class_id": "@prop",
+                    "id": "@counter.scope_key"
+                },
+                {
+                    "data_type": "integer",
+                    "key": "value",
+                    "label": "Value",
+                    "display_order": 4,
+                    "class_id": "@prop",
+                    "id": "@counter.value"
+                }
+            ],
+            "track_changes": false,
+            "keys": {
+                "primary": {
+                    "fields": [
+                        "id"
+                    ]
+                },
+                "counter_key": {
+                    "fields": [
+                        "class_ref",
+                        "prop_key",
+                        "scope_key"
+                    ]
+                }
+            },
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a08096100"
+            },
+            "class_id": "@class",
+            "created_at": "2026-03-30 06:55:28",
+            "updated_at": "2026-03-30 06:55:28"
+        },
+        {
+            "id": "@group",
+            "name": "Group",
+            "keys": {
+                "identity": {
+                    "fields": [
+                        "group_type",
+                        "name"
+                    ]
+                }
+            },
+            "@state": {
+                "version": "3a297baf861c6e8c8b983c9a08083783"
+            },
+            "class_id": "@class",
+            "created_at": "2026-03-29 17:33:07",
+            "updated_at": "2026-03-29 17:33:07"
         }
     ]
 }
