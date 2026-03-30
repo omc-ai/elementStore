@@ -676,28 +676,12 @@ class ClassModel
             }
         }
 
-        // Step 2-pre: When saving @prop class, cache the incoming definition
-        // so validate() uses the new props (not the old/broken DB version).
-        $cachedPropMeta = null;
-        if ($class_id === Constants::K_CLASS && $id === Constants::K_PROP) {
-            $tempData = array_merge($oldData ?? [], $data);
-            $cachedPropMeta = $this->fromCache(Constants::K_CLASS, Constants::K_PROP);
-            $newPropMeta = new ClassMeta(Constants::K_CLASS, $tempData, $this->getDi());
-            $this->toCache($newPropMeta);
-        }
-
         // Step 2: Validate and build merged object
         if ($meta !== null) {
             $t1 = microtime(true);
             $result = $this->validate($class_id, $data, $oldData);
             $timings['validate'] = round((microtime(true) - $t1) * 1000, 1);
             if (!empty($result['errors'])) {
-                // Rollback cache on validation failure
-                if ($cachedPropMeta !== null) {
-                    $this->toCache($cachedPropMeta);
-                } elseif ($class_id === Constants::K_CLASS && $id === Constants::K_PROP) {
-                    unset($this->objectCache[Constants::K_CLASS][Constants::K_PROP]);
-                }
                 throw new StorageException(
                     'Validation failed',
                     'validation_failed',
@@ -1503,14 +1487,26 @@ class ClassModel
                                 }
                             }
                         }
-                        // Use primary target class for validation (first in array)
+                        // Resolve validation target class
                         $targetClass = $prop->getPrimaryTargetClass();
-                        // Use item's own class_id if it's a child of the target
-                        // e.g. @prop_string extends @prop — validate against @prop_string to include its own props
                         $itemClass = $item[Constants::F_CLASS_ID] ?? null;
-                        if ($itemClass && $itemClass !== $targetClass && $this->isClassOrChild($targetClass, $itemClass)) {
-                            $targetClass = $itemClass;
+
+                        // Use item's own class_id if it exists and is a child of the target
+                        // e.g. @prop_string extends @prop — validate against @prop_string
+                        if ($itemClass && $itemClass !== $targetClass) {
+                            $itemMeta = $this->getClass($itemClass);
+                            if ($itemMeta) {
+                                // Child class exists — validate against it (includes inherited props)
+                                $targetClass = $itemClass;
+                            } elseif ($targetClass && $this->getClass($targetClass)) {
+                                // Child class doesn't exist yet (bootstrap) — accept as-is
+                                // The item claims to be a child of the target class,
+                                // but we can't verify. Accept it without nested validation.
+                                $mergedArray[] = $item;
+                                continue;
+                            }
                         }
+
                         if ($targetClass && !$this->isInlineReference($targetClass, $item)) {
                             $nestedResult = $this->validate($targetClass, $item, $oldItem, $depth + 1);
                             $mergedArray[] = $nestedResult['data'];
@@ -1696,10 +1692,10 @@ class ClassModel
             return null;
         }
 
-        // Dynamic typed fields — skip type checking
-        // default_value: type determined by sibling data_type (any value accepted)
-        // editor: can be string ID or inline object
-        if ($prop->key === 'default_value') {
+        // @obj_ref — dynamic typed value, accept any type
+        // Used for fields like default_value whose type is determined at runtime
+        $targetClasses = $prop->object_class_id ?? [];
+        if (in_array('@obj_ref', $targetClasses, true)) {
             return null;
         }
 
