@@ -110,34 +110,34 @@ class CompositeStorageProvider implements IStorageProvider
         return $deleted;
     }
 
-    // ─── Query (primary only) ────────────────────────────────────
+    // ─── Query ────────────────────────────────────────────────────
+
+    /** @var array Track which classes have been synced from fallback */
+    private array $syncedClasses = [];
 
     public function query(string $class, array $filters = [], array $options = []): array
     {
+        // For sync method: ensure this class is fully loaded from fallback first
+        if ($this->method === 'sync' && !isset($this->syncedClasses[$class])) {
+            $this->syncClassFromFallback($class);
+            $this->syncedClasses[$class] = true;
+        }
+
+        // Query primary
         try {
             $results = $this->primary->query($class, $filters, $options);
             if (!empty($results)) {
                 return $results;
             }
         } catch (\Throwable $e) {
-            // Primary query failed
+            // Primary failed
         }
 
-        // Fallback query: try providers
+        // Fallback query
         foreach ($this->providers as $provider) {
             try {
                 $results = $provider->query($class, $filters, $options);
                 if (!empty($results)) {
-                    // Sync results to primary if method=sync
-                    if ($this->method === 'sync') {
-                        foreach ($results as $obj) {
-                            try {
-                                $this->primary->setobj($class, $obj);
-                            } catch (\Throwable $e) {
-                                // Sync-back failed
-                            }
-                        }
-                    }
                     return $results;
                 }
             } catch (\Throwable $e) {
@@ -146,6 +146,45 @@ class CompositeStorageProvider implements IStorageProvider
         }
 
         return [];
+    }
+
+    /**
+     * Sync all objects of a class from fallback providers to primary.
+     * Called once per class on first query (sync method only).
+     */
+    private function syncClassFromFallback(string $class): void
+    {
+        foreach ($this->providers as $provider) {
+            try {
+                // Get all objects from fallback
+                $objects = $provider->getobj($class, null);
+                if (empty($objects) || !is_array($objects)) continue;
+
+                // Sync each to primary
+                foreach ($objects as $obj) {
+                    if (!is_array($obj)) continue;
+                    $id = $obj['id'] ?? $obj[Constants::F_ID] ?? null;
+                    if ($id === null) continue;
+
+                    // Only sync if primary doesn't have it
+                    try {
+                        $existing = $this->primary->getobj($class, $id);
+                        if ($existing !== null) continue;
+                    } catch (\Throwable $e) {
+                        // Primary read failed — try to sync anyway
+                    }
+
+                    try {
+                        $this->primary->setobj($class, $obj);
+                    } catch (\Throwable $e) {
+                        // Sync failed — continue
+                    }
+                }
+                return; // Done — synced from first provider that has data
+            } catch (\Throwable $e) {
+                continue;
+            }
+        }
     }
 
     // ─── Schema Operations ───────────────────────────────────────

@@ -33,6 +33,12 @@ class JsonStorageProvider implements IStorageProvider
     /** @var string Directory path for JSON data files */
     private string $dataDir;
 
+    /** @var array|null Cached index: class_id → genesis file locations */
+    private ?array $index = null;
+
+    /** @var string Index file path */
+    private string $indexFile;
+
     /**
      * Create JSON storage provider
      *
@@ -45,6 +51,104 @@ class JsonStorageProvider implements IStorageProvider
         if (!is_dir($this->dataDir)) {
             mkdir($this->dataDir, 0755, true);
         }
+        $this->indexFile = $this->dataDir . '/index.es.json';
+    }
+
+    /**
+     * Get or build the genesis index.
+     * Maps class definitions and seed objects to their genesis/seed files.
+     */
+    private function getIndex(): array
+    {
+        if ($this->index !== null) {
+            return $this->index;
+        }
+
+        // Try loading from cache file
+        if (file_exists($this->indexFile)) {
+            $content = @file_get_contents($this->indexFile);
+            if ($content) {
+                $this->index = json_decode($content, true);
+                if ($this->index !== null) {
+                    return $this->index;
+                }
+            }
+        }
+
+        // Build index by scanning .es/ directory
+        $this->index = $this->buildIndex();
+        return $this->index;
+    }
+
+    /**
+     * Scan all genesis and seed files, build class→file index.
+     */
+    private function buildIndex(): array
+    {
+        $index = ['classes' => [], 'objects' => []];
+
+        // Scan genesis files
+        foreach (glob($this->dataDir . '/*.genesis.json') as $file) {
+            $content = @file_get_contents($file);
+            if (!$content) continue;
+            $data = json_decode($content, true);
+            if (!$data) continue;
+            $basename = basename($file);
+
+            // Index class definitions
+            foreach ($data['classes'] ?? [] as $cls) {
+                $classId = $cls['id'] ?? null;
+                if ($classId) {
+                    // Map: this class definition is in this genesis file
+                    $index['classes'][$classId] = $basename;
+                }
+            }
+
+            // Index seed objects within genesis
+            foreach ($data['seed'] ?? [] as $seed) {
+                $seedClassId = $seed['class_id'] ?? null;
+                $seedId = $seed['id'] ?? null;
+                if ($seedClassId && $seedId) {
+                    $index['objects'][$seedClassId . '/' . $seedId] = $basename;
+                }
+            }
+        }
+
+        // Scan seed files
+        foreach (glob($this->dataDir . '/*.seed.json') as $file) {
+            $content = @file_get_contents($file);
+            if (!$content) continue;
+            $data = json_decode($content, true);
+            if (!is_array($data)) continue;
+            $basename = basename($file);
+
+            foreach ($data as $obj) {
+                $classId = $obj['class_id'] ?? null;
+                $objId = $obj['id'] ?? null;
+                if ($classId && $objId) {
+                    $index['objects'][$classId . '/' . $objId] = $basename;
+                    // Also track which classes have seed objects
+                    if (!isset($index['objects_by_class'][$classId])) {
+                        $index['objects_by_class'][$classId] = [];
+                    }
+                    $index['objects_by_class'][$classId][] = $basename;
+                }
+            }
+        }
+
+        // Save index for next time
+        @file_put_contents($this->indexFile, json_encode($index, JSON_PRETTY_PRINT));
+
+        return $index;
+    }
+
+    /**
+     * Invalidate the cached index (call after genesis file changes).
+     */
+    public function invalidateIndex(): void
+    {
+        $this->index = null;
+        @unlink($this->indexFile);
     }
 
     /**
@@ -139,32 +243,89 @@ class JsonStorageProvider implements IStorageProvider
 
     private function load(string $class): array
     {
+        // Try flat file first: {class_id}.json
         $file = $this->getFile($class);
-        if (!file_exists($file)) {
-            return [];
+        if (file_exists($file)) {
+            $content = @file_get_contents($file);
+            if ($content !== false) {
+                $data = json_decode($content, true);
+                if ($data !== null || json_last_error() === JSON_ERROR_NONE) {
+                    return $data ?? [];
+                }
+            }
         }
 
-        $content = @file_get_contents($file);
-        if ($content === false) {
-            throw new StorageException(
-                "Failed to read file: $file",
-                'io_error',
-                [],
-                ['provider' => 'json', 'op' => 'load', 'class' => $class, 'file' => $file, 'error' => error_get_last()['message'] ?? 'Unknown error']
-            );
+        // Flat file not found — load from genesis files via index
+        return $this->loadFromGenesis($class);
+    }
+
+    /**
+     * Load objects from genesis files using the index.
+     *
+     * For @class: scans ALL genesis files and returns all class definitions.
+     * For other classes: looks up seed objects by class.
+     */
+    private function loadFromGenesis(string $class): array
+    {
+        $index = $this->getIndex();
+        $result = [];
+
+        if ($class === Constants::K_CLASS) {
+            // Load ALL class definitions from ALL genesis files
+            foreach (glob($this->dataDir . '/*.genesis.json') as $file) {
+                $content = @file_get_contents($file);
+                if (!$content) continue;
+                $data = json_decode($content, true);
+                if (!$data) continue;
+
+                foreach ($data['classes'] ?? [] as $cls) {
+                    $id = $cls['id'] ?? null;
+                    if ($id) {
+                        $cls[Constants::F_CLASS_ID] = Constants::K_CLASS;
+                        $result[$id] = $cls;
+                    }
+                }
+            }
+        } else {
+            // Look for individual class definition (when class_id is provided as the class)
+            $genesisFile = $index['classes'][$class] ?? null;
+            if ($genesisFile) {
+                $filePath = $this->dataDir . '/' . $genesisFile;
+                $content = @file_get_contents($filePath);
+                if ($content) {
+                    $data = json_decode($content, true);
+                    foreach ($data['classes'] ?? [] as $cls) {
+                        if (($cls['id'] ?? null) === $class) {
+                            $cls[Constants::F_CLASS_ID] = Constants::K_CLASS;
+                            $result[$class] = $cls;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Load seed objects for this class
+            $seedFiles = $index['objects_by_class'][$class] ?? [];
+            foreach (array_unique($seedFiles) as $seedFile) {
+                $filePath = $this->dataDir . '/' . $seedFile;
+                $content = @file_get_contents($filePath);
+                if (!$content) continue;
+                $data = json_decode($content, true);
+
+                // Seed file can be flat array or genesis with 'seed' key
+                $objects = is_array($data) && isset($data['seed']) ? $data['seed'] : $data;
+                if (!is_array($objects)) continue;
+
+                foreach ($objects as $obj) {
+                    if (($obj['class_id'] ?? null) === $class) {
+                        $id = $obj['id'] ?? null;
+                        if ($id) $result[$id] = $obj;
+                    }
+                }
+            }
         }
 
-        $data = json_decode($content, true);
-        if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
-            throw new StorageException(
-                "Failed to parse JSON: " . json_last_error_msg(),
-                'io_error',
-                [],
-                ['provider' => 'json', 'op' => 'load', 'class' => $class, 'file' => $file, 'json_error' => json_last_error_msg()]
-            );
-        }
-
-        return $data ?? [];
+        return $result;
     }
 
     /**
