@@ -179,6 +179,16 @@ class ClassModel
         $model = new self($storage, $basePath, $userId);
         $model->esDir = is_dir($esDir) ? $esDir : $basePath;
 
+        // Save the bootstrap @storage object to the store
+        // This makes the storage config visible and editable in the admin
+        $config[Constants::F_CLASS_ID] = Constants::K_STORAGE;
+        if (!isset($config[Constants::F_ID])) $config[Constants::F_ID] = 'bootstrap';
+        try {
+            $storage->setobj(Constants::K_STORAGE, $config);
+        } catch (\Throwable $e) {
+            // Ignore — storage might not be ready yet on first boot
+        }
+
         return $model;
     }
 
