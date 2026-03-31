@@ -274,7 +274,7 @@ async function geInput(prop, value, path) {
     const v = value ?? prop.default_value ?? '';
     const safeVal = esc(typeof v === 'object' ? JSON.stringify(v) : String(v));
     const ph = esc(prop.description || '');
-    const ro = (prop.flags?.readonly || (prop.flags?.create_only && !elementStore._isNewObject)) ? 'disabled' : '';
+    const ro = (prop.flags?.readonly || (prop.flags?.create_only && !elementStore._isNewObject)) ? 'readonly' : '';
 
     // String with options from a class (Select2 dropdown)
     const cls = elementStore.getCls(prop);
@@ -529,7 +529,7 @@ async function geStringClassSelect(prop, value, path, cls, ro) {
 async function geRelation(prop, value, path) {
     const cls = elementStore.getCls(prop);
     const v = value || '';
-    const ro = (prop.flags?.readonly || (prop.flags?.create_only && !elementStore._isNewObject)) ? 'disabled' : '';
+    const ro = (prop.flags?.readonly || (prop.flags?.create_only && !elementStore._isNewObject)) ? 'readonly' : '';
 
     if (!cls) {
         return `<input type="text" data-path="${path}" data-type="relation" value="${esc(v)}" placeholder="ID" ${ro}>`;
