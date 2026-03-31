@@ -130,10 +130,10 @@ class StorageProvider implements IStorageProvider
             try {
                 $result = $provider->getobj($class, $id);
                 if ($result !== null && (!is_array($result) || !empty($result))) {
-                    // Sync: write back to driver
+                    // Sync: save through the pipeline (driver + providers that support set)
                     if ($this->method === 'sync' && $id !== null) {
                         try {
-                            $this->driver->setobj($class, $result);
+                            $this->setobj($class, $result);
                         } catch (\Throwable $e) {
                             // Sync-back failed — not critical
                         }

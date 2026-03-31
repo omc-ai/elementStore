@@ -886,7 +886,6 @@ class ClassModel
      */
     public function query(string $class_id, array $filters = [], array $options = []): array
     {
-        $this->ensureBootstrap();
 
         // Add class_id filter
         $filters[Constants::F_CLASS_ID] = $class_id;
@@ -1032,7 +1031,6 @@ class ClassModel
      */
     public function getClass(string $class_id): ?ClassMeta
     {
-        $this->ensureBootstrap();
 
         // Check cache
         $cached = $this->fromCache(Constants::K_CLASS, $class_id);
@@ -1040,10 +1038,9 @@ class ClassModel
             return $cached;
         }
 
-        // Load from storage (CompositeStorageProvider handles fallback chain)
+        // Load from storage — goes through pipeline (CouchDB → JSON fallback → sync)
         $data = $this->storage->getobj(Constants::K_CLASS, $class_id);
         if ($data === null) {
-            // Auto create class if enabled
             if ($this->auto_create_class) {
                 $data = [
                     Constants::F_ID => $class_id,
@@ -1057,12 +1054,9 @@ class ClassModel
             }
         }
 
-        // Create ClassMeta
+        // Create ClassMeta and cache
         $meta = new ClassMeta(Constants::K_CLASS, $data, $this->getDi());
-
-        // Cache and return
         $this->toCache($meta);
-
         return $meta;
     }
 
@@ -1073,7 +1067,6 @@ class ClassModel
      */
     public function getAllClasses(): array
     {
-        $this->ensureBootstrap();
 
         $data = $this->storage->getobj(Constants::K_CLASS);
 
@@ -1126,7 +1119,6 @@ class ClassModel
      */
     public function deleteClass(string $class_id): bool
     {
-        $this->ensureBootstrap();
 
         // Immutability guard: system classes (@ prefix) can never be deleted
         if ($this->isSystemClass($class_id)) {
@@ -1185,7 +1177,6 @@ class ClassModel
      */
     public function reset(): array
     {
-        $this->ensureBootstrap();
 
         $resetClasses = [];
 
@@ -2429,15 +2420,7 @@ class ClassModel
      *
      * Bootstrap check — minimal, storage pipeline handles everything.
      */
-    private function ensureBootstrap(): void
-    {
-        if ($this->bootstrapped) {
-            return;
-        }
-        // Storage pipeline handles on-demand loading from genesis files.
-        // No GenesisLoader, no SystemClasses, no manual seeding.
-        $this->bootstrapped = true;
-    }
+    // Removed: ensureBootstrap — storage pipeline handles everything on demand
 
     // =========================================================================
     // DEPRECATED — Genesis write-back removed. Storage pipeline handles it.
@@ -2863,7 +2846,6 @@ class ClassModel
      */
     public function executeClassAction(string $class_id, string $actionName, array $params = []): array
     {
-        $this->ensureBootstrap();
 
         // Find the @action object for this class + action name
         $actionDef = $this->findAction($class_id, $actionName);
@@ -2887,7 +2869,6 @@ class ClassModel
      */
     public function executeObjectAction(string $class_id, mixed $id, string $actionName, array $params = []): array
     {
-        $this->ensureBootstrap();
 
         $objData = $this->storage->getobj($class_id, $id);
         if ($objData === null) {
