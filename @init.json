@@ -1,25 +1,23 @@
 {
-  "@storage": {
-    "bootstrap": {
-      "id": "bootstrap",
-      "class_id": "@storage",
-      "type": "composite",
-      "_note": "username/password: set COUCHDB_USER and COUCHDB_PASSWORD env vars (see ClassModel::boot). Do not hardcode credentials here.",
-      "read": [
-        {"type": "couchdb", "server": "http://elementstore_couchdb:5984"}
-      ],
-      "write": [
-        {"type": "couchdb", "server": "http://elementstore_couchdb:5984"},
-        {"type": "json", "dir": ".es"}
-      ],
-      "read_strategy": "fallback",
-      "write_strategy": "best_effort"
-    }
+  "id": "bootstrap",
+  "class_id": "@storage",
+  "name": "Bootstrap Storage",
+  "type": "couchdb",
+  "server": "http://elementstore_couchdb:5984",
+  "classes": {
+    "@class": ["get", "set", "query", "delete"]
   },
-  "genesis": {
-    "mode": "local",
-    "url": "https://raw.githubusercontent.com/omc-ai/elementStore/main",
-    "auto_load": true,
-    "_note": "mode: 'local' uses .es/ files, 'remote' fetches from url/.es/*.genesis.json with local fallback"
-  }
+  "providers": [
+    {
+      "id": "genesis_files",
+      "class_id": "@storage",
+      "name": "Genesis JSON Files",
+      "type": "json",
+      "dir": ".es",
+      "classes": {
+        "@class": ["get", "query"]
+      }
+    }
+  ],
+  "method": "sync"
 }

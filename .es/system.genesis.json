@@ -748,115 +748,94 @@
             "id": "@storage",
             "class_id": "@class",
             "name": "Storage",
-            "description": "Storage provider configuration — defines where and how class data is persisted. 'api' and 'composite' types proxy through @provider.",
+            "description": "Storage provider. type selects engine implementation. classes defines action mapping per class. providers chains sub-providers.",
             "is_system": true,
             "props": [
                 {
                     "key": "name",
                     "label": "Name",
-                    "description": "Storage provider display name",
                     "data_type": "string",
                     "display_order": 1,
+                    "class_id": "@prop_string",
                     "flags": {
                         "required": true
-                    },
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "url",
-                    "label": "URL",
-                    "description": "API endpoint URL (for rest type)",
-                    "data_type": "string",
-                    "editor": {
-                        "id": "url"
-                    },
-                    "display_order": 2,
-                    "class_id": "@prop_string"
+                    }
                 },
                 {
                     "key": "type",
                     "label": "Type",
-                    "description": "Storage backend: local (browser), rest (ES API), api (external via @provider), seed (read-only), composite (multi-source), couchdb/mysql/json (server-only)",
                     "data_type": "string",
-                    "options": {
-                        "type": "string_options",
-                        "values": [
-                            "local",
-                            "rest",
-                            "api",
-                            "seed",
-                            "composite",
-                            "couchdb",
-                            "redis",
-                            "mongo",
-                            "mysql",
-                            "json"
-                        ]
-                    },
-                    "default_value": "rest",
+                    "display_order": 2,
+                    "class_id": "@prop_string",
+                    "description": "Engine implementation: couchdb, json, redis, api, websocket, changes"
+                },
+                {
+                    "key": "server",
+                    "label": "Server",
+                    "data_type": "string",
                     "display_order": 3,
-                    "class_id": "@prop_string"
+                    "class_id": "@prop_string",
+                    "description": "Connection URL"
                 },
                 {
-                    "key": "provider_id",
-                    "label": "Provider",
-                    "description": "Data provider for external API integration (type=api)",
-                    "data_type": "relation",
-                    "object_class_id": [
-                        "@provider"
-                    ],
+                    "key": "dir",
+                    "label": "Directory",
+                    "data_type": "string",
+                    "display_order": 4,
+                    "class_id": "@prop_string",
+                    "description": "File path (json type)"
+                },
+                {
+                    "key": "auth",
+                    "label": "Auth",
+                    "data_type": "object",
+                    "display_order": 5,
+                    "class_id": "@prop_object",
+                    "description": "Credentials: username, password, api_key, token"
+                },
+                {
+                    "key": "classes",
+                    "label": "Classes",
+                    "data_type": "object",
+                    "is_array": "assoc",
                     "display_order": 10,
-                    "class_id": "@prop_relation"
+                    "class_id": "@prop_object",
+                    "description": "Action mapping per class. Key=class_id, value=action array or action definitions object"
                 },
                 {
-                    "key": "read",
-                    "label": "Read Sources",
-                    "description": "Ordered storage IDs to read from (type=composite). Tried in order or merged.",
-                    "data_type": "string",
+                    "key": "providers",
+                    "label": "Providers",
+                    "data_type": "object",
                     "is_array": "indexed",
-                    "display_order": 11,
-                    "class_id": "@prop_string"
+                    "display_order": 20,
+                    "class_id": "@prop_object",
+                    "object_class_id": [
+                        "@storage"
+                    ],
+                    "description": "Ordered sub-provider pipeline (inline @storage objects or IDs)"
                 },
                 {
-                    "key": "write",
-                    "label": "Write Target",
-                    "description": "Storage ID to write to (type=composite).",
+                    "key": "method",
+                    "label": "Method",
                     "data_type": "string",
-                    "display_order": 12,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "read_strategy",
-                    "label": "Read Strategy",
-                    "description": "How to combine reads (type=composite): fallback=first hit wins, merge=combine all",
-                    "data_type": "string",
+                    "display_order": 21,
+                    "class_id": "@prop_string",
                     "options": {
-                        "type": "string_options",
                         "values": [
-                            "fallback",
-                            "merge"
+                            "sync",
+                            "fallback"
                         ]
                     },
-                    "default_value": "fallback",
-                    "display_order": 13,
-                    "class_id": "@prop_string"
+                    "description": "sync=fallback read + write back to primary. fallback=read only from fallback"
                 },
                 {
-                    "key": "write_strategy",
-                    "label": "Write Strategy",
-                    "description": "How to handle writes (type=composite): sequential=in order stop on fail, parallel=all at once, best_effort=all ignore failures",
-                    "data_type": "string",
-                    "options": {
-                        "type": "string_options",
-                        "values": [
-                            "sequential",
-                            "parallel",
-                            "best_effort"
-                        ]
-                    },
-                    "default_value": "sequential",
-                    "display_order": 14,
-                    "class_id": "@prop_string"
+                    "key": "order",
+                    "label": "Order",
+                    "data_type": "object",
+                    "is_array": "assoc",
+                    "display_order": 22,
+                    "class_id": "@prop_object",
+                    "description": "Per-operation provider order. Key=get|set|query|delete, value=provider ID array"
                 }
             ]
         },

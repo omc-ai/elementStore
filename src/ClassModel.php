@@ -154,159 +154,91 @@ class ClassModel
         $initFile = $basePath . '/@init.json';
         $esDir = $basePath . '/' . Constants::ES_DIR;
 
-        // Default storage config — .es/ is the default data directory
-        $storageConfig = [
-            'type' => 'json',
-            'data_dir' => Constants::ES_DIR,
-        ];
-
-        // Default genesis config
-        $genesisConfig = [
-            'mode' => 'local',
-            'url' => null,
-            'auto_load' => true,
-        ];
-
-        // Load from @init.json if exists
+        // Load @init.json — this IS the bootstrap @storage object
+        $config = [];
         if (file_exists($initFile)) {
-            $initData = json_decode(file_get_contents($initFile), true);
-            if (isset($initData[Constants::K_STORAGE]['bootstrap'])) {
-                $storageConfig = array_merge($storageConfig, $initData[Constants::K_STORAGE]['bootstrap']);
-            }
-            if (isset($initData['genesis'])) {
-                $genesisConfig = array_merge($genesisConfig, $initData['genesis']);
-            }
+            $config = json_decode(file_get_contents($initFile), true) ?? [];
         }
 
-        // Environment variable overrides for genesis config
-        $envUrl = getenv(Constants::ENV_GENESIS_URL);
-        if ($envUrl !== false && $envUrl !== '') {
-            $genesisConfig['url'] = $envUrl;
-        }
-        $envMode = getenv(Constants::ENV_GENESIS_MODE);
-        if ($envMode !== false && $envMode !== '') {
-            $genesisConfig['mode'] = $envMode;
+        // Default: json storage from .es/ directory
+        if (empty($config['type'])) {
+            $config['type'] = 'json';
+            $config['dir'] = Constants::ES_DIR;
         }
 
-        // Environment variable overrides for storage credentials
-        $envCouchUser = getenv('COUCHDB_USER');
-        if ($envCouchUser !== false && $envCouchUser !== '') {
-            $storageConfig['username'] = $envCouchUser;
-        }
-        $envCouchPass = getenv('COUCHDB_PASSWORD');
-        if ($envCouchPass !== false && $envCouchPass !== '') {
-            $storageConfig['password'] = $envCouchPass;
-        }
-        $envCouchServer = getenv('COUCHDB_SERVER');
-        if ($envCouchServer !== false && $envCouchServer !== '') {
-            $storageConfig['server'] = $envCouchServer;
-        }
+        // Environment variable overrides for CouchDB credentials
+        $envUser = getenv('COUCHDB_USER');
+        if ($envUser !== false && $envUser !== '') $config['auth']['username'] = $envUser;
+        $envPass = getenv('COUCHDB_PASSWORD');
+        if ($envPass !== false && $envPass !== '') $config['auth']['password'] = $envPass;
+        $envServer = getenv('COUCHDB_SERVER');
+        if ($envServer !== false && $envServer !== '') $config['server'] = $envServer;
 
-        // Resolve relative paths — data_dir is relative to basePath
-        if (isset($storageConfig['data_dir']) && !str_starts_with($storageConfig['data_dir'], '/')) {
-            $storageConfig['data_dir'] = $basePath . '/' . $storageConfig['data_dir'];
-        }
-
-        // Resolve .es/ directory path
-        $resolvedEsDir = $storageConfig['data_dir'];
-
-        // Create storage provider based on type
-        $storage = match ($storageConfig['type'] ?? 'json') {
-            'mongo' => new MongoStorageProvider(
-                $storageConfig['connection'] ?? 'mongodb://localhost:27017',
-                $storageConfig['database'] ?? 'elementstore'
-            ),
-            'couchdb' => new CouchDbStorageProvider(
-                $storageConfig['server'] ?? 'http://localhost:5984',
-                $storageConfig['username'] ?? null,
-                $storageConfig['password'] ?? null
-            ),
-            'composite' => self::createCompositeStorage($storageConfig, $basePath),
-            default => new JsonStorageProvider($storageConfig['data_dir'])
-        };
+        // Build storage from config
+        $storage = self::buildStorage($config, $basePath);
 
         $model = new self($storage, $basePath, $userId);
-        $model->genesisConfig = $genesisConfig;
-        $model->esDir = $resolvedEsDir;
+        $model->esDir = is_dir($esDir) ? $esDir : $basePath;
 
         return $model;
     }
 
     /**
-     * Create a CompositeStorageProvider from config
+     * Build a storage provider from a @storage config object.
      *
-     * Config format:
-     *   type: "composite"
-     *   read: [{ type: "couchdb", server: "...", ... }, ...]
-     *   write: [{ type: "couchdb", ... }, { type: "json", dir: "/path" }]
-     *   read_strategy: "fallback" | "merge"
-     *   write_strategy: "sequential" | "parallel" | "best_effort"
+     * If the config has a 'providers' array, creates a CompositeStorageProvider
+     * with the primary storage (self) and sub-providers.
      */
-    private static function createCompositeStorage(array $config, string $basePath): CompositeStorageProvider
+    private static function buildStorage(array $config, string $basePath): IStorageProvider
     {
-        $readSources = [];
-        foreach ($config['read'] ?? [] as $src) {
-            $readSources[] = self::createSingleStorage($src, $basePath);
-        }
-        $writeTargets = [];
-        foreach ($config['write'] ?? [] as $tgt) {
-            $writeTargets[] = self::createSingleStorage($tgt, $basePath);
+        // Create the primary provider from type
+        $primary = self::createSingleStorage($config, $basePath);
+
+        // If no sub-providers, return primary directly
+        $providerConfigs = $config['providers'] ?? [];
+        if (empty($providerConfigs)) {
+            return $primary;
         }
 
-        if (empty($readSources)) {
-            throw new StorageException('Composite storage requires at least one read source', 'config_error');
-        }
-        if (empty($writeTargets)) {
-            throw new StorageException('Composite storage requires at least one write target', 'config_error');
+        // Build sub-providers
+        $providers = [];
+        foreach ($providerConfigs as $provConfig) {
+            if (is_array($provConfig)) {
+                $providers[] = self::createSingleStorage($provConfig, $basePath);
+            }
         }
 
+        // Create composite: primary + providers + method
         return new CompositeStorageProvider(
-            $readSources,
-            $writeTargets,
-            $config['read_strategy'] ?? 'fallback',
-            $config['write_strategy'] ?? 'sequential'
+            $primary,
+            $providers,
+            $config['method'] ?? 'sync'
         );
     }
 
     /**
-     * Create a single storage provider from a config block
+     * Create a single storage provider from a @storage config object.
      */
     private static function createSingleStorage(array $config, string $basePath): IStorageProvider
     {
         $type = $config['type'] ?? 'json';
-
-        // Apply environment variable overrides for CouchDB credentials
-        // This ensures @init.json default values can be safely overridden at deploy time
-        if ($type === 'couchdb') {
-            $envUser = getenv('COUCHDB_USER');
-            if ($envUser !== false && $envUser !== '') {
-                $config['username'] = $envUser;
-            }
-            $envPass = getenv('COUCHDB_PASSWORD');
-            if ($envPass !== false && $envPass !== '') {
-                $config['password'] = $envPass;
-            }
-            $envServer = getenv('COUCHDB_SERVER');
-            if ($envServer !== false && $envServer !== '') {
-                $config['server'] = $envServer;
-            }
-        }
+        $auth = $config['auth'] ?? [];
 
         return match ($type) {
-            'mongo' => new MongoStorageProvider(
-                $config['connection'] ?? 'mongodb://localhost:27017',
-                $config['database'] ?? 'elementstore'
-            ),
             'couchdb' => new CouchDbStorageProvider(
                 $config['server'] ?? 'http://localhost:5984',
-                $config['username'] ?? null,
-                $config['password'] ?? null
+                $auth['username'] ?? null,
+                $auth['password'] ?? null
             ),
             'json' => new JsonStorageProvider(
                 self::resolveDir($config['dir'] ?? Constants::ES_DIR, $basePath)
             ),
+            'mongo' => new MongoStorageProvider(
+                $config['server'] ?? 'mongodb://localhost:27017',
+                $config['database'] ?? 'elementstore'
+            ),
             'redis' => new RedisStorageProvider(
-                $config['host'] ?? 'localhost',
+                $config['server'] ?? 'localhost',
                 (int)($config['port'] ?? 6379),
                 $config['prefix'] ?? 'es:',
                 (int)($config['ttl'] ?? 0)
@@ -2591,52 +2523,9 @@ class ClassModel
             }
         }
 
-        // Check if @class exists - if not, bootstrap from genesis or SystemClasses
-        $classClass = $this->storage->getobj(Constants::K_CLASS, Constants::K_CLASS);
-        if (!$classClass) {
-            // Try genesis-first approach
-            if ($this->genesisLoader !== null && ($this->genesisConfig['auto_load'] ?? true)) {
-                $this->genesisLoader->load(true);
-            } else {
-                // Fallback: create from SystemClasses (backward compat)
-                SystemClasses::createSystemClasses($this->storage);
-            }
-        }
-
-        // Check if @editor class exists (may be missing if added after initial bootstrap)
-        $editorClass = $this->storage->getobj(Constants::K_CLASS, Constants::K_EDITOR);
-        if (!$editorClass) {
-            $editorClassDef = SystemClasses::getEditorClassDefinition();
-            $this->storage->setobj(Constants::K_CLASS, $editorClassDef);
-        }
-
-        // Check if @seed class exists (may be missing if added after initial bootstrap)
-        $seedClass = $this->storage->getobj(Constants::K_CLASS, Constants::K_SEED);
-        if (!$seedClass) {
-            $seedClassDef = SystemClasses::getSeedClassDefinition();
-            $this->storage->setobj(Constants::K_CLASS, $seedClassDef);
-        }
-
-        // Check if seed editors exist
-        $textEditor = $this->storage->getobj(Constants::K_EDITOR, 'text');
-        if (!$textEditor) {
-            // Try loading from .es/ seed file first
-            if ($this->genesisLoader !== null) {
-                $seedFile = $this->esDir . '/editors' . Constants::SEED_SUFFIX;
-                if (file_exists($seedFile)) {
-                    $editors = json_decode(file_get_contents($seedFile), true);
-                    if (is_array($editors)) {
-                        foreach ($editors as $editor) {
-                            $this->storage->setobj(Constants::K_EDITOR, $editor);
-                        }
-                    }
-                } else {
-                    $this->createSeedEditors();
-                }
-            } else {
-                $this->createSeedEditors();
-            }
-        }
+        // No manual bootstrap needed — the composite storage with JSON fallback
+        // handles loading classes on-demand from .es/ genesis files.
+        // When CouchDB is empty, getobj() falls back to JSON, auto-syncs to CouchDB.
 
         $this->bootstrapped = true;
     }
