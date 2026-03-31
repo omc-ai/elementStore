@@ -474,7 +474,7 @@ class ClassModel
         $t0 = microtime(true);
         $timings = [];
 
-        $this->ensureBootstrap();
+        // bootstrap removed — storage pipeline handles on demand
         $timings['bootstrap'] = round((microtime(true) - $t0) * 1000, 1);
 
         $t1 = microtime(true);
@@ -1167,7 +1167,7 @@ class ClassModel
      */
     public function init(): void
     {
-        $this->ensureBootstrap();
+        // bootstrap removed — storage pipeline handles on demand
     }
 
     /**
