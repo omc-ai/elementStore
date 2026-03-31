@@ -173,8 +173,8 @@ class ClassModel
         $envServer = getenv('COUCHDB_SERVER');
         if ($envServer !== false && $envServer !== '') $config['server'] = $envServer;
 
-        // Build storage from config
-        $storage = self::buildStorage($config, $basePath);
+        // Build storage directly from @init.json config
+        $storage = new StorageProvider($config, $basePath);
 
         $model = new self($storage, $basePath, $userId);
         $model->esDir = is_dir($esDir) ? $esDir : $basePath;
@@ -183,78 +183,8 @@ class ClassModel
     }
 
     /**
-     * Build a storage provider from a @storage config object.
-     *
-     * If the config has a 'providers' array, creates a CompositeStorageProvider
-     * with the primary storage (self) and sub-providers.
-     */
-    private static function buildStorage(array $config, string $basePath): IStorageProvider
-    {
-        // Create the primary provider from type
-        $primary = self::createSingleStorage($config, $basePath);
-
-        // If no sub-providers, return primary directly
-        $providerConfigs = $config['providers'] ?? [];
-        if (empty($providerConfigs)) {
-            return $primary;
-        }
-
-        // Build sub-providers
-        $providers = [];
-        foreach ($providerConfigs as $provConfig) {
-            if (is_array($provConfig)) {
-                $providers[] = self::createSingleStorage($provConfig, $basePath);
-            }
-        }
-
-        // Create composite: primary + providers + method
-        return new CompositeStorageProvider(
-            $primary,
-            $providers,
-            $config['method'] ?? 'sync'
-        );
-    }
-
-    /**
-     * Create a single storage provider from a @storage config object.
-     */
-    private static function createSingleStorage(array $config, string $basePath): IStorageProvider
-    {
-        $type = $config['type'] ?? 'json';
-        $auth = $config['auth'] ?? [];
-
-        return match ($type) {
-            'couchdb' => new CouchDbStorageProvider(
-                $config['server'] ?? 'http://localhost:5984',
-                $auth['username'] ?? null,
-                $auth['password'] ?? null
-            ),
-            'json' => new JsonStorageProvider(
-                self::resolveDir($config['dir'] ?? Constants::ES_DIR, $basePath)
-            ),
-            'mongo' => new MongoStorageProvider(
-                $config['server'] ?? 'mongodb://localhost:27017',
-                $config['database'] ?? 'elementstore'
-            ),
-            'redis' => new RedisStorageProvider(
-                $config['server'] ?? 'localhost',
-                (int)($config['port'] ?? 6379),
-                $config['prefix'] ?? 'es:',
-                (int)($config['ttl'] ?? 0)
-            ),
-            'api' => new ApiStorageProvider($config),
-            default => throw new StorageException("Unknown storage type: {$type}", 'config_error')
-        };
-    }
-
-    /**
      * Resolve a directory path — absolute paths pass through, relative paths resolve from basePath
      */
-    private static function resolveDir(string $dir, string $basePath): string
-    {
-        return str_starts_with($dir, '/') ? $dir : $basePath . '/' . $dir;
-    }
-
     // =========================================================================
     // CONFIGURATION METHODS
     // =========================================================================
