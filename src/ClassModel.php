@@ -103,13 +103,12 @@ class ClassModel
     private ?\Phalcon\Di\DiInterface $di = null;
 
     /** @var array Genesis configuration from @init.json */
-    private array $genesisConfig = ['mode' => 'local', 'url' => null, 'auto_load' => true];
+    /** @deprecated Genesis config removed — storage pipeline handles everything */
 
     /** @var string Path to the .es/ directory */
     private string $esDir = '';
 
-    /** @var GenesisLoader|null Genesis loader instance */
-    private ?GenesisLoader $genesisLoader = null;
+    /** @deprecated GenesisLoader removed — storage pipeline handles genesis files */
 
 
     // =========================================================================
@@ -931,10 +930,7 @@ class ClassModel
         // Remove from cache
         unset($this->objectCache[$class_id][$id]);
 
-        // Seed write-back on delete
-        if ($this->genesisLoader !== null && $this->hasSeedWritePermission()) {
-            $this->seedDeleteBack($class_id, $id);
-        }
+        // Genesis write-back handled by storage pipeline (JSON provider)
 
         return true;
     }
@@ -2028,10 +2024,7 @@ class ClassModel
         }
 
         // Seed write-back: if genesis loader is active and user has permission,
-        // save changes back to the genesis/seed file in .es/
-        if ($this->genesisLoader !== null && $this->hasSeedWritePermission()) {
-            $this->seedWriteBack($class_id, $data, $result);
-        }
+        // Genesis write-back handled by storage pipeline (JSON provider)
 
         return $result;
     }
@@ -2494,55 +2487,24 @@ class ClassModel
     /**
      * Ensure system classes exist (lazy bootstrap)
      *
-     * Uses GenesisLoader to load from .es/ directory (genesis-first approach).
-     * Falls back to SystemClasses for backward compatibility when .es/ files
-     * are not available.
+     * Bootstrap check — minimal, storage pipeline handles everything.
      */
     private function ensureBootstrap(): void
     {
         if ($this->bootstrapped) {
             return;
         }
-
-        // Initialize GenesisLoader if .es/ directory path is set
-        if (!empty($this->esDir)) {
-            $this->genesisLoader = new GenesisLoader(
-                $this->storage,
-                $this->esDir,
-                $this->genesisConfig['url'] ?? null,
-                $this->genesisConfig['mode'] ?? 'local'
-            );
-
-            // Set apps directory for auto-discovery (apps/*/.es/)
-            $appsDir = $this->genesisConfig['apps_dir'] ?? 'apps';
-            if (!str_starts_with($appsDir, '/')) {
-                $appsDir = $this->basePath . '/' . $appsDir;
-            }
-            if (is_dir($appsDir)) {
-                $this->genesisLoader->setAppsDir($appsDir);
-            }
-        }
-
-        // No manual bootstrap needed — the composite storage with JSON fallback
-        // handles loading classes on-demand from .es/ genesis files.
-        // When CouchDB is empty, getobj() falls back to JSON, auto-syncs to CouchDB.
-
+        // Storage pipeline handles on-demand loading from genesis files.
+        // No GenesisLoader, no SystemClasses, no manual seeding.
         $this->bootstrapped = true;
     }
 
     // =========================================================================
-    // GENESIS & SEED WRITE-BACK
+    // DEPRECATED — Genesis write-back removed. Storage pipeline handles it.
     // =========================================================================
 
-    /**
-     * Get the GenesisLoader instance (available after bootstrap)
-     *
-     * @return GenesisLoader|null
-     */
-    public function getGenesisLoader(): ?GenesisLoader
-    {
-        return $this->genesisLoader;
-    }
+    /** @deprecated Use storage pipeline */
+    public function getGenesisLoader(): ?object { return null; }
 
     /**
      * Check if current user has seed write permission.
@@ -2553,132 +2515,13 @@ class ClassModel
      *
      * @return bool
      */
-    private function hasSeedWritePermission(): bool
-    {
-        // If AuthService class doesn't exist or isn't enabled, allow (dev mode)
-        if (!class_exists('\\ElementStore\\AuthService') || !AuthService::isEnabled()) {
-            return true;
-        }
-
-        // In authenticated mode, seed write-back requires custom IDs flag or system/admin role
-        if ($this->allowCustomIds) return true;
-        if (in_array('system', $this->userRoles, true)) return true;
-        if (in_array('admin', $this->userRoles, true)) return true;
-        return false;
-    }
-
-    /**
-     * Write class/object changes back to genesis/seed files in .es/
-     *
-     * Triggered after onChange() when:
-     * - Saving a @class definition that has a genesis_file field
-     * - Saving an object whose class has a seed file mapping
-     *
-     * @param string $classId   Class being saved (e.g., "@class", "@editor")
-     * @param array  $data      Input data
-     * @param array  $savedData Saved result from storage
-     */
-    private function seedWriteBack(string $classId, array $data, array $savedData): void
-    {
-        // Case 1: Class definition change -> save to genesis file
-        if ($classId === Constants::K_CLASS) {
-            $genesisFile = $savedData[Constants::F_GENESIS_FILE] ?? null;
-            $genesisDir = $savedData[Constants::F_GENESIS_DIR] ?? null;
-            if ($genesisFile) {
-                $this->genesisLoader->saveToGenesis(
-                    $savedData[Constants::F_ID],
-                    $genesisFile,
-                    $savedData,
-                    $genesisDir
-                );
-            }
-            return;
-        }
-
-        // Case 2: Object on a seed class -> save to seed file
-        $seedInfo = $this->resolveSeedFile($classId);
-        if ($seedInfo !== null) {
-            $this->genesisLoader->saveToSeed(
-                $classId,
-                $seedInfo['file'],
-                $savedData,
-                $seedInfo['dir']
-            );
-        }
-    }
-
-    /**
-     * Delete object from its seed file (write-back on delete).
-     *
-     * @param string $classId  Class of the deleted object
-     * @param string $objectId ID of the deleted object
-     */
-    private function seedDeleteBack(string $classId, string $objectId): void
-    {
-        $seedInfo = $this->resolveSeedFile($classId);
-        if ($seedInfo !== null) {
-            $this->genesisLoader->deleteFromSeed(
-                $classId,
-                $seedInfo['file'],
-                $objectId,
-                $seedInfo['dir']
-            );
-        }
-    }
-
-    /**
-     * Resolve which seed file a class's objects should be saved to.
-     *
-     * Returns both the seed filename and the .es/ directory path.
-     * Checks: 1) hardcoded system mappings, 2) GenesisLoader's dynamic seedFileMap.
-     *
-     * @param string $classId Class ID
-     * @return array{file: string, dir: string}|null Seed file info or null
-     */
-    private function resolveSeedFile(string $classId): ?array
-    {
-        // Hardcoded system seed mappings (use own esDir)
-        $systemFile = match ($classId) {
-            Constants::K_EDITOR => 'editors' . Constants::SEED_SUFFIX,
-            Constants::K_FUNCTION => 'functions' . Constants::SEED_SUFFIX,
-            default => null,
-        };
-
-        if ($systemFile !== null) {
-            return ['file' => $systemFile, 'dir' => $this->esDir];
-        }
-
-        // Check GenesisLoader's in-memory map (built from genesis seed sections)
-        if ($this->genesisLoader !== null) {
-            $map = $this->genesisLoader->getSeedFileMap();
-            if (isset($map[$classId])) {
-                return $map[$classId];
-            }
-        }
-
-        // Fall back to persistent seed_file/genesis_dir on the class definition
-        $classDef = $this->storage->getobj(Constants::K_CLASS, $classId);
-        if ($classDef !== null) {
-            $seedFile = $classDef[Constants::F_SEED_FILE] ?? null;
-            $seedDir = $classDef[Constants::F_GENESIS_DIR] ?? null;
-            if ($seedFile !== null && $seedDir !== null) {
-                return ['file' => $seedFile, 'dir' => $seedDir];
-            }
-        }
-
-        return null;
-    }
+    // Removed: hasSeedWritePermission, seedWriteBack, seedDeleteBack, resolveSeedFile
+    // Genesis write-back is handled by the storage pipeline — JSON provider writes to .es/ files.
 
     /**
      * Create seed editor definitions
      */
-    private function createSeedEditors(): void
-    {
-        $seedEditors = SystemClasses::getSeedEditors();
-        foreach ($seedEditors as $editor) {
-            $this->storage->setobj(Constants::K_EDITOR, $editor);
-        }
-    }
+    // Removed: createSeedEditors — seed data loaded via storage pipeline from .es/ files
 
     // =========================================================================
     // TEST & DEBUG
@@ -3350,24 +3193,16 @@ class ClassModel
      */
     private function actionSyncGenesis(string $class_id): array
     {
-        if ($this->genesisLoader === null) {
-            throw new StorageException("GenesisLoader not available", 'not_available');
-        }
-
+        // sync_genesis is now handled by the storage pipeline.
+        // When setObject saves to primary (CouchDB), the JSON provider
+        // in the pipeline writes back to genesis files automatically.
+        // Re-save the class to trigger the pipeline write-back.
         $classData = $this->storage->getobj(Constants::K_CLASS, $class_id);
         if (!$classData) {
             throw new StorageException("Class not found: {$class_id}", 'not_found');
         }
-
-        $genesisFile = $classData[Constants::F_GENESIS_FILE] ?? null;
-        $genesisDir = $classData[Constants::F_GENESIS_DIR] ?? null;
-
-        if (!$genesisFile) {
-            throw new StorageException("Class {$class_id} has no genesis_file set", 'not_configured');
-        }
-
-        $this->genesisLoader->saveToGenesis($class_id, $genesisFile, $classData, $genesisDir);
-        return ['synced' => true, 'class_id' => $class_id, 'genesis_file' => $genesisFile];
+        $this->storage->setobj(Constants::K_CLASS, $classData);
+        return ['synced' => true, 'class_id' => $class_id];
     }
 
     /**
