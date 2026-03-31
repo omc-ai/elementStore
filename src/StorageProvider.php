@@ -16,6 +16,7 @@ class StorageProvider implements IStorageProvider
     private IStorageProvider $driver;
     private array $providers = [];
     private string $method;
+    private array $classes = [];
 
     /**
      * @param array  $config  @storage object: type, server, dir, auth, providers[], method
@@ -25,6 +26,7 @@ class StorageProvider implements IStorageProvider
     {
         $this->type = $config['type'] ?? 'json';
         $this->method = $config['method'] ?? 'sync';
+        $this->classes = $config['classes'] ?? [];
 
         // Create driver based on type
         $this->driver = self::createDriver($this->type, $config, $basePath);
@@ -84,6 +86,30 @@ class StorageProvider implements IStorageProvider
         return $basePath ? ($basePath . '/' . $dir) : $dir;
     }
 
+    /**
+     * Check if this storage supports an action for a given class.
+     * Walks up the class hierarchy: if "@class" is declared, all child classes are supported.
+     * Empty classes = supports everything (no restriction).
+     */
+    public function supportsAction(string $class, string $action): bool
+    {
+        if (empty($this->classes)) return true;
+
+        // Check exact class
+        $actions = $this->classes[$class] ?? null;
+        if ($actions !== null) {
+            return is_array($actions) && in_array($action, $actions, true);
+        }
+
+        // Check @class (serves all classes)
+        $actions = $this->classes[Constants::K_CLASS] ?? null;
+        if ($actions !== null) {
+            return is_array($actions) && in_array($action, $actions, true);
+        }
+
+        return false;
+    }
+
     // ─── IStorageProvider Interface ──────────────────────────────
 
     public function getobj(string $class, mixed $id = null): array|null
@@ -98,8 +124,9 @@ class StorageProvider implements IStorageProvider
             // Driver failed — fall through to providers
         }
 
-        // Fallback: try each provider
+        // Fallback: try each provider that supports "get" for this class
         foreach ($this->providers as $provider) {
+            if (!$provider->supportsAction($class, 'get')) continue;
             try {
                 $result = $provider->getobj($class, $id);
                 if ($result !== null && (!is_array($result) || !empty($result))) {
@@ -126,8 +153,9 @@ class StorageProvider implements IStorageProvider
         // Write to driver (must succeed)
         $result = $this->driver->setobj($class, $obj);
 
-        // Write to providers (best-effort)
+        // Write to providers that support "set" for this class (best-effort)
         foreach ($this->providers as $provider) {
+            if (!$provider->supportsAction($class, 'set')) continue;
             try {
                 $provider->setobj($class, $result);
             } catch (\Throwable $e) {
@@ -142,7 +170,9 @@ class StorageProvider implements IStorageProvider
     {
         $deleted = $this->driver->delobj($class, $id);
 
+        // Delete from providers that support "delete" for this class
         foreach ($this->providers as $provider) {
+            if (!$provider->supportsAction($class, 'delete')) continue;
             try {
                 $provider->delobj($class, $id);
             } catch (\Throwable $e) {
@@ -155,35 +185,24 @@ class StorageProvider implements IStorageProvider
 
     public function query(string $class, array $filters = [], array $options = []): array
     {
-        // Try driver
+        // Query runs on driver first
         try {
-            $driverResults = $this->driver->query($class, $filters, $options);
-        } catch (\Throwable $e) {
-            $driverResults = [];
-        }
+            $results = $this->driver->query($class, $filters, $options);
+            if (!empty($results)) return $results;
+        } catch (\Throwable $e) {}
 
-        // Merge with providers — providers may have objects not yet in driver
-        $byId = [];
-        foreach ($driverResults as $obj) {
-            $id = $obj['id'] ?? $obj[Constants::F_ID] ?? null;
-            if ($id !== null) $byId[$id] = $obj;
-        }
-
+        // Fallback: try providers that support "query" for this class
         foreach ($this->providers as $provider) {
+            if (!$provider->supportsAction($class, 'query')) continue;
             try {
-                $providerResults = $provider->query($class, $filters, $options);
-                foreach ($providerResults as $obj) {
-                    $id = $obj['id'] ?? $obj[Constants::F_ID] ?? null;
-                    if ($id !== null && !isset($byId[$id])) {
-                        $byId[$id] = $obj;
-                    }
-                }
+                $results = $provider->query($class, $filters, $options);
+                if (!empty($results)) return $results;
             } catch (\Throwable $e) {
                 continue;
             }
         }
 
-        return array_values($byId);
+        return [];
     }
 
     // ─── Schema Operations ───────────────────────────────────────
