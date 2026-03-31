@@ -387,7 +387,7 @@ These exist only on the server and don't need client parity:
 | `Prop` class | Property definition with typed fields and helper methods |
 | `EntityObj` | Audit fields (created_at, updated_at, created_by, updated_by) |
 | `StorageException` | Storage-layer error handling |
-| `SystemClasses` | Programmatic system class + editor definitions |
+| `StorageProvider` | Unified storage with driver + provider pipeline (replaces CompositeStorageProvider) |
 | `renameProp()` / `renameClass()` | Bulk schema migration operations |
 | `auto_create_class` / `auto_add_prop` | Development convenience flags |
 | `enforceOwnership` / `allowCustomIds` | Security configuration |
@@ -410,21 +410,15 @@ These exist only on the server and don't need client parity:
 
 ---
 
-## 17. Seed Data Parity
+## 17. Class Definitions
 
-| Seed entry | Server SystemClasses.php | editors.seed.json | Admin (from API) | @es-client | Status |
-|---|:-:|:-:|:-:|:-:|--------|
-| `@class` meta + 10 props | ✅ | — | ✅ | ✅ | Done |
-| `@prop` meta + 21 props | ✅ | — | ✅ | ✅ | Done |
-| `@storage` meta + 8 props | ✅ | — | ✅ | ✅ | Done |
-| `@editor` meta + 9 props | ✅ | — | ✅ | ✅ | Done |
-| `@action` meta + 25 props | ✅ | — | ✅ | ✅ | Done |
-| `@event` meta + 8 props | ✅ | — | ✅ | ✅ | Done |
-| `@function` meta + 7 props | ✅ | — | ✅ | ✅ | Done |
-| `@provider` meta + 9 props | ✅ | — | ✅ | ✅ | Done |
-| `crud_provider` meta + 7 props | ✅ | — | ✅ | ✅ | Done |
-| 30 @editor instances | — | ✅ | ✅ | ❌ | @es-client: load from genesis |
-| `@storage:local` instance | — | — | ✅ | ✅ | Done |
+All class definitions are in `*.genesis.json` files in the elementStore repository (`.es/` directory). They load on-demand via the JSON storage provider fallback. No seed files, no SystemClasses.
+
+| Source | Format | Location |
+|---|---|---|
+| Genesis files | `*.genesis.json` | `https://github.com/omc-ai/elementStore/.es/` |
+| Bootstrap config | `@init.json` | Repository root |
+| Objects | Created via API | Stored in CouchDB |
 
 ---
 

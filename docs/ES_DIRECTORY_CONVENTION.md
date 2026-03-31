@@ -1,49 +1,30 @@
 # `.es/` Directory Convention
 
-> Standard layout for ElementStore data directories — both in the ElementStore repo itself and in external projects that integrate with it.
+> Standard layout for ElementStore genesis files — the canonical class definitions stored in the elementStore repository.
 
 ## Directory Structure
 
 ```
-project-root/
+elementStore/
+├── @init.json                     # Bootstrap @storage config
 └── .es/
-    ├── system.genesis.json        # Class definitions (schema registry) — git-tracked
-    ├── editors.seed.json          # Seed object data — git-tracked
-    ├── functions.seed.json        # Seed object data — git-tracked
-    ├── {namespace}.genesis.json   # Domain class definitions — git-tracked
-    ├── @class.json                # Runtime: class instance data — gitignored
-    ├── @editor.json               # Runtime: editor instances — gitignored
-    ├── user.json                  # Runtime: user objects — gitignored
-    └── {namespace}/               # Namespace subdirectory — gitignored
-        └── {namespace}.{class}.json  # Runtime: namespaced class data (full ID, : → .)
+    ├── system.genesis.json        # System meta-classes (@class, @prop, @key, etc.)
+    ├── core.genesis.json          # Core objects (core:atomObj, core:design, etc.)
+    ├── ai.genesis.json            # AI classes (ai:agent, ai:task, etc.)
+    ├── auth.genesis.json          # Auth classes (auth:role, auth:credential, etc.)
+    ├── ui.genesis.json            # UI classes (ui:dialog, ui:button, etc.)
+    ├── {namespace}.genesis.json   # Domain class definitions
+    └── index.es.json              # Auto-generated index (class → file mapping)
 ```
 
-## File Types
+## Canonical Source
 
-| Suffix | Purpose | Git-tracked | Example |
-|--------|---------|:-----------:|---------|
-| `*.genesis.json` | Class definitions (schema registry) | Yes | `billing.genesis.json` |
-| `*.seed.json` | Seed object data (editors, functions) | Yes | `editors.seed.json` |
-| `*.json` (plain) | Runtime object data | No | `@class.json`, `user.json` |
+Genesis files are the canonical class definitions, stored in the elementStore repository:
+- **Repository**: `https://github.com/omc-ai/elementStore`
+- **Path**: `.es/*.genesis.json`
+- **Git-tracked**: Yes — class schemas are versioned
 
-## Namespace Subdirectories
-
-Class IDs with a colon (`:`) map to subdirectories:
-
-| Class ID | File Path |
-|----------|-----------|
-| `user` | `.es/user.json` |
-| `@editor` | `.es/@editor.json` |
-| `ui:button` | `.es/ui/ui.button.json` |
-| `billing:invoice` | `.es/billing/billing.invoice.json` |
-
-The colon (`:`) in class IDs is replaced with a dot (`.`) in filenames for cross-platform filesystem safety. The full class ID is preserved in the filename for clarity.
-
-Subdirectories are created automatically by `JsonStorageProvider` when a namespaced class is first written.
-
-## Genesis Files (Schema Registry)
-
-Genesis files define class schemas. Format:
+## Genesis File Format
 
 ```json
 {
@@ -64,132 +45,109 @@ Genesis files define class schemas. Format:
 
 ### System Genesis (`system.genesis.json`)
 
-Loaded first at boot. Defines all system meta-classes: `@class`, `@prop`, `@prop_*` (typed variants), `@editor`, `@storage`, `@action`, `@event`, `@function`, `@provider`, `crud_provider`, `@prop_flags`, `@obj_ref`, `@options_*`, `@seed`, auth classes (`auth_config`, `auth_app`, `auth_machine`).
+Defines all system meta-classes: `@class`, `@prop`, `@prop_*`, `@key`, `@state`, `@storage`, `@action`, `@event`, `@function`, `@options_*`, `@counter`, `@group`, etc.
 
 ### Domain Genesis (`{namespace}.genesis.json`)
 
-Loaded after system genesis. Defines project-specific classes. Each class gets stamped with `genesis_file` field for write-back tracking.
+Defines project-specific classes grouped by namespace (ai, auth, core, ui, infra, etc.).
 
-## Seed Files
+## Bootstrap Flow
 
-Flat arrays of objects for a specific class:
+```
+@init.json
+  → Defines the bootstrap @storage object
+  → type: couchdb (primary driver)
+  → providers: [{ type: json, dir: .es }] (fallback)
+  → method: sync
 
-```json
-[
-  {"id": "text", "class_id": "@editor", "name": "Text", ...},
-  {"id": "textarea", "class_id": "@editor", "name": "Textarea", ...}
-]
+On first request:
+  → getobj("@class", "@prop")
+    → CouchDB: miss (empty)
+    → JSON provider: reads from system.genesis.json via index
+    → Found → sync back to CouchDB
+    → Return class definition
+
+  → Classes load on-demand, one at a time
+  → query() returns only what's in CouchDB
+  → getobj() falls back to genesis files
 ```
 
-## Seed Write-Back
+## `@init.json`
 
-When a class or seed object is modified via the API and the user has `seed_write` permission, changes are automatically saved back to the source genesis/seed file in `.es/`.
-
-**Conditions for write-back:**
-1. GenesisLoader is active (`.es/` directory exists)
-2. User has `seed_write` permission (or no auth is configured)
-3. For class definitions: the class has a `genesis_file` field
-4. For seed objects: the class is a known seed class (`@editor` → `editors.seed.json`, `@function` → `functions.seed.json`)
-
-## Genesis Configuration
-
-In `@init.json`:
+The bootstrap storage configuration. This is a `@storage` object loaded before the store exists:
 
 ```json
 {
-  "@storage": {
-    "bootstrap": {
-      "type": "json",
-      "data_dir": ".es"
-    }
+  "id": "bootstrap",
+  "class_id": "@storage",
+  "name": "Bootstrap Storage",
+  "type": "couchdb",
+  "server": "http://elementstore_couchdb:5984",
+  "classes": {
+    "@class": ["get", "set", "query", "delete"]
   },
-  "genesis": {
-    "mode": "local",
-    "url": null,
-    "auto_load": true
+  "providers": [
+    {
+      "id": "genesis_files",
+      "class_id": "@storage",
+      "name": "Genesis JSON Files",
+      "type": "json",
+      "dir": ".es",
+      "classes": {
+        "@class": ["get"]
+      }
+    }
+  ],
+  "method": "sync"
+}
+```
+
+Key points:
+- `classes` mapping defines which actions each provider supports per class
+- JSON genesis provider only supports `get` (not query, set, delete)
+- `method: sync` means: on fallback read hit, write back to primary (CouchDB)
+- The bootstrap @storage object is saved to CouchDB on boot
+
+## Index File (`index.es.json`)
+
+Auto-generated on first access. Maps class IDs to their genesis file:
+
+```json
+{
+  "map": {
+    "@class/@prop": "system.genesis.json",
+    "@class/ai:agent": "ai.genesis.json"
+  },
+  "class_files": {
+    "@class": ["system.genesis.json", "ai.genesis.json", "core.genesis.json"]
   }
 }
 ```
 
-### Genesis Modes
-
-| Mode | Read Source | Write Target |
-|------|-----------|-------------|
-| `local` | `.es/` directory on disk | `.es/` directory on disk |
-| `remote` | Git raw URL (falls back to local) | `.es/` directory on disk |
-
-### Environment Variable Overrides
-
-| Variable | Overrides | Example |
-|----------|-----------|---------|
-| `ES_GENESIS_URL` | `genesis.url` | `https://raw.githubusercontent.com/org/repo/main` |
-| `ES_GENESIS_MODE` | `genesis.mode` | `remote` |
-
-## Boot Sequence
-
-```
-ClassModel::boot()
-  → Read @init.json (storage + genesis config)
-  → Create storage provider with .es/ as data directory
-  → Create GenesisLoader
-
-ensureBootstrap()
-  → Check if @class exists in storage
-  → If not:
-    1. GenesisLoader loads system.genesis.json
-    2. GenesisLoader loads *.seed.json files
-    3. GenesisLoader loads remaining *.genesis.json files
-  → Ready for API operations
-```
+Rebuilt automatically if missing. Cached in memory per request.
 
 ## External Projects
 
-External projects follow the same convention:
+External projects can provide their own genesis files:
 
 ```
 my-app/
 └── .es/
-    ├── myapp.genesis.json      # Class definitions
-    ├── category.seed.json      # Seed data
-    └── crud_provider.json      # Provider objects (seed data)
+    └── myapp.genesis.json      # Class definitions
 ```
 
 Load into ElementStore:
 ```bash
-# Auto-detects .es/ subdirectory in my-app/
-es push --from my-app --to http://localhost/elementStore
-
-# Or reference the genesis file directly:
-es push --from my-app/.es/myapp.genesis.json --to http://localhost/elementStore
+es push --from my-app/.es --to http://localhost/elementStore
 ```
-
-Or via API:
-```bash
-curl -X POST http://localhost/elementStore/genesis/reload
-```
-
-## es-cli `.es/` Auto-Detection
-
-When `--dir`, `--from`, or `--file` points to a directory that contains a `.es/` subdirectory, `es-cli` automatically uses the `.es/` subdirectory:
-
-```bash
-# These are equivalent:
-es push --from /path/to/project --to http://localhost/elementStore
-es push --from /path/to/project/.es --to http://localhost/elementStore
-
-# Directory mode also auto-detects:
-es push --dir /path/to/project --to http://localhost/elementStore
-```
-
-When a `.es/` directory is detected, genesis files (`*.genesis.json`) are processed first, which loads class definitions and their seed references. If no genesis files exist, all `*.json` files are processed.
 
 ## `.gitignore` Rules
 
 ```gitignore
-# Track genesis/seed, ignore runtime
+# Track genesis files, ignore runtime data
 .es/*.json
 !.es/*.genesis.json
-!.es/*.seed.json
+.es/index.es.json
 .es/*/
 ```
 
@@ -197,9 +155,8 @@ When a `.es/` directory is detected, genesis files (`*.genesis.json`) are proces
 
 | File | Description |
 |------|-------------|
-| `src/GenesisLoader.php` | Direct genesis/seed file loader |
-| `src/JsonStorageProvider.php` | JSON file storage with namespace support |
-| `src/ClassModel.php` | Boot sequence and seed write-back |
-| `src/Constants.php` | ES_DIR, NS_SEPARATOR, genesis constants |
-| `genesis/Genesis.php` | Legacy HTTP-based genesis (uses .es/ with fallback) |
-| `docs/MIGRATION_PROCEDURE.md` | Full migration guide |
+| `@init.json` | Bootstrap @storage configuration |
+| `src/StorageProvider.php` | Unified storage: driver + provider pipeline |
+| `src/JsonStorageProvider.php` | JSON genesis file reader with index |
+| `src/CouchDbStorageProvider.php` | CouchDB storage driver |
+| `src/ClassModel.php` | Core engine — getObject, setObject, validate |

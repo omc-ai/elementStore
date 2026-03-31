@@ -423,10 +423,10 @@ Genesis files (`.es/*.genesis.json`) are the **canonical clean state** for an ap
    This becomes the new canonical genesis for the next deployment.
 ```
 
-Genesis is NOT loaded into memory each session. Once seeded to the database, the DB is authoritative. Genesis files are only used for:
-- Initial setup of a new environment
-- Resetting to a known clean state
-- Version-controlled snapshots of the schema
+Genesis files are the canonical class definitions, stored in the elementStore repository (`https://github.com/omc-ai/elementStore/.es/`). They serve as the JSON storage provider fallback — when CouchDB doesn't have a class, the JSON provider reads it from genesis on demand and syncs it to CouchDB. Genesis files are:
+- The canonical source of truth for class schemas (versioned in git)
+- The fallback storage provider in the `@init.json` pipeline
+- Loaded on-demand per class (not bulk-loaded on boot)
 
 ### Genesis File Format
 

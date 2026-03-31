@@ -172,8 +172,8 @@ THROWS: StorageException
 
 14. SAVE + SIDE EFFECTS (onChange)
     → storage.setobj(class_id, data)
+    → storage pipeline handles write to all providers (CouchDB, JSON, etc.)
     → broadcast via WebSocket
-    → seed write-back (genesis sync)
 
 15. FACTORY + CACHE + RETURN
     → create AtomObj
@@ -204,8 +204,7 @@ OUTPUT: boolean
 
 5. CLEAR CACHE
 
-6. SEED DELETE-BACK
-   → remove from genesis file if applicable
+6. Storage pipeline handles propagation to providers
 ```
 
 ---
@@ -323,7 +322,7 @@ setObject:  guards → validate → flags → defaults → strip inherited → k
 - Resolves inherited data on read (options.link = "chain")
 - Strips inherited data on write (save only diff)
 - Handles server_only props (never sent to client)
-- Runs @changes tracking, WebSocket broadcast, genesis sync
+- Runs @changes tracking, WebSocket broadcast, storage pipeline propagation
 
 ### Client (TypeScript — es-client)
 **Local store + resolution.** Mirrors server behavior for offline/fast access.
@@ -412,4 +411,4 @@ Needs to understand:
 | Apply defaults | fill on create | fill on create | show as placeholder |
 | Resolve relations | query by link mode | query by link mode | render picker by link mode |
 | Strip inherited | remove unchanged parent data | remove before POST/PUT | don't send locked fields |
-| Save | storage + broadcast + genesis | HTTP POST/PUT to server | trigger client save |
+| Save | storage pipeline (all providers) + broadcast | HTTP POST/PUT to server | trigger client save |
