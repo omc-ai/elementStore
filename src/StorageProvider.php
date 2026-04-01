@@ -160,7 +160,7 @@ class StorageProvider implements IStorageProvider
             try {
                 $provider->setobj($class, $result);
             } catch (\Throwable $e) {
-                // Ignore
+                error_log("[StorageProvider] provider setobj failed for {$class}: " . $e->getMessage());
             }
         }
 

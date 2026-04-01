@@ -127,7 +127,10 @@ class JsonStorageProvider implements IStorageProvider
 
         // Write back
         $json = json_encode($genesis, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        @file_put_contents($filePath, $json, LOCK_EX);
+        $bytes = @file_put_contents($filePath, $json, LOCK_EX);
+        if ($bytes === false) {
+            error_log("[JsonProvider] write failed for {$filePath}: " . (error_get_last()['message'] ?? 'permission denied'));
+        }
 
         // Update index
         $this->updateIndex($class, $id, $file);

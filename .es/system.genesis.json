@@ -2880,6 +2880,168 @@
                     ]
                 }
             }
+        },
+        {
+            "id": "bootstrap",
+            "class_id": "@storage",
+            "name": "Bootstrap Storage",
+            "type": "couchdb",
+            "server": "http://elementstore_couchdb:5984",
+            "classes": {
+                "@class": [
+                    "get",
+                    "set",
+                    "query",
+                    "delete"
+                ]
+            },
+            "providers": [
+                {
+                    "id": "genesis_files",
+                    "class_id": "@storage",
+                    "name": "Genesis JSON Files",
+                    "type": "json",
+                    "dir": ".es",
+                    "classes": {
+                        "@class": [
+                            "get",
+                            "set"
+                        ]
+                    }
+                },
+                {
+                    "id": "ws_broadcast",
+                    "class_id": "@storage",
+                    "name": "WebSocket Broadcast",
+                    "type": "ws",
+                    "classes": {
+                        "@class": [
+                            "set",
+                            "delete"
+                        ]
+                    }
+                }
+            ],
+            "method": "sync",
+            "auth": {
+                "username": "admin",
+                "password": "elementstore"
+            },
+            "updated_at": "2026-04-01 10:29:50",
+            "created_at": "2026-04-01 10:29:50"
+        },
+        {
+            "items": [
+                {
+                    "id": "core:atomObj",
+                    "class_id": "@class",
+                    "name": "Permission Fixed",
+                    "namespace_id": "core",
+                    "extends_id": null,
+                    "is_abstract": true,
+                    "is_system": true,
+                    "is_seed": true,
+                    "description": "Base object for all elementStore objects. Provides @state.",
+                    "props": [
+                        {
+                            "key": "updated_at",
+                            "label": "Updated",
+                            "data_type": "string",
+                            "display_order": -1,
+                            "class_id": "@prop_string",
+                            "flags": {
+                                "readonly": true,
+                                "server_only": true
+                            },
+                            "id": "core:atomObj.updated_at"
+                        },
+                        {
+                            "key": "created_at",
+                            "label": "Created",
+                            "data_type": "string",
+                            "display_order": -2,
+                            "class_id": "@prop_string",
+                            "flags": {
+                                "readonly": true,
+                                "server_only": true
+                            },
+                            "id": "core:atomObj.created_at"
+                        },
+                        {
+                            "key": "class_id",
+                            "label": "Class",
+                            "data_type": "string",
+                            "display_order": -3,
+                            "class_id": "@prop_string",
+                            "flags": {
+                                "readonly": true
+                            },
+                            "id": "core:atomObj.class_id"
+                        },
+                        {
+                            "key": "id",
+                            "label": "ID",
+                            "data_type": "string",
+                            "display_order": -4,
+                            "class_id": "@prop_string",
+                            "flags": {
+                                "readonly": true
+                            },
+                            "id": "core:atomObj.id"
+                        },
+                        {
+                            "data_type": "string",
+                            "key": "description",
+                            "is_array": "false",
+                            "display_order": 0,
+                            "class_id": "@prop_string",
+                            "id": "core:atomObj.description"
+                        },
+                        {
+                            "data_type": "object",
+                            "key": "@events",
+                            "is_array": "indexed",
+                            "display_order": 0,
+                            "class_id": "@prop_object",
+                            "id": "core:atomObj.@events"
+                        },
+                        {
+                            "data_type": "object",
+                            "key": "@state",
+                            "label": "State",
+                            "description": "Server-managed object state: readonly, archived, deleted, version",
+                            "is_array": "false",
+                            "display_order": 0,
+                            "flags": {
+                                "required": false,
+                                "readonly": false,
+                                "hidden": false,
+                                "create_only": false,
+                                "server_only": true,
+                                "master_only": false,
+                                "from_parent": false
+                            },
+                            "class_id": "@prop_object",
+                            "id": "core:atomObj.@state"
+                        }
+                    ],
+                    "version": "13c6da1d4d5ebc1ee1e67ff1ade0348f",
+                    "created_at": "2026-04-01 10:26:26",
+                    "updated_at": "2026-04-01 10:28:22",
+                    "@state": {
+                        "version": "87f23d45c5563d02dd516205bd00bb96"
+                    },
+                    "old_values": {
+                        "name": "Debug3"
+                    }
+                }
+            ],
+            "sender_id": "dev-admin",
+            "schema_hash": "fd24fe5238323829f53f4eaf1d95ca16",
+            "class_id": "@changes",
+            "id": "87f23d45c5563d02dd516205bd00c97e",
+            "created_at": "2026-04-01 10:29:15",
+            "updated_at": "2026-04-01 10:29:15"
         }
     ]
 }
