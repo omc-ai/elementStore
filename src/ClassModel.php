@@ -1928,15 +1928,7 @@ class ClassModel
         // Save the object
         $result = $this->storage->setobj($class_id, $data);
 
-        // Broadcast: only classes with track_changes=false broadcast directly to WS.
-        // Classes with track_changes=true (default) broadcast via their @changes record
-        // which is created in Step 5b and goes through setObject('@changes') → here.
-        $classMeta = $this->getClass($class_id);
-        $classArr = $classMeta ? $classMeta->toArray() : [];
-        $classTrackChanges = $classArr['track_changes'] ?? true;
-        if (!$classTrackChanges) {
-            BroadcastService::emitChange($result, $oldData, $this->userId);
-        }
+        // Broadcast handled by ws provider in storage pipeline
         EventDispatcher::dispatch($oldData ? 'after_update' : 'after_create', $class_id, $result, $oldData, $this->userId);
 
         // Cascade from_parent fields to children when parent is updated
@@ -2826,7 +2818,7 @@ class ClassModel
                 // Direct storage update to avoid recursive validation
                 $merged = array_merge($child, $updates);
                 $this->storage->setobj($childClassId, $merged);
-                BroadcastService::emitChange($merged, $child, $this->userId);
+                // Broadcast handled by ws provider in storage pipeline
             }
         }
     }

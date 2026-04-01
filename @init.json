@@ -17,6 +17,15 @@
       "classes": {
         "@class": ["get", "set"]
       }
+    },
+    {
+      "id": "ws_broadcast",
+      "class_id": "@storage",
+      "name": "WebSocket Broadcast",
+      "type": "ws",
+      "classes": {
+        "@class": ["set", "delete"]
+      }
     }
   ],
   "method": "sync"

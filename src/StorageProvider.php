@@ -76,6 +76,7 @@ class StorageProvider implements IStorageProvider
                 (int)($config['ttl'] ?? 0)
             ),
             'api' => new ApiStorageProvider($config),
+            'ws' => new WebSocketStorageProvider(),
             default => throw new StorageException("Unknown storage type: {$type}", 'config_error')
         };
     }
