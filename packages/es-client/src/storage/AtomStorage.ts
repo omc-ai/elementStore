@@ -356,7 +356,7 @@ export class AtomStorage extends AtomObj {
 
         localStorage.setItem(`es:${id}`, JSON.stringify(dataToSave));
       } catch { /* quota exceeded */ }
-    } else if (type === 'api') {
+    } else if (type === 'api' || type === 'elementStore') {
       const classId = obj.data.class_id;
 
       if (isNew) {
@@ -460,7 +460,7 @@ export class AtomStorage extends AtomObj {
 
     if (type === 'local') {
       try { localStorage.removeItem(`es:${id}`); } catch {}
-    } else if (type === 'api') {
+    } else if (type === 'api' || type === 'elementStore') {
       const obj = this.store?.getObject(id);
       const classId = obj?.data?.class_id;
       if (classId) {
@@ -510,7 +510,7 @@ export class AtomStorage extends AtomObj {
       return results;
     }
 
-    if (type === 'api') {
+    if (type === 'api' || type === 'elementStore') {
       // Fetch from esProxy client
       try {
         const items = await elementStoreClient.getObjects(classId);
