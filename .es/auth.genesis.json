@@ -292,13 +292,13 @@
             ],
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "role_name",
+                    "get_fields": [
                         "id",
                         "role_name",
                         "app_id",
                         "is_system"
-                    ],
-                    "sort_by": "role_name"
+                    ]
                 }
             }
         },

@@ -14,7 +14,7 @@ function buildGridColumns(classMeta, classId, actionsCellRenderer) {
 
     // Use contexts.grid.fields to filter columns (if defined)
     const gridContext = classMeta?.contexts?.grid;
-    const gridFields = gridContext?.fields;
+    const gridFields = gridContext?.get_fields || gridContext?.fields;
 
     const columnDefs = [
         { field: 'id', headerName: 'ID', width: 150, pinned: 'left' }

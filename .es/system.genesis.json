@@ -230,14 +230,14 @@
             "updated_at": "2026-04-01 13:24:54",
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "id",
+                    "page_size": 50,
+                    "get_fields": [
                         "id",
                         "name",
                         "extends_id",
                         "scope"
-                    ],
-                    "sort_by": "id",
-                    "page_size": 50
+                    ]
                 }
             }
         },
@@ -397,14 +397,14 @@
             "updated_at": "2026-04-01 11:06:18",
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "display_order",
+                    "get_fields": [
                         "key",
                         "label",
                         "data_type",
                         "is_array",
                         "display_order"
-                    ],
-                    "sort_by": "display_order"
+                    ]
                 }
             }
         },
@@ -811,15 +811,15 @@
             "updated_at": "2026-04-01 13:24:54",
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "category",
+                    "get_fields": [
                         "id",
                         "name",
                         "data_types",
                         "category",
                         "context",
                         "is_default"
-                    ],
-                    "sort_by": "category"
+                    ]
                 }
             }
         },
@@ -921,14 +921,14 @@
             "updated_at": "2026-04-01 10:48:55",
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "name",
+                    "get_fields": [
                         "id",
                         "name",
                         "type",
                         "server",
                         "method"
-                    ],
-                    "sort_by": "name"
+                    ]
                 }
             }
         },
@@ -1327,13 +1327,13 @@
             ],
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "name",
+                    "get_fields": [
                         "id",
                         "name",
                         "type",
                         "description"
-                    ],
-                    "sort_by": "name"
+                    ]
                 }
             }
         },
@@ -1725,12 +1725,21 @@
             "is_system": true,
             "props": [
                 {
-                    "key": "fields",
-                    "label": "Fields",
-                    "description": "Property keys to include (null = all visible props)",
+                    "key": "get_fields",
+                    "label": "Get Fields",
+                    "description": "Property keys to display (null = all visible props)",
                     "data_type": "string",
                     "is_array": "indexed",
                     "display_order": 1,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "set_fields",
+                    "label": "Set Fields",
+                    "description": "Property keys that are editable (null = all get_fields editable)",
+                    "data_type": "string",
+                    "is_array": "indexed",
+                    "display_order": 2,
                     "class_id": "@prop_string"
                 },
                 {
@@ -2333,7 +2342,7 @@
             "class_id": "@class",
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "get_fields": [
                         "readonly",
                         "archived",
                         "deleted",
@@ -2368,10 +2377,10 @@
             },
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "fields",
+                    "get_fields": [
                         "fields"
-                    ],
-                    "sort_by": "fields"
+                    ]
                 }
             }
         },
@@ -2963,13 +2972,13 @@
             },
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "class_ref",
+                    "get_fields": [
                         "class_ref",
                         "prop_key",
                         "scope_key",
                         "value"
-                    ],
-                    "sort_by": "class_ref"
+                    ]
                 }
             }
         },

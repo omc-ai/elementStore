@@ -209,13 +209,13 @@
             "color": "#6366f1",
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "name",
+                    "get_fields": [
                         "id",
                         "name",
                         "title",
                         "status"
-                    ],
-                    "sort_by": "name"
+                    ]
                 },
                 "card": {
                     "template": "card-default",
@@ -223,7 +223,7 @@
                     "subtitle_field": "description",
                     "badge_field": "role",
                     "image_field": "avatar",
-                    "fields": [
+                    "get_fields": [
                         "name",
                         "description",
                         "role",
@@ -272,7 +272,7 @@
                     "title_field": "name",
                     "badge_field": "role",
                     "image_field": "avatar",
-                    "fields": [
+                    "get_fields": [
                         "name",
                         "role",
                         "is_active"
@@ -495,14 +495,14 @@
             "color": "#f59e0b",
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "created_at",
+                    "get_fields": [
                         "id",
                         "name",
                         "status",
                         "priority",
                         "created_at"
-                    ],
-                    "sort_by": "created_at"
+                    ]
                 },
                 "card": {
                     "template": "card-default",
@@ -510,7 +510,7 @@
                     "subtitle_field": "description",
                     "badge_field": "status",
                     "color_field": "priority",
-                    "fields": [
+                    "get_fields": [
                         "name",
                         "description",
                         "status",
@@ -556,7 +556,7 @@
                     "template": "list-item",
                     "title_field": "name",
                     "badge_field": "status",
-                    "fields": [
+                    "get_fields": [
                         "name",
                         "status",
                         "priority"
@@ -1537,20 +1537,20 @@
             "color": "#0ea5e9",
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "created_at",
+                    "get_fields": [
                         "id",
                         "title",
                         "status",
                         "agent_id",
                         "created_at"
-                    ],
-                    "sort_by": "created_at"
+                    ]
                 },
                 "card": {
                     "template": "card-default",
                     "title_field": "title",
                     "badge_field": "status",
-                    "fields": [
+                    "get_fields": [
                         "title",
                         "agent_id",
                         "status",
@@ -1587,7 +1587,7 @@
                     "template": "list-item",
                     "title_field": "title",
                     "badge_field": "status",
-                    "fields": [
+                    "get_fields": [
                         "title",
                         "agent_id",
                         "status"
@@ -1766,20 +1766,20 @@
             "color": "#10b981",
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "created_at",
+                    "get_fields": [
                         "id",
                         "role",
                         "content",
                         "status",
                         "created_at"
-                    ],
-                    "sort_by": "created_at"
+                    ]
                 },
                 "card": {
                     "template": "card-default",
                     "title_field": "content",
                     "badge_field": "role",
-                    "fields": [
+                    "get_fields": [
                         "content",
                         "role",
                         "agent_id",
@@ -1824,7 +1824,7 @@
                     "template": "list-item",
                     "title_field": "content",
                     "badge_field": "role",
-                    "fields": [
+                    "get_fields": [
                         "content",
                         "role",
                         "status"

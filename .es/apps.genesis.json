@@ -156,13 +156,6 @@
             "color": "#6366f1",
             "contexts": {
                 "grid": {
-                    "fields": [
-                        "name",
-                        "application_id",
-                        "role",
-                        "status",
-                        "server_url"
-                    ],
                     "sort_by": "name",
                     "page_size": 25,
                     "title_field": "name",
@@ -199,6 +192,13 @@
                             "type": "link",
                             "width": 200
                         }
+                    ],
+                    "get_fields": [
+                        "name",
+                        "application_id",
+                        "role",
+                        "status",
+                        "server_url"
                     ]
                 },
                 "card": {
@@ -206,7 +206,7 @@
                     "title_field": "name",
                     "subtitle_field": "description",
                     "badge_field": "role",
-                    "fields": [
+                    "get_fields": [
                         "name",
                         "description",
                         "application_id",
@@ -252,7 +252,7 @@
                     "template": "list-item",
                     "title_field": "name",
                     "badge_field": "role",
-                    "fields": [
+                    "get_fields": [
                         "name",
                         "role",
                         "status"
@@ -401,12 +401,6 @@
             "color": "#8b5cf6",
             "contexts": {
                 "grid": {
-                    "fields": [
-                        "name",
-                        "category",
-                        "scope",
-                        "group"
-                    ],
                     "sort_by": "name",
                     "page_size": 50,
                     "title_field": "name",
@@ -443,6 +437,12 @@
                             "type": "text",
                             "width": 300
                         }
+                    ],
+                    "get_fields": [
+                        "name",
+                        "category",
+                        "scope",
+                        "group"
                     ]
                 },
                 "card": {
@@ -450,7 +450,7 @@
                     "title_field": "name",
                     "subtitle_field": "description",
                     "badge_field": "category",
-                    "fields": [
+                    "get_fields": [
                         "name",
                         "description",
                         "category",
@@ -488,7 +488,7 @@
                     "template": "list-item",
                     "title_field": "name",
                     "badge_field": "category",
-                    "fields": [
+                    "get_fields": [
                         "name",
                         "category",
                         "scope"
@@ -587,12 +587,6 @@
             "color": "#10b981",
             "contexts": {
                 "grid": {
-                    "fields": [
-                        "feature_id",
-                        "application_id",
-                        "progress",
-                        "implemented_in"
-                    ],
                     "sort_by": "feature_id",
                     "page_size": 50,
                     "title_field": "feature_id",
@@ -623,13 +617,19 @@
                             "type": "text",
                             "width": 250
                         }
+                    ],
+                    "get_fields": [
+                        "feature_id",
+                        "application_id",
+                        "progress",
+                        "implemented_in"
                     ]
                 },
                 "card": {
                     "template": "card-default",
                     "title_field": "feature_id",
                     "badge_field": "progress",
-                    "fields": [
+                    "get_fields": [
                         "feature_id",
                         "application_id",
                         "progress",
@@ -665,7 +665,7 @@
                     "template": "list-item",
                     "title_field": "feature_id",
                     "badge_field": "progress",
-                    "fields": [
+                    "get_fields": [
                         "feature_id",
                         "application_id",
                         "progress"

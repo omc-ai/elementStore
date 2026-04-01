@@ -297,14 +297,14 @@
             },
             "contexts": {
                 "grid": {
-                    "fields": [
+                    "sort_by": "title",
+                    "get_fields": [
                         "id",
                         "title",
                         "isOpen",
                         "modal",
                         "dockPosition"
-                    ],
-                    "sort_by": "title"
+                    ]
                 }
             }
         },
