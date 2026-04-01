@@ -15,7 +15,10 @@
       "type": "json",
       "dir": ".es",
       "classes": {
-        "@class": ["get", "set"]
+        "@class": ["get", "set"],
+        "@editor": ["get"],
+        "@function": ["get"],
+        "@action": ["get"]
       }
     },
     {

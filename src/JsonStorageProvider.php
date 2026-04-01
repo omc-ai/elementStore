@@ -286,6 +286,23 @@ class JsonStorageProvider implements IStorageProvider
                     $index['class_files'][Constants::K_CLASS][] = $basename;
                 }
             }
+
+            // Index seed objects
+            foreach ($data['seed'] ?? [] as $obj) {
+                $objClass = $obj['class_id'] ?? null;
+                $objId = $obj['id'] ?? null;
+                if (!$objClass || !$objId) continue;
+
+                $key = $objClass . '/' . $objId;
+                $index['map'][$key] = $basename;
+
+                if (!isset($index['class_files'][$objClass])) {
+                    $index['class_files'][$objClass] = [];
+                }
+                if (!in_array($basename, $index['class_files'][$objClass])) {
+                    $index['class_files'][$objClass][] = $basename;
+                }
+            }
         }
 
         // Save index
@@ -339,6 +356,13 @@ class JsonStorageProvider implements IStorageProvider
             }
         }
 
+        // Search in seed array
+        foreach ($data['seed'] ?? [] as $obj) {
+            if (($obj['id'] ?? null) === $id && ($obj['class_id'] ?? null) === $class) {
+                return $obj;
+            }
+        }
+
         return null;
     }
 
@@ -352,11 +376,20 @@ class JsonStorageProvider implements IStorageProvider
         if (!$data) return [];
 
         $result = [];
-        foreach ($data['classes'] ?? [] as $cls) {
-            if ($class === Constants::K_CLASS) {
+
+        // Classes section (for @class queries)
+        if ($class === Constants::K_CLASS) {
+            foreach ($data['classes'] ?? [] as $cls) {
                 $cls[Constants::F_CLASS_ID] = Constants::K_CLASS;
+                $result[] = $cls;
             }
-            $result[] = $cls;
+        }
+
+        // Seed section (for object queries)
+        foreach ($data['seed'] ?? [] as $obj) {
+            if (($obj['class_id'] ?? null) === $class) {
+                $result[] = $obj;
+            }
         }
 
         return $result;

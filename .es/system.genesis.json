@@ -226,8 +226,8 @@
                     "class_id": "@prop_object"
                 }
             ],
-            "created_at": "2026-04-01 11:06:17",
-            "updated_at": "2026-04-01 11:06:17"
+            "created_at": "2026-04-01 13:24:54",
+            "updated_at": "2026-04-01 13:24:54"
         },
         {
             "id": "@prop",
@@ -757,8 +757,8 @@
                     "class_id": "@prop_function"
                 }
             ],
-            "created_at": "2026-04-01 10:48:55",
-            "updated_at": "2026-04-01 10:48:55"
+            "created_at": "2026-04-01 13:24:54",
+            "updated_at": "2026-04-01 13:24:54"
         },
         {
             "id": "@storage",
@@ -2930,6 +2930,15 @@
                         "@class": [
                             "get",
                             "set"
+                        ],
+                        "@editor": [
+                            "get"
+                        ],
+                        "@function": [
+                            "get"
+                        ],
+                        "@action": [
+                            "get"
                         ]
                     }
                 },
@@ -2951,8 +2960,8 @@
                 "username": "admin",
                 "password": "elementstore"
             },
-            "updated_at": "2026-04-01 11:06:17",
-            "created_at": "2026-04-01 11:06:17"
+            "created_at": "2026-04-01 13:24:54",
+            "updated_at": "2026-04-01 13:24:54"
         },
         {
             "items": [
