@@ -646,24 +646,22 @@
             "id": "@editor",
             "class_id": "@class",
             "name": "Editor",
-            "description": "Defines a UI editor component for editing property values. Instances are seed data (text, textarea, select, etc.)",
+            "description": "UI editor widget. Has view (read-only) and edit (interactive) actions. Inherits common props from parent. Context-driven rendering.",
             "is_system": true,
             "props": [
                 {
                     "key": "name",
                     "label": "Name",
-                    "description": "Editor display name",
                     "data_type": "string",
                     "display_order": 1,
+                    "class_id": "@prop_string",
                     "flags": {
                         "required": true
-                    },
-                    "class_id": "@prop_string"
+                    }
                 },
                 {
                     "key": "description",
                     "label": "Description",
-                    "description": "What this editor is for",
                     "data_type": "string",
                     "editor": {
                         "id": "textarea"
@@ -677,84 +675,112 @@
                     "description": "Supported data types",
                     "data_type": "string",
                     "is_array": "indexed",
-                    "options": {
-                        "type": "string_options",
-                        "values": [
-                            "string",
-                            "boolean",
-                            "integer",
-                            "float",
-                            "datetime",
-                            "object",
-                            "relation",
-                            "function"
-                        ]
-                    },
                     "display_order": 3,
+                    "class_id": "@prop_string",
                     "flags": {
                         "required": true
-                    },
-                    "class_id": "@prop_string"
+                    }
                 },
                 {
                     "key": "is_default",
                     "label": "Default",
                     "description": "Default editor for its data types",
                     "data_type": "boolean",
-                    "default_value": false,
                     "display_order": 4,
                     "class_id": "@prop_boolean"
                 },
                 {
-                    "key": "is_system",
-                    "label": "System Editor",
-                    "description": "Protected system editor (cannot be deleted)",
-                    "data_type": "boolean",
-                    "default_value": false,
+                    "key": "component",
+                    "label": "Component",
+                    "description": "UI component name",
+                    "data_type": "string",
                     "display_order": 5,
-                    "flags": {
-                        "readonly": true
-                    },
-                    "class_id": "@prop_boolean"
+                    "class_id": "@prop_string"
                 },
                 {
-                    "key": "validator",
-                    "label": "Validator",
-                    "description": "Built-in validator (e.g. email, url, phone)",
+                    "key": "view",
+                    "label": "View Action",
+                    "description": "Read-only render configuration",
+                    "data_type": "object",
+                    "display_order": 10,
+                    "class_id": "@prop_object",
+                    "object_class_id": [
+                        "@action"
+                    ]
+                },
+                {
+                    "key": "edit",
+                    "label": "Edit Action",
+                    "description": "Interactive edit configuration",
+                    "data_type": "object",
+                    "display_order": 11,
+                    "class_id": "@prop_object",
+                    "object_class_id": [
+                        "@action"
+                    ]
+                },
+                {
+                    "key": "state",
+                    "label": "Default State",
+                    "description": "Default state values for the editor form",
+                    "data_type": "object",
+                    "display_order": 15,
+                    "class_id": "@prop_object"
+                },
+                {
+                    "key": "context",
+                    "label": "Context",
+                    "description": "Context to use: grid, form, card, list",
                     "data_type": "string",
-                    "display_order": 6,
-                    "class_id": "@prop_string"
+                    "display_order": 16,
+                    "class_id": "@prop_string",
+                    "options": {
+                        "values": [
+                            "grid",
+                            "form",
+                            "card",
+                            "list",
+                            "inline"
+                        ]
+                    }
                 },
                 {
                     "key": "props",
                     "label": "Options Schema",
-                    "description": "Configuration options this editor accepts",
+                    "description": "Configuration props this editor accepts",
                     "data_type": "object",
                     "is_array": "indexed",
                     "object_class_id": [
                         "@prop"
                     ],
-                    "display_order": 7,
+                    "display_order": 20,
                     "class_id": "@prop_object"
                 },
                 {
-                    "key": "component",
-                    "label": "Component",
-                    "description": "UI component name or path",
+                    "key": "icon",
+                    "label": "Icon",
+                    "description": "Editor icon",
                     "data_type": "string",
-                    "display_order": 8,
+                    "display_order": 25,
                     "class_id": "@prop_string"
                 },
                 {
-                    "key": "render",
-                    "label": "Render",
-                    "description": "Custom render function: (scope) => html",
-                    "data_type": "function",
-                    "editor": {
-                        "id": "javascript"
-                    },
-                    "display_order": 9,
-                    "class_id": "@prop_function"
+                    "key": "category",
+                    "label": "Category",
+                    "description": "Editor category group",
+                    "data_type": "string",
+                    "display_order": 26,
+                    "class_id": "@prop_string",
+                    "options": {
+                        "values": [
+                            "input",
+                            "multiline",
+                            "selector",
+                            "toggle",
+                            "picker",
+                            "composite"
+                        ]
+                    }
                 }
             ],
             "created_at": "2026-04-01 13:24:54",
@@ -3348,7 +3374,9 @@
             "props": {
                 "type": "text"
             },
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "input",
+            "context": "inline"
         },
         {
             "id": "email",
@@ -3361,7 +3389,9 @@
             "props": {
                 "type": "email"
             },
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "input",
+            "context": "inline"
         },
         {
             "id": "url",
@@ -3374,7 +3404,9 @@
             "props": {
                 "type": "url"
             },
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "input",
+            "context": "inline"
         },
         {
             "id": "phone",
@@ -3387,7 +3419,9 @@
             "props": {
                 "type": "tel"
             },
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "input",
+            "context": "inline"
         },
         {
             "id": "password",
@@ -3400,7 +3434,9 @@
             "props": {
                 "type": "password"
             },
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "input",
+            "context": "inline"
         },
         {
             "id": "number",
@@ -3415,7 +3451,9 @@
             "props": {
                 "type": "number"
             },
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "input",
+            "context": "inline"
         },
         {
             "id": "slider",
@@ -3426,7 +3464,9 @@
             ],
             "is_system": true,
             "component": "slider",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "input",
+            "context": "inline"
         },
         {
             "id": "currency",
@@ -3440,7 +3480,9 @@
                 "type": "number",
                 "step": "0.01"
             },
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "input",
+            "context": "inline"
         },
         {
             "id": "color",
@@ -3453,7 +3495,9 @@
             "props": {
                 "type": "color"
             },
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "input",
+            "context": "inline"
         },
         {
             "id": "textarea",
@@ -3463,7 +3507,9 @@
             ],
             "is_system": true,
             "component": "textarea",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "multiline",
+            "context": "inline"
         },
         {
             "id": "code",
@@ -3475,7 +3521,9 @@
             "is_default": true,
             "is_system": true,
             "component": "code-editor",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "multiline",
+            "context": "inline"
         },
         {
             "id": "richtext",
@@ -3485,7 +3533,9 @@
             ],
             "is_system": true,
             "component": "richtext-editor",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "multiline",
+            "context": "inline"
         },
         {
             "id": "json",
@@ -3495,7 +3545,9 @@
             ],
             "is_system": true,
             "component": "json-editor",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "multiline",
+            "context": "inline"
         },
         {
             "id": "select",
@@ -3506,7 +3558,9 @@
             ],
             "is_system": true,
             "component": "select",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "selector",
+            "context": "inline"
         },
         {
             "id": "multiselect",
@@ -3516,7 +3570,9 @@
             ],
             "is_system": true,
             "component": "multiselect",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "selector",
+            "context": "inline"
         },
         {
             "id": "radio",
@@ -3526,7 +3582,9 @@
             ],
             "is_system": true,
             "component": "radio-group",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "selector",
+            "context": "inline"
         },
         {
             "id": "autocomplete",
@@ -3537,7 +3595,9 @@
             ],
             "is_system": true,
             "component": "autocomplete",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "selector",
+            "context": "inline"
         },
         {
             "id": "reference",
@@ -3548,7 +3608,9 @@
             "is_default": true,
             "is_system": true,
             "component": "reference-picker",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "selector",
+            "context": "inline"
         },
         {
             "id": "references",
@@ -3558,7 +3620,9 @@
             ],
             "is_system": true,
             "component": "references-picker",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "selector",
+            "context": "inline"
         },
         {
             "id": "toggle",
@@ -3569,7 +3633,9 @@
             "is_default": true,
             "is_system": true,
             "component": "toggle-switch",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "toggle",
+            "context": "inline"
         },
         {
             "id": "checkbox",
@@ -3579,7 +3645,9 @@
             ],
             "is_system": true,
             "component": "checkbox",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "toggle",
+            "context": "inline"
         },
         {
             "id": "date",
@@ -3589,7 +3657,9 @@
             ],
             "is_system": true,
             "component": "date-picker",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "picker",
+            "context": "inline"
         },
         {
             "id": "datetime",
@@ -3600,7 +3670,9 @@
             "is_default": true,
             "is_system": true,
             "component": "datetime-picker",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "picker",
+            "context": "inline"
         },
         {
             "id": "time",
@@ -3610,7 +3682,9 @@
             ],
             "is_system": true,
             "component": "time-picker",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "picker",
+            "context": "inline"
         },
         {
             "id": "nested",
@@ -3621,7 +3695,9 @@
             "is_default": true,
             "is_system": true,
             "component": "nested-editor",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "composite",
+            "context": "form"
         },
         {
             "id": "keyvalue",
@@ -3631,7 +3707,51 @@
             ],
             "is_system": true,
             "component": "keyvalue-editor",
-            "class_id": "@editor"
+            "class_id": "@editor",
+            "category": "composite",
+            "context": "form"
+        },
+        {
+            "id": "grid",
+            "class_id": "@editor",
+            "name": "Grid View",
+            "description": "Tabular grid — each object is a row, columns from class contexts.grid",
+            "data_types": [
+                "object",
+                "relation"
+            ],
+            "category": "composite",
+            "context": "grid",
+            "component": "grid-editor",
+            "is_system": true
+        },
+        {
+            "id": "card-list",
+            "class_id": "@editor",
+            "name": "Card List",
+            "description": "Card layout — each object rendered as a card from contexts.card",
+            "data_types": [
+                "object",
+                "relation"
+            ],
+            "category": "composite",
+            "context": "card",
+            "component": "card-list-editor",
+            "is_system": true
+        },
+        {
+            "id": "list",
+            "class_id": "@editor",
+            "name": "List",
+            "description": "Simple list — each item as a row with title + actions",
+            "data_types": [
+                "object",
+                "relation"
+            ],
+            "category": "composite",
+            "context": "list",
+            "component": "list-editor",
+            "is_system": true
         }
     ]
 }
