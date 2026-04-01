@@ -24,7 +24,9 @@ done
 
 echo "Deleted ${COUNT} databases"
 
-# No PHP restart needed — each request is stateless (no persistent cache)
+# Fix .es/ permissions for genesis write-back
+echo "Fixing .es/ permissions..."
+docker exec elementstore_php83 chown -R www-data:www-data /var/www/elementStore/.es/ 2>/dev/null || true
 
 # Verify
 REMAINING=$(docker exec elementstore_couchdb curl -sf "${COUCH_URL}/_all_dbs" 2>/dev/null)

@@ -104,6 +104,10 @@ RUN mkdir -p /var/log/php && chown www-data:www-data /var/log/php
 
 WORKDIR /var/www/elementStore
 
+# Ensure .es/ is writable by www-data for genesis write-back
+RUN mkdir -p /var/www/elementStore/.es && chown -R www-data:www-data /var/www/elementStore/.es
+
 EXPOSE 9000
 
-CMD ["php-fpm"]
+# Fix .es/ permissions on startup (volume mount may override)
+CMD chown -R www-data:www-data /var/www/elementStore/.es 2>/dev/null; exec php-fpm

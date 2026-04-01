@@ -1020,6 +1020,55 @@ class ClassModel
         return $this->query($class_id, $filters);
     }
 
+    /**
+     * Resolve $ref pointers in data. Read-only — does not modify stored data.
+     * Format: {"$ref": "class_id/object_id"} or {"$ref": "object_id", "$class": "class_id"}
+     * Returns the referenced object's data merged with any inline overrides.
+     */
+    /**
+     * Resolve $ref pointers in data. Read-only — does not modify stored data.
+     *
+     * Formats:
+     *   {"$ref": "class_id/object_id"}                    — local store
+     *   {"$ref": "object_id", "$class": "class_id"}       — local with explicit class
+     *   {"$ref": "es://host/path/class_id/object_id"}     — remote store (future)
+     *
+     * Returns the referenced object's data merged with any inline overrides.
+     */
+    public function resolveRefs(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                if (isset($value['$ref'])) {
+                    $ref = $value['$ref'];
+                    $class = $value['$class'] ?? null;
+
+                    // Remote refs (es:// scheme) — not yet supported
+                    if (str_starts_with($ref, 'es://')) {
+                        // TODO: resolve from remote elementStore
+                        continue;
+                    }
+
+                    // Parse "class_id/object_id" format
+                    if ($class === null && str_contains($ref, '/')) {
+                        [$class, $ref] = explode('/', $ref, 2);
+                    }
+
+                    if ($class && $ref) {
+                        $resolved = $this->storage->getobj($class, $ref);
+                        if ($resolved !== null) {
+                            unset($value['$ref'], $value['$class']);
+                            $data[$key] = empty($value) ? $resolved : array_merge($resolved, $value);
+                            continue;
+                        }
+                    }
+                }
+                $data[$key] = $this->resolveRefs($value);
+            }
+        }
+        return $data;
+    }
+
     // =========================================================================
     // CLASS OPERATIONS
     // =========================================================================
