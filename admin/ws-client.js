@@ -77,7 +77,17 @@ ElementStoreWS.prototype.connect = function (opts) {
         return;
     }
 
+    // Connection timeout — if no open event within 10s, reconnect
+    var connectTimeout = setTimeout(function () {
+        if (self.ws && self.ws.readyState === 0) { // CONNECTING
+            console.warn('[ES-WS] connect timeout');
+            self.ws.close();
+            self._scheduleReconnect();
+        }
+    }, 10000);
+
     this.ws.onopen = function () {
+        clearTimeout(connectTimeout);
         console.log('[ES-WS] connected');
         self._reconnectDelay = 1000; // reset backoff
         self._emit('open');
@@ -93,6 +103,7 @@ ElementStoreWS.prototype.connect = function (opts) {
     };
 
     this.ws.onclose = function () {
+        clearTimeout(connectTimeout);
         console.log('[ES-WS] disconnected');
         self.userId = null;
         self._emit('close');
@@ -102,6 +113,7 @@ ElementStoreWS.prototype.connect = function (opts) {
     };
 
     this.ws.onerror = function (err) {
+        clearTimeout(connectTimeout);
         console.warn('[ES-WS] error:', err);
     };
 };

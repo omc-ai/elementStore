@@ -1135,8 +1135,16 @@ class ClassModel
      *
      * @return Prop[] Array of Prop objects (includes inherited props)
      */
+    /** @var array Cached merged props per class (includes inherited) */
+    private array $propsCache = [];
+
     public function getClassProps(string $class_id): array
     {
+        // Check props cache first
+        if (isset($this->propsCache[$class_id])) {
+            return $this->propsCache[$class_id];
+        }
+
         $meta = $this->getClass($class_id);
         if ($meta === null) {
             return [];
@@ -1145,10 +1153,8 @@ class ClassModel
         $props = $meta->getProps();
 
         // Handle inheritance - merge parent props
-        // Stop at system classes (@ prefix) — their props define class metadata, not object schemas
         if ($meta->extends_id !== null && $class_id !== Constants::K_CLASS) {
             $parentProps = $this->getClassProps($meta->extends_id);
-            // Parent props first, then own props (own override parent)
             $propsByKey = [];
             foreach ($parentProps as $prop) {
                 $propsByKey[$prop->key] = $prop;
@@ -1159,6 +1165,7 @@ class ClassModel
             $props = array_values($propsByKey);
         }
 
+        $this->propsCache[$class_id] = $props;
         return $props;
     }
 

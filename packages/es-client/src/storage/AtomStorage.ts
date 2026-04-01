@@ -338,18 +338,31 @@ export class AtomStorage extends AtomObj {
       try {
         let dataToSave = obj.data;
 
-        // When exclude_readonly is set, filter out readonly props
-        if (this.data.exclude_readonly && obj.store) {
+        // Context-based filtering: save only fields in contexts.local
+        if (obj.store) {
           const classId = obj.data.class_id as string;
-          const allProps = obj.store.collectClassProps(classId);
-          const readonlyKeys = new Set<string>();
-          for (const p of allProps) {
-            if (p.data.flags?.readonly ?? p.data.readonly) readonlyKeys.add(p.data.key as string);
-          }
-          if (readonlyKeys.size > 0) {
-            dataToSave = {};
-            for (const [k, v] of Object.entries(obj.data)) {
-              if (!readonlyKeys.has(k)) dataToSave[k] = v;
+          const classDef = obj.store.getObject(classId);
+          const localContext = classDef?.data?.contexts?.local;
+          if (localContext?.fields && Array.isArray(localContext.fields)) {
+            // Save only the fields defined in contexts.local + id + class_id
+            dataToSave = { id: obj.data.id, class_id: obj.data.class_id };
+            for (const field of localContext.fields) {
+              if (obj.data[field] !== undefined) {
+                dataToSave[field] = obj.data[field];
+              }
+            }
+          } else if (this.data.exclude_readonly) {
+            // Fallback: filter out readonly props
+            const allProps = obj.store.collectClassProps(classId);
+            const readonlyKeys = new Set<string>();
+            for (const p of allProps) {
+              if (p.data.flags?.readonly ?? p.data.readonly) readonlyKeys.add(p.data.key as string);
+            }
+            if (readonlyKeys.size > 0) {
+              dataToSave = {};
+              for (const [k, v] of Object.entries(obj.data)) {
+                if (!readonlyKeys.has(k)) dataToSave[k] = v;
+              }
             }
           }
         }
