@@ -200,29 +200,6 @@ export class ElementStore {
     return this.objects[id] || null;
   }
 
-  /**
-   * Async getObject — checks local store first, then fetches from elementStore server.
-   * Same pattern as PHP StorageProvider: local cache → remote fallback → sync back.
-   */
-  async getObjectAsync(id: string, classId?: string): Promise<AtomObj | null> {
-    // Check local first
-    const local = this.objects[id];
-    if (local) return local;
-
-    // Check seed data fallback
-    if (this._seedData[id]) {
-      return this._setObjectLocal(this._seedData[id]);
-    }
-
-    // Fetch from remote
-    try {
-      return await this.fetchRemote(id, classId);
-    } catch (e) {
-      console.warn(`[getObjectAsync] Failed to fetch ${id}:`, e);
-      return null;
-    }
-  }
-
   /** Get class definition (throws if missing) */
   getClass(classId: string): AtomObj {
     const obj = this.getObject(classId);
