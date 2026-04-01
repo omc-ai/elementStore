@@ -45,7 +45,8 @@ const IDLE_TIMEOUT_MS = parseInt(process.env.WS_IDLE_TIMEOUT_MS || '60000', 10);
 // Subscription maps
 const classSubs = new Map();    // class_id → Set<ws>
 const objectSubs = new Map();   // "class_id/object_id" → Set<ws>
-const scopeSubs = new Map();   // scope_id → Set<ws>
+const scopeSubs = new Map();    // scope_id → Set<ws>
+const querySubs = new Map();    // "class_id:queryHash" → { query, clients: Set<ws> }
 
 // Connection registry: connectionId → ws
 const connections = new Map();
@@ -54,6 +55,12 @@ const connections = new Map();
 const userConnections = new Map();
 
 var connectionCounter = 0;
+
+// ─── Change Queue (pull-based broadcast) ─────────────────────
+// Instead of immediately broadcasting, changes are queued.
+// A processing loop pulls all pending changes, groups by subscriber, sends batched.
+const changeQueue = [];
+var queueProcessing = false;
 
 // ─────────────────────────────────────────────────────────────
 // JWT Verification — cryptographic signature check required
@@ -115,7 +122,7 @@ const server = http.createServer(function (req, res) {
         return;
     }
 
-    // Broadcast endpoint (called by PHP after save)
+    // Broadcast endpoint (called by PHP after save) — pushes to queue
     if (req.method === 'POST' && req.url === '/broadcast') {
         if (!checkBroadcastAuth(req, res)) return;
         var body = '';
@@ -124,9 +131,11 @@ const server = http.createServer(function (req, res) {
             try {
                 var msg = JSON.parse(body);
                 var senderUserId = req.headers['x-sender-user-id'] || null;
-                var count = broadcast(msg, senderUserId);
+                // Push to queue instead of immediate broadcast
+                changeQueue.push({ msg: msg, senderUserId: senderUserId });
+                scheduleQueueProcess();
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ sent: count }));
+                res.end(JSON.stringify({ queued: (msg.items || []).length }));
             } catch (e) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: e.message }));
@@ -296,11 +305,22 @@ function handleClientMessage(ws, msg) {
             } else if (msg.class_id) {
                 addToSet(classSubs, msg.class_id, ws);
                 ws._subscriptions.classes.add(msg.class_id);
-                wsSend(ws, { event: 'subscribed', class_id: msg.class_id });
+
+                // Query subscription — subscribe with filter
+                if (msg.query && typeof msg.query === 'object') {
+                    var queryKey = msg.class_id + ':' + JSON.stringify(msg.query);
+                    if (!querySubs.has(queryKey)) {
+                        querySubs.set(queryKey, { class_id: msg.class_id, query: msg.query, clients: new Set() });
+                    }
+                    querySubs.get(queryKey).clients.add(ws);
+                    if (!ws._subscriptions.queries) ws._subscriptions.queries = new Set();
+                    ws._subscriptions.queries.add(queryKey);
+                    wsSend(ws, { event: 'subscribed', class_id: msg.class_id, query: msg.query });
+                } else {
+                    wsSend(ws, { event: 'subscribed', class_id: msg.class_id });
+                }
 
                 // Fetch historical objects if requested
-                // msg.fetch: number of recent objects to return (default: 0 = none)
-                // msg.since: ISO timestamp — only return objects updated after this time
                 if (msg.fetch && msg.fetch > 0) {
                     fetchHistorical(ws, msg.class_id, msg.fetch, msg.since || null, msg.sort || '_sort=updated_at&_order=desc');
                 }
@@ -403,58 +423,137 @@ function fetchHistorical(ws, classId, limit, since, sort) {
 // senderUserId = user_id of the client that triggered the save
 // ─────────────────────────────────────────────────────────────
 
-function broadcast(msg, senderUserId) {
-    var items = msg.items;
-    if (!items || !items.length) return 0;
+/**
+ * Schedule queue processing — uses setImmediate so all pending
+ * changes from concurrent requests are collected before processing.
+ */
+function scheduleQueueProcess() {
+    if (queueProcessing) return;
+    queueProcessing = true;
+    setImmediate(processQueue);
+}
 
-    var payload = JSON.stringify(msg);
-    var count = 0;
-    var sent = new Set(); // avoid double-send to same connection
+/**
+ * Pull-based queue processor.
+ * 1. Pull ALL pending changes from queue
+ * 2. For each subscriber: find matching items → build batch
+ * 3. Send one message per subscriber
+ * 4. Repeat if more queued during processing
+ */
+function processQueue() {
+    queueProcessing = false;
 
-    function trySend(ws) {
-        if (senderUserId && ws._userId === senderUserId) return;
-        if (sent.has(ws._connId)) return;
-        if (ws.readyState === 1) { // OPEN
-            ws.send(payload);
-            sent.add(ws._connId);
-            count++;
+    // Pull all pending
+    if (changeQueue.length === 0) return;
+    var batch = changeQueue.splice(0, changeQueue.length);
+
+    // Collect all items + sender info
+    var allItems = [];
+    var senderUserIds = new Set();
+    for (var b = 0; b < batch.length; b++) {
+        var entry = batch[b];
+        var items = entry.msg.items || [];
+        if (entry.senderUserId) senderUserIds.add(entry.senderUserId);
+        for (var i = 0; i < items.length; i++) {
+            allItems.push({ item: items[i], senderUserId: entry.senderUserId });
         }
     }
 
-    // Wildcard subscribers — receive everything
-    connections.forEach(function (ws) {
-        if (ws._subscriptions.all) trySend(ws);
-    });
+    if (allItems.length === 0) return;
 
-    for (var i = 0; i < items.length; i++) {
-        var item = items[i];
+    // Group items per connection
+    var perConnection = new Map(); // connId → { ws, items[] }
+
+    function addForConnection(ws, item, senderUserId) {
+        if (senderUserId && ws._userId === senderUserId) return; // skip sender
+        if (ws.readyState !== 1) return; // not open
+        var connId = ws._connId;
+        if (!perConnection.has(connId)) {
+            perConnection.set(connId, { ws: ws, items: [] });
+        }
+        perConnection.get(connId).items.push(item);
+    }
+
+    for (var a = 0; a < allItems.length; a++) {
+        var entry = allItems[a];
+        var item = entry.item;
+        var senderUserId = entry.senderUserId;
         var classId = item.class_id;
         var objectId = item.id;
         var scopeId = item._scope_id;
 
-        // Design-level subscribers (items tagged with _scope_id)
+        // Wildcard subscribers
+        connections.forEach(function (ws) {
+            if (ws._subscriptions.all) addForConnection(ws, item, senderUserId);
+        });
+
+        // Scope subscribers
         if (scopeId) {
             var scopeSet = scopeSubs.get(scopeId);
-            if (scopeSet) scopeSet.forEach(trySend);
+            if (scopeSet) scopeSet.forEach(function (ws) { addForConnection(ws, item, senderUserId); });
         }
 
-        // Class-level subscribers
+        // Class subscribers
         var classSet = classSubs.get(classId);
-        if (classSet) classSet.forEach(trySend);
+        if (classSet) classSet.forEach(function (ws) { addForConnection(ws, item, senderUserId); });
 
-        // Object-level subscribers
+        // Object subscribers
         if (objectId) {
             var objectKey = classId + '/' + objectId;
             var objectSet = objectSubs.get(objectKey);
-            if (objectSet) objectSet.forEach(trySend);
+            if (objectSet) objectSet.forEach(function (ws) { addForConnection(ws, item, senderUserId); });
+        }
+
+        // Query subscribers — check if item matches query filter
+        querySubs.forEach(function (sub) {
+            if (sub.class_id !== classId) return;
+            if (matchesQuery(item, sub.query)) {
+                sub.clients.forEach(function (ws) { addForConnection(ws, item, senderUserId); });
+            }
+        });
+    }
+
+    // Send batched per connection
+    var totalSent = 0;
+    perConnection.forEach(function (data) {
+        var payload = JSON.stringify({ class_id: '@changes', items: data.items });
+        data.ws.send(payload);
+        totalSent++;
+    });
+
+    if (totalSent > 0) {
+        console.log('[WS] queue: ' + allItems.length + ' items → ' + totalSent + ' clients');
+    }
+
+    // If more items queued during processing, process again
+    if (changeQueue.length > 0) {
+        scheduleQueueProcess();
+    }
+}
+
+/**
+ * Check if an item matches a query filter.
+ * Simple key-value matching — same as ES query filters.
+ */
+function matchesQuery(item, query) {
+    for (var key in query) {
+        if (!query.hasOwnProperty(key)) continue;
+        var expected = query[key];
+        var actual = item[key];
+        if (Array.isArray(expected)) {
+            if (expected.indexOf(actual) === -1) return false;
+        } else {
+            if (actual != expected) return false;
         }
     }
+    return true;
+}
 
-    if (count > 0) {
-        console.log('[WS] broadcast: ' + items.length + ' items → ' + count + ' clients (skip user=' + (senderUserId || 'none') + ')');
-    }
-
-    return count;
+// Legacy broadcast function — now routes through queue
+function broadcast(msg, senderUserId) {
+    changeQueue.push({ msg: msg, senderUserId: senderUserId });
+    scheduleQueueProcess();
+    return 0;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -509,6 +608,17 @@ function cleanup(ws) {
     ws._subscriptions.scopes.forEach(function (scopeId) {
         removeFromSet(scopeSubs, scopeId, ws);
     });
+
+    // Remove from all query subscriptions
+    if (ws._subscriptions.queries) {
+        ws._subscriptions.queries.forEach(function (queryKey) {
+            var sub = querySubs.get(queryKey);
+            if (sub) {
+                sub.clients.delete(ws);
+                if (sub.clients.size === 0) querySubs.delete(queryKey);
+            }
+        });
+    }
 }
 
 // ─────────────────────────────────────────────────────────────
