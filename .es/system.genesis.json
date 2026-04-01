@@ -3325,5 +3325,304 @@
             "created_at": "2026-04-01 11:06:18",
             "updated_at": "2026-04-01 11:06:18"
         }
+    ],
+    "seed": [
+        {
+            "id": "text",
+            "name": "Text Input",
+            "data_types": [
+                "string"
+            ],
+            "is_default": true,
+            "is_system": true,
+            "component": "input",
+            "props": {
+                "type": "text"
+            },
+            "class_id": "@editor"
+        },
+        {
+            "id": "email",
+            "name": "Email",
+            "data_types": [
+                "string"
+            ],
+            "is_system": true,
+            "component": "input",
+            "props": {
+                "type": "email"
+            },
+            "class_id": "@editor"
+        },
+        {
+            "id": "url",
+            "name": "URL",
+            "data_types": [
+                "string"
+            ],
+            "is_system": true,
+            "component": "input",
+            "props": {
+                "type": "url"
+            },
+            "class_id": "@editor"
+        },
+        {
+            "id": "phone",
+            "name": "Phone",
+            "data_types": [
+                "string"
+            ],
+            "is_system": true,
+            "component": "input",
+            "props": {
+                "type": "tel"
+            },
+            "class_id": "@editor"
+        },
+        {
+            "id": "password",
+            "name": "Password",
+            "data_types": [
+                "string"
+            ],
+            "is_system": true,
+            "component": "input",
+            "props": {
+                "type": "password"
+            },
+            "class_id": "@editor"
+        },
+        {
+            "id": "number",
+            "name": "Number",
+            "data_types": [
+                "integer",
+                "float"
+            ],
+            "is_default": true,
+            "is_system": true,
+            "component": "input",
+            "props": {
+                "type": "number"
+            },
+            "class_id": "@editor"
+        },
+        {
+            "id": "slider",
+            "name": "Slider",
+            "data_types": [
+                "integer",
+                "float"
+            ],
+            "is_system": true,
+            "component": "slider",
+            "class_id": "@editor"
+        },
+        {
+            "id": "currency",
+            "name": "Currency",
+            "data_types": [
+                "float"
+            ],
+            "is_system": true,
+            "component": "input",
+            "props": {
+                "type": "number",
+                "step": "0.01"
+            },
+            "class_id": "@editor"
+        },
+        {
+            "id": "color",
+            "name": "Color",
+            "data_types": [
+                "string"
+            ],
+            "is_system": true,
+            "component": "input",
+            "props": {
+                "type": "color"
+            },
+            "class_id": "@editor"
+        },
+        {
+            "id": "textarea",
+            "name": "Text Area",
+            "data_types": [
+                "string"
+            ],
+            "is_system": true,
+            "component": "textarea",
+            "class_id": "@editor"
+        },
+        {
+            "id": "code",
+            "name": "Code",
+            "data_types": [
+                "string",
+                "function"
+            ],
+            "is_default": true,
+            "is_system": true,
+            "component": "code-editor",
+            "class_id": "@editor"
+        },
+        {
+            "id": "richtext",
+            "name": "Rich Text",
+            "data_types": [
+                "string"
+            ],
+            "is_system": true,
+            "component": "richtext-editor",
+            "class_id": "@editor"
+        },
+        {
+            "id": "json",
+            "name": "JSON",
+            "data_types": [
+                "object"
+            ],
+            "is_system": true,
+            "component": "json-editor",
+            "class_id": "@editor"
+        },
+        {
+            "id": "select",
+            "name": "Select",
+            "data_types": [
+                "string",
+                "relation"
+            ],
+            "is_system": true,
+            "component": "select",
+            "class_id": "@editor"
+        },
+        {
+            "id": "multiselect",
+            "name": "Multi-Select",
+            "data_types": [
+                "relation"
+            ],
+            "is_system": true,
+            "component": "multiselect",
+            "class_id": "@editor"
+        },
+        {
+            "id": "radio",
+            "name": "Radio",
+            "data_types": [
+                "string"
+            ],
+            "is_system": true,
+            "component": "radio-group",
+            "class_id": "@editor"
+        },
+        {
+            "id": "autocomplete",
+            "name": "Autocomplete",
+            "data_types": [
+                "string",
+                "relation"
+            ],
+            "is_system": true,
+            "component": "autocomplete",
+            "class_id": "@editor"
+        },
+        {
+            "id": "reference",
+            "name": "Reference",
+            "data_types": [
+                "relation"
+            ],
+            "is_default": true,
+            "is_system": true,
+            "component": "reference-picker",
+            "class_id": "@editor"
+        },
+        {
+            "id": "references",
+            "name": "References (multi)",
+            "data_types": [
+                "relation"
+            ],
+            "is_system": true,
+            "component": "references-picker",
+            "class_id": "@editor"
+        },
+        {
+            "id": "toggle",
+            "name": "Toggle",
+            "data_types": [
+                "boolean"
+            ],
+            "is_default": true,
+            "is_system": true,
+            "component": "toggle-switch",
+            "class_id": "@editor"
+        },
+        {
+            "id": "checkbox",
+            "name": "Checkbox",
+            "data_types": [
+                "boolean"
+            ],
+            "is_system": true,
+            "component": "checkbox",
+            "class_id": "@editor"
+        },
+        {
+            "id": "date",
+            "name": "Date",
+            "data_types": [
+                "datetime"
+            ],
+            "is_system": true,
+            "component": "date-picker",
+            "class_id": "@editor"
+        },
+        {
+            "id": "datetime",
+            "name": "DateTime",
+            "data_types": [
+                "datetime"
+            ],
+            "is_default": true,
+            "is_system": true,
+            "component": "datetime-picker",
+            "class_id": "@editor"
+        },
+        {
+            "id": "time",
+            "name": "Time",
+            "data_types": [
+                "datetime"
+            ],
+            "is_system": true,
+            "component": "time-picker",
+            "class_id": "@editor"
+        },
+        {
+            "id": "nested",
+            "name": "Nested Editor",
+            "data_types": [
+                "object"
+            ],
+            "is_default": true,
+            "is_system": true,
+            "component": "nested-editor",
+            "class_id": "@editor"
+        },
+        {
+            "id": "keyvalue",
+            "name": "Key-Value",
+            "data_types": [
+                "object"
+            ],
+            "is_system": true,
+            "component": "keyvalue-editor",
+            "class_id": "@editor"
+        }
     ]
 }
