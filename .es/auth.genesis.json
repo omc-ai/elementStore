@@ -5,7 +5,7 @@
     "description": "Auth-service data models — users, roles, modules, permissions, and refresh tokens. Classes mirror the auth-service internal schema; instances backed by auth-service API via crud_provider.",
     "classes": [
         {
-            "id": "auth_user",
+            "id": "auth:user_def",
             "class_id": "@class",
             "name": "User",
             "description": "A user account managed by auth-service",
@@ -136,7 +136,7 @@
                     "description": "Roles assigned to this user",
                     "data_type": "relation",
                     "object_class_id": [
-                        "auth_role"
+                        "auth:role_def"
                     ],
                     "is_array": "indexed",
                     "display_order": 13,
@@ -187,7 +187,7 @@
             ]
         },
         {
-            "id": "auth_role",
+            "id": "auth:role_def",
             "class_id": "@class",
             "name": "Role",
             "description": "A named role that groups permissions. Assigned to users.",
@@ -241,7 +241,7 @@
                     "description": "Module-action permissions granted to this role",
                     "data_type": "relation",
                     "object_class_id": [
-                        "auth_permission"
+                        "auth:permission_def"
                     ],
                     "is_array": "indexed",
                     "display_order": 5,
@@ -262,7 +262,7 @@
             ]
         },
         {
-            "id": "auth_module",
+            "id": "auth:module_def",
             "class_id": "@class",
             "name": "Module",
             "description": "A functional unit of an application that can be permission-gated (e.g. billing, reports, admin).",
@@ -311,7 +311,7 @@
                     "description": "Parent module for hierarchical permission trees",
                     "data_type": "relation",
                     "object_class_id": [
-                        "auth_module"
+                        "auth:module_def"
                     ],
                     "display_order": 5,
                     "class_id": "@prop_relation"
@@ -349,7 +349,7 @@
             ]
         },
         {
-            "id": "auth_permission",
+            "id": "auth:permission_def",
             "class_id": "@class",
             "name": "Permission",
             "description": "A rule granting a role access to specific actions on a module.",
@@ -360,7 +360,7 @@
                     "description": "Role this permission applies to",
                     "data_type": "relation",
                     "object_class_id": [
-                        "auth_role"
+                        "auth:role_def"
                     ],
                     "display_order": 1,
                     "flags": {
@@ -375,7 +375,7 @@
                     "description": "Module this permission controls access to",
                     "data_type": "relation",
                     "object_class_id": [
-                        "auth_module"
+                        "auth:module_def"
                     ],
                     "display_order": 2,
                     "flags": {
@@ -411,7 +411,7 @@
             ]
         },
         {
-            "id": "auth_app_registration",
+            "id": "auth:app_registration",
             "class_id": "@class",
             "name": "App Registration",
             "description": "An application registered with the auth-service. Mirrors auth_app on the auth-service side.",
@@ -514,7 +514,7 @@
             ]
         },
         {
-            "id": "auth_machine_registration",
+            "id": "auth:machine_registration",
             "class_id": "@class",
             "name": "Machine Registration",
             "description": "A machine/instance registered under an app in auth-service. Mirrors auth_machine on the auth-service side.",
@@ -525,7 +525,7 @@
                     "description": "Application this machine belongs to",
                     "data_type": "relation",
                     "object_class_id": [
-                        "auth_app_registration"
+                        "auth:app_registration"
                     ],
                     "display_order": 1,
                     "flags": {
@@ -625,7 +625,7 @@
             ]
         },
         {
-            "id": "auth_refresh_token",
+            "id": "auth:refresh_token",
             "class_id": "@class",
             "name": "Refresh Token",
             "description": "Issued long-lived refresh tokens. Used to obtain new access tokens without re-login. Stored for revocation.",
@@ -636,7 +636,7 @@
                     "description": "User this token was issued to",
                     "data_type": "relation",
                     "object_class_id": [
-                        "auth_user"
+                        "auth:user_def"
                     ],
                     "display_order": 1,
                     "flags": {
@@ -651,7 +651,7 @@
                     "description": "Application the token was issued for",
                     "data_type": "relation",
                     "object_class_id": [
-                        "auth_app_registration"
+                        "auth:app_registration"
                     ],
                     "display_order": 2,
                     "flags": {

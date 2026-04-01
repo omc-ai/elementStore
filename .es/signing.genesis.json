@@ -4,7 +4,7 @@
     "description": "Action signing policy — every mutation is signed by user+agent and appended to the audit trail.",
     "classes": [
         {
-            "id": "@signing_policy",
+            "id": "auth:signing_policy",
             "class_id": "@class",
             "name": "Signing Policy",
             "description": "Per-scope mutation signing configuration. Defines which identity fields are stamped on mutations and whether audit logging is required. One policy per class pattern; the default policy ('*') applies universally.",
@@ -103,7 +103,7 @@
             ]
         },
         {
-            "id": "@audit_entry",
+            "id": "auth:audit_entry",
             "class_id": "@class",
             "name": "Audit Entry",
             "description": "Immutable audit record written after every object mutation (create, update, delete). Captures who made the change, when, and what changed. Never deleted — append-only audit trail.",

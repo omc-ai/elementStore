@@ -15,7 +15,7 @@
       "type": "json",
       "dir": ".es",
       "classes": {
-        "@class": ["get", "query"]
+        "@class": ["get", "set"]
       }
     }
   ],

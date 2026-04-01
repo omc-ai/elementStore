@@ -1445,7 +1445,7 @@
             ]
         },
         {
-            "id": "crud_provider",
+            "id": "es:crud_provider",
             "class_id": "@class",
             "extends_id": "@provider",
             "name": "CRUD Provider",
@@ -1512,7 +1512,7 @@
             ]
         },
         {
-            "id": "auth_config",
+            "id": "auth:config",
             "class_id": "@class",
             "name": "Auth Config",
             "description": "Auth-service connection configuration for this elementStore installation. One object per installation. All endpoint paths are configurable here.",
@@ -1711,7 +1711,7 @@
             ]
         },
         {
-            "id": "auth_app",
+            "id": "auth:app",
             "class_id": "@class",
             "name": "Auth App Registration",
             "description": "Credentials returned after registering this app with auth-service. One object per app_id. client_secret is server_only.",
@@ -1723,7 +1723,7 @@
                     "description": "Auth config this registration belongs to",
                     "data_type": "relation",
                     "object_class_id": [
-                        "auth_config"
+                        "auth:config"
                     ],
                     "display_order": 1,
                     "flags": {
@@ -2248,34 +2248,6 @@
             ]
         },
         {
-            "id": "@obj_ref",
-            "class_id": "@class",
-            "name": "Object Reference Value",
-            "description": "Core system class — dynamic typed value whose type, editor, and validation are determined by a referenced @prop definition.\n\nThe ref field points to the @prop that defines the value's behavior:\n- 'self': the @prop this @obj_ref belongs to (e.g., default_value on @prop uses the prop's own data_type/options)\n- '@class.prop_key': a specific @prop by ID\n- Any resolvable @prop reference\n\nThe editor resolves the ref at render time, reads the referenced @prop's data_type, options, and editor, then renders the value field accordingly. The server validates the value against the referenced @prop's type and constraints.\n\nThis is a core ES pattern for dynamic typing — used wherever a value's type is not fixed but determined by context (default values, template fields, computed results).",
-            "is_system": true,
-            "props": [
-                {
-                    "key": "ref",
-                    "label": "Reference",
-                    "description": "The @prop that defines how to edit and validate the value. 'self' = the @prop this obj_ref belongs to. Can also be a @prop ID like '@class.name'.",
-                    "data_type": "string",
-                    "flags": {
-                        "required": true
-                    },
-                    "display_order": 1,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "value",
-                    "label": "Value",
-                    "description": "The actual value — type is determined by the referenced @prop's data_type. Stored as raw JSON.",
-                    "data_type": "object",
-                    "display_order": 2,
-                    "class_id": "@prop_object"
-                }
-            ]
-        },
-        {
             "id": "@options_string",
             "class_id": "@class",
             "name": "String Options",
@@ -2453,124 +2425,7 @@
             ]
         },
         {
-            "id": "@options_relation",
-            "class_id": "@class",
-            "name": "Relation Options",
-            "description": "Options for data_type: relation — foreign key binding, filtering, display, cascade behavior",
-            "is_system": true,
-            "props": [
-                {
-                    "key": "foreign_key",
-                    "label": "Foreign Key",
-                    "description": "Which field on the related object points back to this one. E.g. on design.nodes: foreign_key='design_id' means baseElement.design_id points to this design. Determines parent-child binding.",
-                    "data_type": "string",
-                    "display_order": 0,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "cascade_delete",
-                    "label": "Cascade Delete",
-                    "description": "When this object is deleted, also delete related objects. Default: false.",
-                    "data_type": "boolean",
-                    "display_order": 1,
-                    "default_value": false,
-                    "class_id": "@prop_boolean"
-                },
-                {
-                    "key": "filter_by",
-                    "label": "Filter By",
-                    "description": "Filter available objects: {field, source}",
-                    "data_type": "object",
-                    "display_order": 2,
-                    "class_id": "@prop_object"
-                },
-                {
-                    "key": "display_field",
-                    "label": "Display Field",
-                    "description": "Field to show as label (default: name)",
-                    "data_type": "string",
-                    "display_order": 3,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "cascade_delete",
-                    "label": "Cascade Delete",
-                    "description": "When parent is deleted, also delete children. Default: false.",
-                    "data_type": "boolean",
-                    "display_order": 4,
-                    "default_value": false,
-                    "class_id": "@prop_boolean"
-                }
-            ]
-        },
-        {
-            "id": "@seed",
-            "class_id": "@class",
-            "name": "Seed",
-            "description": "Declarative data loading definition — classes to create and storage descriptors to load data from. Objects without class_id at root level are assumed to be @seed.",
-            "is_system": true,
-            "props": [
-                {
-                    "key": "name",
-                    "label": "Name",
-                    "description": "Seed definition name",
-                    "data_type": "string",
-                    "display_order": 1,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "description",
-                    "label": "Description",
-                    "description": "What this seed definition provides",
-                    "data_type": "string",
-                    "editor": {
-                        "id": "textarea"
-                    },
-                    "display_order": 2,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "version",
-                    "label": "Version",
-                    "description": "Seed format version",
-                    "data_type": "string",
-                    "display_order": 3,
-                    "class_id": "@prop_string"
-                },
-                {
-                    "key": "classes",
-                    "label": "Classes",
-                    "description": "Class definitions to create or update",
-                    "data_type": "object",
-                    "is_array": "indexed",
-                    "object_class_id": [
-                        "@class"
-                    ],
-                    "display_order": 10,
-                    "class_id": "@prop_object"
-                },
-                {
-                    "key": "seed",
-                    "label": "Seed Sources",
-                    "description": "Storage descriptors — files or URLs to load data from",
-                    "data_type": "object",
-                    "is_array": "indexed",
-                    "display_order": 20,
-                    "class_id": "@prop_object"
-                },
-                {
-                    "key": "objects",
-                    "label": "Inline Objects",
-                    "description": "Objects to create directly (optional — prefer seed sources for large datasets)",
-                    "data_type": "object",
-                    "is_array": "indexed",
-                    "display_order": 30,
-                    "class_id": "@prop_object"
-                }
-            ]
-        },
-        {
-            "id": "auth_machine",
+            "id": "auth:machine",
             "class_id": "@class",
             "name": "Auth Machine",
             "description": "Per-instance machine registration with auth-service. One object created/updated on each elementStore boot.",
@@ -2582,7 +2437,7 @@
                     "description": "Auth config this machine belongs to",
                     "data_type": "relation",
                     "object_class_id": [
-                        "auth_config"
+                        "auth:config"
                     ],
                     "display_order": 1,
                     "flags": {

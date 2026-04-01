@@ -1061,7 +1061,7 @@
                     "key": "conversation_id",
                     "data_type": "relation",
                     "object_class_id": [
-                        "ai:conversation"
+                        "msg:conversation"
                     ],
                     "description": "Conversation that created this memory (optional)",
                     "class_id": "@prop_relation"
@@ -1075,7 +1075,7 @@
             ]
         },
         {
-            "id": "ai:debug-entry",
+            "id": "ai:debug_entry",
             "class_id": "@class",
             "name": "Debug Entry",
             "namespace_id": "ai",
@@ -1088,7 +1088,7 @@
                     "key": "conversation_id",
                     "data_type": "relation",
                     "object_class_id": [
-                        "ai:conversation"
+                        "msg:conversation"
                     ],
                     "class_id": "@prop_relation"
                 },
@@ -1096,7 +1096,7 @@
                     "key": "message_id",
                     "data_type": "relation",
                     "object_class_id": [
-                        "ai:message"
+                        "msg:message"
                     ],
                     "class_id": "@prop_relation"
                 },
@@ -1203,7 +1203,7 @@
                     "key": "conversation_id",
                     "data_type": "relation",
                     "object_class_id": [
-                        "ai:conversation"
+                        "msg:conversation"
                     ],
                     "class_id": "@prop_relation"
                 }
@@ -1248,7 +1248,7 @@
             ]
         },
         {
-            "id": "ai:llmConfig",
+            "id": "ai:llm_config",
             "class_id": "@class",
             "name": "LLM Configuration",
             "namespace_id": "ai",
@@ -1304,7 +1304,7 @@
             ]
         },
         {
-            "id": "ai:chunk",
+            "id": "msg:chunk",
             "class_id": "@class",
             "name": "Message Chunk",
             "namespace_id": "ai",
@@ -1362,7 +1362,7 @@
             ]
         },
         {
-            "id": "ai:prompt-request",
+            "id": "ai:prompt_request",
             "class_id": "@class",
             "name": "Prompt Request",
             "namespace_id": "ai",
@@ -1381,7 +1381,7 @@
                     "key": "conversation_id",
                     "data_type": "relation",
                     "object_class_id": [
-                        "ai:conversation"
+                        "msg:conversation"
                     ],
                     "description": "Parent conversation",
                     "class_id": "@prop_relation"
@@ -1466,7 +1466,7 @@
             ]
         },
         {
-            "id": "ai:prompt-response",
+            "id": "ai:prompt_response",
             "class_id": "@class",
             "name": "Prompt Response",
             "namespace_id": "ai",
@@ -1478,7 +1478,7 @@
                     "key": "request_id",
                     "data_type": "relation",
                     "object_class_id": [
-                        "ai:prompt-request"
+                        "ai:prompt_request"
                     ],
                     "description": "Links to the prompt-request",
                     "class_id": "@prop_relation"
@@ -1487,7 +1487,7 @@
                     "key": "conversation_id",
                     "data_type": "relation",
                     "object_class_id": [
-                        "ai:conversation"
+                        "msg:conversation"
                     ],
                     "description": "Parent conversation",
                     "class_id": "@prop_relation"
@@ -1520,7 +1520,7 @@
             ]
         },
         {
-            "id": "ai:conversation",
+            "id": "msg:conversation",
             "class_id": "@class",
             "name": "AI Conversation",
             "namespace_id": "ai",
@@ -1717,7 +1717,7 @@
             }
         },
         {
-            "id": "ai:message",
+            "id": "msg:message",
             "class_id": "@class",
             "name": "AI Message",
             "namespace_id": "ai",
@@ -1735,7 +1735,7 @@
                     "id": "ai:message.primary_id",
                     "class_id": "@prop_relation",
                     "options": {
-                        "class_id": "ai:message"
+                        "class_id": "msg:message"
                     }
                 },
                 {
