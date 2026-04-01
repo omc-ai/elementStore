@@ -225,7 +225,9 @@
                     "display_order": 14,
                     "class_id": "@prop_object"
                 }
-            ]
+            ],
+            "created_at": "2026-04-01 11:06:17",
+            "updated_at": "2026-04-01 11:06:17"
         },
         {
             "id": "@prop",
@@ -378,7 +380,9 @@
                         "@function"
                     ]
                 }
-            ]
+            ],
+            "created_at": "2026-04-01 11:06:18",
+            "updated_at": "2026-04-01 11:06:18"
         },
         {
             "id": "@prop_string",
@@ -2597,7 +2601,9 @@
             "track_changes": false,
             "@state": {
                 "version": "3a297baf861c6e8c8b983c9a080101c8"
-            }
+            },
+            "created_at": "2026-04-01 11:06:18",
+            "updated_at": "2026-04-01 11:06:18"
         },
         {
             "description": "System log entry — errors, warnings, info. Persisted in the store and auto-broadcast via WebSocket for real-time monitoring.",
@@ -2945,8 +2951,8 @@
                 "username": "admin",
                 "password": "elementstore"
             },
-            "updated_at": "2026-04-01 10:58:40",
-            "created_at": "2026-04-01 10:58:40"
+            "updated_at": "2026-04-01 11:06:17",
+            "created_at": "2026-04-01 11:06:17"
         },
         {
             "items": [
@@ -3292,6 +3298,32 @@
             "id": "87f23d45c5563d02dd516205bd00ca3b",
             "created_at": "2026-04-01 10:54:43",
             "updated_at": "2026-04-01 10:54:43"
+        },
+        {
+            "items": [
+                {
+                    "name": "Test Agent",
+                    "title": "Tester",
+                    "owner_id": "dev-admin"
+                }
+            ],
+            "sender_id": "dev-admin",
+            "class_id": "@changes",
+            "id": "87f23d45c5563d02dd516205bd00d6cd",
+            "created_at": "2026-04-01 11:06:18",
+            "updated_at": "2026-04-01 11:06:18"
+        },
+        {
+            "name": "Test Agent",
+            "title": "Tester",
+            "owner_id": "dev-admin",
+            "@state": {
+                "version": "87f23d45c5563d02dd516205bd00d6cd"
+            },
+            "id": "87f23d45c5563d02dd516205bd00dc29",
+            "class_id": "ai:agent",
+            "created_at": "2026-04-01 11:06:18",
+            "updated_at": "2026-04-01 11:06:18"
         }
     ]
 }
