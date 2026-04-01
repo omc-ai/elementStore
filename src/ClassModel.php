@@ -1029,7 +1029,7 @@ class ClassModel
      * Resolve $ref pointers in data. Read-only — does not modify stored data.
      *
      * Formats:
-     *   {"$ref": "class_id/object_id"}                    — local store
+     *   {"$ref": "class_id/object_id"}                    — local: get by class + id
      *   {"$ref": "object_id", "$class": "class_id"}       — local with explicit class
      *   {"$ref": "es://host/path/class_id/object_id"}     — remote store (future)
      *
