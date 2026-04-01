@@ -1035,8 +1035,9 @@ class ClassModel
      *
      * Returns the referenced object's data merged with any inline overrides.
      */
-    public function resolveRefs(array $data): array
+    public function resolveRefs(array $data, int $depth = 0): array
     {
+        if ($depth > 10) return $data; // prevent infinite recursion on circular refs
         foreach ($data as $key => $value) {
             if (is_array($value)) {
                 if (isset($value['$ref'])) {
@@ -1063,7 +1064,7 @@ class ClassModel
                         }
                     }
                 }
-                $data[$key] = $this->resolveRefs($value);
+                $data[$key] = $this->resolveRefs($value, $depth + 1);
             }
         }
         return $data;
@@ -2466,11 +2467,8 @@ class ClassModel
     // Removed: ensureBootstrap — storage pipeline handles everything on demand
 
     // =========================================================================
-    // DEPRECATED — Genesis write-back removed. Storage pipeline handles it.
+    // STORAGE HELPERS
     // =========================================================================
-
-    /** @deprecated Use storage pipeline */
-    public function getGenesisLoader(): ?object { return null; }
 
     /**
      * Check if current user has seed write permission.

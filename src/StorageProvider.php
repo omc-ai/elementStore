@@ -177,7 +177,7 @@ class StorageProvider implements IStorageProvider
             try {
                 $provider->delobj($class, $id);
             } catch (\Throwable $e) {
-                // Ignore
+                error_log("[StorageProvider] provider delobj failed for {$class}/{$id}: " . $e->getMessage());
             }
         }
 

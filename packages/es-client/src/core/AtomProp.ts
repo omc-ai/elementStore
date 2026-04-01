@@ -246,10 +246,8 @@ export class AtomProp extends AtomObj {
         }
         return senderObj.objects[propName] || val;
       case 'function':
-        if (typeof val === 'function') return val;
-        if (typeof val === 'string') {
-          try { return new Function('return ' + val)(); } catch { return val; }
-        }
+        // Functions stored as strings are references, not executable code
+        // Never use new Function() — security risk (code injection)
         return val;
       default:
         return val;

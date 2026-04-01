@@ -113,7 +113,7 @@ class JsonStorageProvider implements IStorageProvider
 
         // Find and replace or append
         $found = false;
-        $section = ($class === Constants::K_CLASS) ? 'classes' : 'classes';
+        $section = 'classes'; // Genesis format only has 'classes' section
         foreach ($genesis[$section] ?? [] as $i => $existing) {
             if (($existing['id'] ?? null) === $id) {
                 $genesis[$section][$i] = $obj;
@@ -151,7 +151,7 @@ class JsonStorageProvider implements IStorageProvider
         $genesis = json_decode($content, true);
         if (!$genesis) return false;
 
-        $section = ($class === Constants::K_CLASS) ? 'classes' : 'classes';
+        $section = 'classes'; // Genesis format only has 'classes' section
         $found = false;
         foreach ($genesis[$section] ?? [] as $i => $existing) {
             if (($existing['id'] ?? null) === $id) {
