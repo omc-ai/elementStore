@@ -227,7 +227,19 @@
                 }
             ],
             "created_at": "2026-04-01 13:24:54",
-            "updated_at": "2026-04-01 13:24:54"
+            "updated_at": "2026-04-01 13:24:54",
+            "contexts": {
+                "grid": {
+                    "fields": [
+                        "id",
+                        "name",
+                        "extends_id",
+                        "scope"
+                    ],
+                    "sort_by": "id",
+                    "page_size": 50
+                }
+            }
         },
         {
             "id": "@prop",
@@ -382,7 +394,19 @@
                 }
             ],
             "created_at": "2026-04-01 11:06:18",
-            "updated_at": "2026-04-01 11:06:18"
+            "updated_at": "2026-04-01 11:06:18",
+            "contexts": {
+                "grid": {
+                    "fields": [
+                        "key",
+                        "label",
+                        "data_type",
+                        "is_array",
+                        "display_order"
+                    ],
+                    "sort_by": "display_order"
+                }
+            }
         },
         {
             "id": "@prop_string",
@@ -784,7 +808,20 @@
                 }
             ],
             "created_at": "2026-04-01 13:24:54",
-            "updated_at": "2026-04-01 13:24:54"
+            "updated_at": "2026-04-01 13:24:54",
+            "contexts": {
+                "grid": {
+                    "fields": [
+                        "id",
+                        "name",
+                        "data_types",
+                        "category",
+                        "context",
+                        "is_default"
+                    ],
+                    "sort_by": "category"
+                }
+            }
         },
         {
             "id": "@storage",
@@ -881,7 +918,19 @@
                 }
             ],
             "created_at": "2026-04-01 10:48:55",
-            "updated_at": "2026-04-01 10:48:55"
+            "updated_at": "2026-04-01 10:48:55",
+            "contexts": {
+                "grid": {
+                    "fields": [
+                        "id",
+                        "name",
+                        "type",
+                        "server",
+                        "method"
+                    ],
+                    "sort_by": "name"
+                }
+            }
         },
         {
             "id": "@function",
@@ -1275,7 +1324,18 @@
                     "display_order": 64,
                     "class_id": "@prop_string"
                 }
-            ]
+            ],
+            "contexts": {
+                "grid": {
+                    "fields": [
+                        "id",
+                        "name",
+                        "type",
+                        "description"
+                    ],
+                    "sort_by": "name"
+                }
+            }
         },
         {
             "id": "@event",
@@ -2270,7 +2330,18 @@
             "is_abstract": false,
             "version": "13c6da1d4d5ebc1ee1e67ff1adda69bf",
             "id": "@state",
-            "class_id": "@class"
+            "class_id": "@class",
+            "contexts": {
+                "grid": {
+                    "fields": [
+                        "readonly",
+                        "archived",
+                        "deleted",
+                        "system",
+                        "version"
+                    ]
+                }
+            }
         },
         {
             "name": "Key Definition",
@@ -2294,6 +2365,14 @@
             "class_id": "@class",
             "@state": {
                 "version": "3a297baf861c6e8c8b983c9a08016033"
+            },
+            "contexts": {
+                "grid": {
+                    "fields": [
+                        "fields"
+                    ],
+                    "sort_by": "fields"
+                }
             }
         },
         {
@@ -2880,6 +2959,17 @@
                         "prop_key",
                         "scope_key"
                     ]
+                }
+            },
+            "contexts": {
+                "grid": {
+                    "fields": [
+                        "class_ref",
+                        "prop_key",
+                        "scope_key",
+                        "value"
+                    ],
+                    "sort_by": "class_ref"
                 }
             }
         },

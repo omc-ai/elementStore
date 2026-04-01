@@ -294,6 +294,18 @@
                 "minHeight": 150,
                 "docked": "none",
                 "closable": true
+            },
+            "contexts": {
+                "grid": {
+                    "fields": [
+                        "id",
+                        "title",
+                        "isOpen",
+                        "modal",
+                        "dockPosition"
+                    ],
+                    "sort_by": "title"
+                }
             }
         },
         {

@@ -92,7 +92,18 @@
                     "id": "core:atomObj.@state"
                 }
             ],
-            "version": "13c6da1d4d5ebc1ee1e67ff1ade0348f"
+            "version": "13c6da1d4d5ebc1ee1e67ff1ade0348f",
+            "contexts": {
+                "grid": {
+                    "fields": [
+                        "id",
+                        "name",
+                        "created_at",
+                        "updated_at"
+                    ],
+                    "sort_by": "updated_at"
+                }
+            }
         },
         {
             "id": "core:uiBase",
@@ -482,6 +493,17 @@
                 "viewportY": 0,
                 "zoom": 1,
                 "autoSaveInterval": 5000
+            },
+            "contexts": {
+                "grid": {
+                    "fields": [
+                        "id",
+                        "name",
+                        "description",
+                        "created_at"
+                    ],
+                    "sort_by": "name"
+                }
             }
         }
     ]

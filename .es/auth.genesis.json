@@ -289,7 +289,18 @@
                     "group_name": "Access",
                     "class_id": "@prop_relation"
                 }
-            ]
+            ],
+            "contexts": {
+                "grid": {
+                    "fields": [
+                        "id",
+                        "role_name",
+                        "app_id",
+                        "is_system"
+                    ],
+                    "sort_by": "role_name"
+                }
+            }
         },
         {
             "id": "auth:user",

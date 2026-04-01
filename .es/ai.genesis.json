@@ -210,56 +210,12 @@
             "contexts": {
                 "grid": {
                     "fields": [
+                        "id",
                         "name",
-                        "role",
-                        "layer",
-                        "domain",
-                        "is_active",
-                        "model"
+                        "title",
+                        "status"
                     ],
-                    "sort_by": "name",
-                    "page_size": 25,
-                    "title_field": "name",
-                    "badge_field": "role",
-                    "template": "list-item",
-                    "columns": [
-                        {
-                            "field": "name",
-                            "label": "Agent",
-                            "type": "text",
-                            "width": 200
-                        },
-                        {
-                            "field": "role",
-                            "label": "Role",
-                            "type": "badge",
-                            "width": 120
-                        },
-                        {
-                            "field": "layer",
-                            "label": "Layer",
-                            "type": "badge",
-                            "width": 100
-                        },
-                        {
-                            "field": "domain",
-                            "label": "Domain",
-                            "type": "text",
-                            "width": 150
-                        },
-                        {
-                            "field": "is_active",
-                            "label": "Active",
-                            "type": "boolean",
-                            "width": 80
-                        },
-                        {
-                            "field": "model",
-                            "label": "Model",
-                            "type": "text",
-                            "width": 140
-                        }
-                    ]
+                    "sort_by": "name"
                 },
                 "card": {
                     "template": "card-default",
@@ -540,56 +496,13 @@
             "contexts": {
                 "grid": {
                     "fields": [
+                        "id",
                         "name",
                         "status",
                         "priority",
-                        "project",
-                        "agent_id",
-                        "updated_at"
+                        "created_at"
                     ],
-                    "sort_by": "updated_at",
-                    "page_size": 25,
-                    "title_field": "name",
-                    "badge_field": "status",
-                    "template": "list-item",
-                    "columns": [
-                        {
-                            "field": "name",
-                            "label": "Task",
-                            "type": "text",
-                            "width": 300
-                        },
-                        {
-                            "field": "status",
-                            "label": "Status",
-                            "type": "badge",
-                            "width": 120
-                        },
-                        {
-                            "field": "priority",
-                            "label": "Priority",
-                            "type": "badge",
-                            "width": 90
-                        },
-                        {
-                            "field": "project",
-                            "label": "Project",
-                            "type": "text",
-                            "width": 120
-                        },
-                        {
-                            "field": "agent_id",
-                            "label": "Agent",
-                            "type": "relation",
-                            "width": 150
-                        },
-                        {
-                            "field": "updated_at",
-                            "label": "Updated",
-                            "type": "datetime",
-                            "width": 140
-                        }
-                    ]
+                    "sort_by": "created_at"
                 },
                 "card": {
                     "template": "card-default",
@@ -1625,49 +1538,13 @@
             "contexts": {
                 "grid": {
                     "fields": [
+                        "id",
                         "title",
-                        "agent_id",
                         "status",
-                        "task_id",
+                        "agent_id",
                         "created_at"
                     ],
-                    "sort_by": "created_at",
-                    "page_size": 25,
-                    "title_field": "title",
-                    "badge_field": "status",
-                    "template": "list-item",
-                    "columns": [
-                        {
-                            "field": "title",
-                            "label": "Title",
-                            "type": "text",
-                            "width": 280
-                        },
-                        {
-                            "field": "agent_id",
-                            "label": "Agent",
-                            "type": "relation",
-                            "width": 150
-                        },
-                        {
-                            "field": "status",
-                            "label": "Status",
-                            "type": "badge",
-                            "width": 100
-                        },
-                        {
-                            "field": "task_id",
-                            "label": "Task",
-                            "type": "relation",
-                            "width": 150
-                        },
-                        {
-                            "field": "created_at",
-                            "label": "Created",
-                            "type": "datetime",
-                            "width": 140
-                        }
-                    ]
+                    "sort_by": "created_at"
                 },
                 "card": {
                     "template": "card-default",
@@ -1890,49 +1767,13 @@
             "contexts": {
                 "grid": {
                     "fields": [
-                        "content",
+                        "id",
                         "role",
-                        "agent_id",
+                        "content",
                         "status",
                         "created_at"
                     ],
-                    "sort_by": "created_at",
-                    "page_size": 50,
-                    "title_field": "content",
-                    "badge_field": "status",
-                    "template": "list-item",
-                    "columns": [
-                        {
-                            "field": "content",
-                            "label": "Message",
-                            "type": "text",
-                            "width": 400
-                        },
-                        {
-                            "field": "role",
-                            "label": "Role",
-                            "type": "badge",
-                            "width": 100
-                        },
-                        {
-                            "field": "agent_id",
-                            "label": "Agent",
-                            "type": "relation",
-                            "width": 150
-                        },
-                        {
-                            "field": "status",
-                            "label": "Status",
-                            "type": "badge",
-                            "width": 100
-                        },
-                        {
-                            "field": "created_at",
-                            "label": "Time",
-                            "type": "datetime",
-                            "width": 140
-                        }
-                    ]
+                    "sort_by": "created_at"
                 },
                 "card": {
                     "template": "card-default",
