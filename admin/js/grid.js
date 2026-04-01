@@ -12,11 +12,17 @@
 function buildGridColumns(classMeta, classId, actionsCellRenderer) {
     const propsArray = classMeta ? elementStore.getSortedProps(classMeta) : [];
 
+    // Use contexts.grid.fields to filter columns (if defined)
+    const gridContext = classMeta?.contexts?.grid;
+    const gridFields = gridContext?.fields;
+
     const columnDefs = [
         { field: 'id', headerName: 'ID', width: 150, pinned: 'left' }
     ];
 
     propsArray.forEach(prop => {
+        // If grid context defines fields, only show those
+        if (gridFields && !gridFields.includes(prop.key)) return;
         // Skip 'props' array - we'll add a count column instead
         if (prop.key === 'props') return;
 
