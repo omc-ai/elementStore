@@ -398,7 +398,9 @@
                     "display_order": 50,
                     "class_id": "@prop_object"
                 }
-            ]
+            ],
+            "created_at": "2026-04-01 10:48:54",
+            "updated_at": "2026-04-01 10:48:54"
         },
         {
             "id": "@prop_number",
@@ -419,7 +421,9 @@
                     "display_order": 50,
                     "class_id": "@prop_object"
                 }
-            ]
+            ],
+            "updated_at": "2026-04-01 10:48:56",
+            "created_at": "2026-04-01 10:48:56"
         },
         {
             "id": "@prop_boolean",
@@ -427,7 +431,9 @@
             "name": "Boolean Property",
             "extends_id": "@prop",
             "is_system": true,
-            "props": []
+            "props": [],
+            "created_at": "2026-04-01 10:48:56",
+            "updated_at": "2026-04-01 10:48:56"
         },
         {
             "id": "@prop_datetime",
@@ -565,7 +571,9 @@
                         "allow_custom": false
                     }
                 }
-            ]
+            ],
+            "created_at": "2026-04-01 10:48:55",
+            "updated_at": "2026-04-01 10:48:55"
         },
         {
             "id": "@prop_relation",
@@ -618,7 +626,9 @@
                     }
                 }
             ],
-            "description": "Pointer to another object. Extends @prop_object with locked defaults."
+            "description": "Pointer to another object. Extends @prop_object with locked defaults.",
+            "created_at": "2026-04-01 10:48:55",
+            "updated_at": "2026-04-01 10:48:55"
         },
         {
             "id": "@prop_function",
@@ -742,7 +752,9 @@
                     "display_order": 9,
                     "class_id": "@prop_function"
                 }
-            ]
+            ],
+            "created_at": "2026-04-01 10:48:55",
+            "updated_at": "2026-04-01 10:48:55"
         },
         {
             "id": "@storage",
@@ -837,7 +849,9 @@
                     "class_id": "@prop_object",
                     "description": "Per-operation provider order. Key=get|set|query|delete, value=provider ID array"
                 }
-            ]
+            ],
+            "created_at": "2026-04-01 10:48:55",
+            "updated_at": "2026-04-01 10:48:55"
         },
         {
             "id": "@function",
@@ -1978,7 +1992,9 @@
                     "display_order": 7,
                     "class_id": "@prop_boolean"
                 }
-            ]
+            ],
+            "created_at": "2026-04-01 10:48:54",
+            "updated_at": "2026-04-01 10:48:54"
         },
         {
             "id": "@options_string",
@@ -2155,7 +2171,9 @@
                     "display_order": 2,
                     "class_id": "@prop_object"
                 }
-            ]
+            ],
+            "created_at": "2026-04-01 10:48:55",
+            "updated_at": "2026-04-01 10:48:55"
         },
         {
             "name": "Object State",
@@ -2927,8 +2945,8 @@
                 "username": "admin",
                 "password": "elementstore"
             },
-            "updated_at": "2026-04-01 10:29:50",
-            "created_at": "2026-04-01 10:29:50"
+            "updated_at": "2026-04-01 10:58:40",
+            "created_at": "2026-04-01 10:58:40"
         },
         {
             "items": [
@@ -3042,6 +3060,238 @@
             "id": "87f23d45c5563d02dd516205bd00c97e",
             "created_at": "2026-04-01 10:29:15",
             "updated_at": "2026-04-01 10:29:15"
+        },
+        {
+            "items": [
+                {
+                    "id": "core:atomObj",
+                    "class_id": "@class",
+                    "name": "Atom Element",
+                    "namespace_id": "core",
+                    "extends_id": null,
+                    "is_abstract": true,
+                    "is_system": true,
+                    "is_seed": true,
+                    "description": "Base object for all elementStore objects. Provides @state.",
+                    "props": [
+                        {
+                            "data_type": "string",
+                            "key": "updated_at",
+                            "label": "Updated",
+                            "is_array": "false",
+                            "display_order": -1,
+                            "flags": {
+                                "required": false,
+                                "readonly": true,
+                                "hidden": false,
+                                "create_only": false,
+                                "server_only": true,
+                                "master_only": false,
+                                "from_parent": false
+                            },
+                            "default_value": {
+                                "ref": "self"
+                            }
+                        },
+                        {
+                            "data_type": "string",
+                            "key": "created_at",
+                            "label": "Created",
+                            "is_array": "false",
+                            "display_order": -2,
+                            "flags": {
+                                "required": false,
+                                "readonly": true,
+                                "hidden": false,
+                                "create_only": false,
+                                "server_only": true,
+                                "master_only": false,
+                                "from_parent": false
+                            },
+                            "default_value": {
+                                "ref": "self"
+                            }
+                        },
+                        {
+                            "data_type": "string",
+                            "key": "class_id",
+                            "label": "Class",
+                            "is_array": "false",
+                            "display_order": -3,
+                            "flags": {
+                                "required": false,
+                                "readonly": true,
+                                "hidden": false,
+                                "create_only": false,
+                                "server_only": false,
+                                "master_only": false,
+                                "from_parent": false
+                            },
+                            "default_value": {
+                                "ref": "self"
+                            }
+                        },
+                        {
+                            "data_type": "string",
+                            "key": "id",
+                            "label": "ID",
+                            "is_array": "false",
+                            "display_order": -4,
+                            "flags": {
+                                "required": false,
+                                "readonly": true,
+                                "hidden": false,
+                                "create_only": false,
+                                "server_only": false,
+                                "master_only": false,
+                                "from_parent": false
+                            },
+                            "default_value": {
+                                "ref": "self"
+                            }
+                        },
+                        {
+                            "data_type": "string",
+                            "key": "description",
+                            "is_array": "false",
+                            "display_order": 0,
+                            "default_value": {
+                                "ref": "self"
+                            }
+                        },
+                        {
+                            "data_type": "object",
+                            "key": "@events",
+                            "is_array": "indexed",
+                            "display_order": 0,
+                            "default_value": {
+                                "ref": "self",
+                                "value": []
+                            }
+                        },
+                        {
+                            "data_type": "object",
+                            "key": "@state",
+                            "label": "State",
+                            "description": "Server-managed object state: readonly, archived, deleted, version",
+                            "is_array": "false",
+                            "display_order": 0,
+                            "flags": {
+                                "required": false,
+                                "readonly": false,
+                                "hidden": false,
+                                "create_only": false,
+                                "server_only": true,
+                                "master_only": false,
+                                "from_parent": false
+                            },
+                            "default_value": {
+                                "ref": "self",
+                                "value": []
+                            }
+                        }
+                    ],
+                    "version": "13c6da1d4d5ebc1ee1e67ff1ade0348f",
+                    "created_at": "2026-04-01 10:26:26",
+                    "updated_at": "2026-04-01 10:29:15",
+                    "@state": {
+                        "version": "87f23d45c5563d02dd516205bd00c97e"
+                    },
+                    "track_changes": true,
+                    "old_values": {
+                        "name": "Permission Fixed",
+                        "props": [
+                            {
+                                "key": "updated_at",
+                                "label": "Updated",
+                                "data_type": "string",
+                                "display_order": -1,
+                                "class_id": "@prop_string",
+                                "flags": {
+                                    "readonly": true,
+                                    "server_only": true
+                                },
+                                "id": "core:atomObj.updated_at"
+                            },
+                            {
+                                "key": "created_at",
+                                "label": "Created",
+                                "data_type": "string",
+                                "display_order": -2,
+                                "class_id": "@prop_string",
+                                "flags": {
+                                    "readonly": true,
+                                    "server_only": true
+                                },
+                                "id": "core:atomObj.created_at"
+                            },
+                            {
+                                "key": "class_id",
+                                "label": "Class",
+                                "data_type": "string",
+                                "display_order": -3,
+                                "class_id": "@prop_string",
+                                "flags": {
+                                    "readonly": true
+                                },
+                                "id": "core:atomObj.class_id"
+                            },
+                            {
+                                "key": "id",
+                                "label": "ID",
+                                "data_type": "string",
+                                "display_order": -4,
+                                "class_id": "@prop_string",
+                                "flags": {
+                                    "readonly": true
+                                },
+                                "id": "core:atomObj.id"
+                            },
+                            {
+                                "data_type": "string",
+                                "key": "description",
+                                "is_array": "false",
+                                "display_order": 0,
+                                "class_id": "@prop_string",
+                                "id": "core:atomObj.description"
+                            },
+                            {
+                                "data_type": "object",
+                                "key": "@events",
+                                "is_array": "indexed",
+                                "display_order": 0,
+                                "class_id": "@prop_object",
+                                "id": "core:atomObj.@events"
+                            },
+                            {
+                                "data_type": "object",
+                                "key": "@state",
+                                "label": "State",
+                                "description": "Server-managed object state: readonly, archived, deleted, version",
+                                "is_array": "false",
+                                "display_order": 0,
+                                "flags": {
+                                    "required": false,
+                                    "readonly": false,
+                                    "hidden": false,
+                                    "create_only": false,
+                                    "server_only": true,
+                                    "master_only": false,
+                                    "from_parent": false
+                                },
+                                "class_id": "@prop_object",
+                                "id": "core:atomObj.@state"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "sender_id": "3a297baf861c6e8c8b983c9a080e484d",
+            "schema_hash": "fd24fe5238323829f53f4eaf1d95ca16",
+            "class_id": "@changes",
+            "id": "87f23d45c5563d02dd516205bd00ca3b",
+            "created_at": "2026-04-01 10:54:43",
+            "updated_at": "2026-04-01 10:54:43"
         }
     ]
 }
