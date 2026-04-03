@@ -393,8 +393,8 @@
                     ]
                 }
             ],
-            "created_at": "2026-04-01 11:06:18",
-            "updated_at": "2026-04-01 11:06:18",
+            "created_at": "2026-04-02 06:18:47",
+            "updated_at": "2026-04-02 06:18:47",
             "contexts": {
                 "grid": {
                     "sort_by": "display_order",
@@ -427,8 +427,8 @@
                     "class_id": "@prop_object"
                 }
             ],
-            "created_at": "2026-04-01 10:48:54",
-            "updated_at": "2026-04-01 10:48:54"
+            "created_at": "2026-04-02 06:18:47",
+            "updated_at": "2026-04-02 06:18:47"
         },
         {
             "id": "@prop_number",
@@ -450,8 +450,8 @@
                     "class_id": "@prop_object"
                 }
             ],
-            "updated_at": "2026-04-01 10:48:56",
-            "created_at": "2026-04-01 10:48:56"
+            "updated_at": "2026-04-02 06:18:47",
+            "created_at": "2026-04-02 06:18:47"
         },
         {
             "id": "@prop_boolean",
@@ -460,8 +460,8 @@
             "extends_id": "@prop",
             "is_system": true,
             "props": [],
-            "created_at": "2026-04-01 10:48:56",
-            "updated_at": "2026-04-01 10:48:56"
+            "created_at": "2026-04-02 06:18:48",
+            "updated_at": "2026-04-02 06:18:48"
         },
         {
             "id": "@prop_datetime",
@@ -600,8 +600,8 @@
                     }
                 }
             ],
-            "created_at": "2026-04-01 10:48:55",
-            "updated_at": "2026-04-01 10:48:55"
+            "created_at": "2026-04-02 06:18:47",
+            "updated_at": "2026-04-02 06:18:47"
         },
         {
             "id": "@prop_relation",
@@ -655,8 +655,8 @@
                 }
             ],
             "description": "Pointer to another object. Extends @prop_object with locked defaults.",
-            "created_at": "2026-04-01 10:48:55",
-            "updated_at": "2026-04-01 10:48:55"
+            "created_at": "2026-04-02 06:18:47",
+            "updated_at": "2026-04-02 06:18:47"
         },
         {
             "id": "@prop_function",
@@ -917,8 +917,8 @@
                     "description": "Per-operation provider order. Key=get|set|query|delete, value=provider ID array"
                 }
             ],
-            "created_at": "2026-04-01 10:48:55",
-            "updated_at": "2026-04-01 10:48:55",
+            "created_at": "2026-04-02 06:18:47",
+            "updated_at": "2026-04-02 06:18:47",
             "contexts": {
                 "grid": {
                     "sort_by": "name",
@@ -2092,8 +2092,8 @@
                     "class_id": "@prop_boolean"
                 }
             ],
-            "created_at": "2026-04-01 10:48:54",
-            "updated_at": "2026-04-01 10:48:54"
+            "created_at": "2026-04-02 06:18:47",
+            "updated_at": "2026-04-02 06:18:47"
         },
         {
             "id": "@options_string",
@@ -2271,8 +2271,8 @@
                     "class_id": "@prop_object"
                 }
             ],
-            "created_at": "2026-04-01 10:48:55",
-            "updated_at": "2026-04-01 10:48:55"
+            "created_at": "2026-04-02 06:18:47",
+            "updated_at": "2026-04-02 06:18:47"
         },
         {
             "name": "Object State",
@@ -3851,6 +3851,56 @@
             "context": "list",
             "component": "list-editor",
             "is_system": true
+        },
+        {
+            "id": "es",
+            "class_id": "@app",
+            "name": "elementStore",
+            "description": "The elementStore platform — meta-schema, storage pipeline, admin",
+            "server_url": "http://arc3d.master.local/elementStore",
+            "status": "active",
+            "genesis_files": [
+                "system.genesis.json",
+                "core.genesis.json",
+                "apps.genesis.json",
+                "es-core.genesis.json",
+                "events.genesis.json"
+            ]
+        },
+        {
+            "id": "architect",
+            "class_id": "@app",
+            "name": "CWM Architect",
+            "description": "Cloud infrastructure designer — diagrams, AI chat, 3D visualizer",
+            "server_url": "https://arc3d.master.local/architect",
+            "status": "active",
+            "genesis_files": [
+                "genesis.json"
+            ],
+            "client_language": "typescript"
+        },
+        {
+            "id": "aic",
+            "class_id": "@app",
+            "name": "AI Command Center",
+            "description": "Multi-agent AI dashboard — task management, conversations, monitoring",
+            "server_url": "https://arc3d.master.local/elementStore/apps/aic",
+            "status": "active",
+            "genesis_files": [
+                "ai.genesis.json"
+            ]
+        },
+        {
+            "id": "auth",
+            "class_id": "@app",
+            "name": "Auth Service",
+            "description": "Authentication and authorization — users, roles, JWT",
+            "server_url": "http://arc3d.master.local/api/auth",
+            "status": "active",
+            "genesis_files": [
+                "auth.genesis.json"
+            ],
+            "client_language": "typescript"
         }
     ]
 }

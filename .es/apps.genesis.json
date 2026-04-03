@@ -150,6 +150,25 @@
                     "default_value": "active",
                     "display_order": 11,
                     "class_id": "@prop_string"
+                },
+                {
+                    "key": "dir",
+                    "label": "Directory",
+                    "description": "App root directory. JSON provider auto-detects .es/ subdirectory.",
+                    "data_type": "string",
+                    "display_order": 12,
+                    "class_id": "@prop_string"
+                },
+                {
+                    "key": "storage",
+                    "label": "Storage",
+                    "description": "Storage pipeline for this app's objects",
+                    "data_type": "relation",
+                    "object_class_id": [
+                        "@storage"
+                    ],
+                    "display_order": 13,
+                    "class_id": "@prop_relation"
                 }
             ],
             "icon": "app-window",
@@ -258,7 +277,9 @@
                         "status"
                     ]
                 }
-            }
+            },
+            "created_at": "2026-04-03 07:53:21",
+            "updated_at": "2026-04-03 07:53:21"
         },
         {
             "id": "app:base_feature",
@@ -671,7 +692,9 @@
                         "progress"
                     ]
                 }
-            }
+            },
+            "created_at": "2026-04-03 07:53:21",
+            "updated_at": "2026-04-03 07:53:21"
         }
     ],
     "seed": [

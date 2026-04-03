@@ -18,7 +18,8 @@
         "@class": ["get", "set"],
         "@editor": ["get"],
         "@function": ["get"],
-        "@action": ["get"]
+        "@action": ["get"],
+        "@app": ["get"]
       }
     },
     {
