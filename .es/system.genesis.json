@@ -2716,8 +2716,8 @@
             "@state": {
                 "version": "3a297baf861c6e8c8b983c9a080101c8"
             },
-            "created_at": "2026-04-01 11:06:18",
-            "updated_at": "2026-04-01 11:06:18"
+            "created_at": "2026-04-03 08:23:13",
+            "updated_at": "2026-04-03 08:23:13"
         },
         {
             "description": "System log entry — errors, warnings, info. Persisted in the store and auto-broadcast via WebSocket for real-time monitoring.",
@@ -3458,6 +3458,659 @@
             "class_id": "ai:agent",
             "created_at": "2026-04-01 11:06:18",
             "updated_at": "2026-04-01 11:06:18"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/@app",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('@app', Array)\n#1 [internal function]: Closure->{closure}('@app')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/@app')\n#3 {main}",
+            "created_at": "2026-04-03 08:21:31",
+            "details": [
+                {
+                    "path": "role",
+                    "message": "role is required",
+                    "code": "required"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d000038",
+            "updated_at": "2026-04-03 08:21:31"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/@app",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('@app', Array)\n#1 [internal function]: Closure->{closure}('@app')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/@app')\n#3 {main}",
+            "created_at": "2026-04-03 08:21:47",
+            "details": [
+                {
+                    "path": "role",
+                    "message": "role is required",
+                    "code": "required"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d000d8c",
+            "updated_at": "2026-04-03 08:21:47"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/@app",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('@app', Array)\n#1 [internal function]: Closure->{closure}('@app')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/@app')\n#3 {main}",
+            "created_at": "2026-04-03 08:22:33",
+            "details": [
+                {
+                    "path": "role",
+                    "message": "Role must be one of: server, client, provider, declaration",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d001d44",
+            "updated_at": "2026-04-03 08:22:33"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/@app",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('@app', Array)\n#1 [internal function]: Closure->{closure}('@app')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/@app')\n#3 {main}",
+            "created_at": "2026-04-03 08:22:58",
+            "details": [
+                {
+                    "path": "role",
+                    "message": "Role must be one of: server, client, provider, declaration",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d00276a",
+            "updated_at": "2026-04-03 08:22:58"
+        },
+        {
+            "items": [
+                {
+                    "name": "ASI Workspace",
+                    "description": "Personal assistant workspace — tasks, messages, findings. Data syncs to asi/.es/",
+                    "role": "client",
+                    "client_language": "none",
+                    "status": "active",
+                    "id": "asi"
+                }
+            ],
+            "sender_id": "dev-admin",
+            "class_id": "@changes",
+            "id": "2f15926a443974a1f77ad15a4d003411",
+            "created_at": "2026-04-03 08:23:13",
+            "updated_at": "2026-04-03 08:23:13"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:04",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d003a82",
+            "updated_at": "2026-04-03 08:24:04"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:04",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d004571",
+            "updated_at": "2026-04-03 08:24:04"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:04",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d005482",
+            "updated_at": "2026-04-03 08:24:04"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:04",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d005c6c",
+            "updated_at": "2026-04-03 08:24:04"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:04",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d005dff",
+            "updated_at": "2026-04-03 08:24:04"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:04",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d006443",
+            "updated_at": "2026-04-03 08:24:04"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:04",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d006d2e",
+            "updated_at": "2026-04-03 08:24:04"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:04",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d007aed",
+            "updated_at": "2026-04-03 08:24:04"
+        },
+        {
+            "items": [
+                {
+                    "name": "Test task",
+                    "status": "open",
+                    "owner_id": "dev-admin"
+                }
+            ],
+            "sender_id": "dev-admin",
+            "class_id": "@changes",
+            "id": "2f15926a443974a1f77ad15a4d00819a",
+            "created_at": "2026-04-03 08:24:27",
+            "updated_at": "2026-04-03 08:24:27"
+        },
+        {
+            "name": "Test task",
+            "status": "open",
+            "owner_id": "dev-admin",
+            "@state": {
+                "version": "2f15926a443974a1f77ad15a4d00819a"
+            },
+            "id": "2f15926a443974a1f77ad15a4d00822a",
+            "class_id": "ai:task",
+            "created_at": "2026-04-03 08:24:27",
+            "updated_at": "2026-04-03 08:24:27"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:49",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d00920c",
+            "updated_at": "2026-04-03 08:24:49"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:49",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d009333",
+            "updated_at": "2026-04-03 08:24:49"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:50",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d009c18",
+            "updated_at": "2026-04-03 08:24:50"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:50",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d00a5d6",
+            "updated_at": "2026-04-03 08:24:50"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:50",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d00ac20",
+            "updated_at": "2026-04-03 08:24:50"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:50",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d00b2e5",
+            "updated_at": "2026-04-03 08:24:50"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:24:50",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d00bbd0",
+            "updated_at": "2026-04-03 08:24:50"
+        },
+        {
+            "class_id": "@log",
+            "level": "warning",
+            "message": "Validation failed",
+            "code": 0,
+            "source": "api",
+            "endpoint": "/store/ai:task",
+            "method": "POST",
+            "trace": "#0 /var/www/elementStore/index.php(706): ElementStore\\ClassModel->setObject('ai:task', Array)\n#1 [internal function]: Closure->{closure}('ai:task')\n#2 /var/www/elementStore/index.php(1304): Phalcon\\Mvc\\Micro->handle('/store/ai:task')\n#3 {main}",
+            "created_at": "2026-04-03 08:25:35",
+            "details": [
+                {
+                    "path": "priority",
+                    "message": "priority must be one of: P0, P1, P2, P3",
+                    "code": "type"
+                }
+            ],
+            "id": "2f15926a443974a1f77ad15a4d00c919",
+            "updated_at": "2026-04-03 08:25:35"
+        },
+        {
+            "items": [
+                {
+                    "name": "es-client CLI binary",
+                    "description": "Standalone binary: WS listener + LLM broker + shell executor",
+                    "priority": "P0",
+                    "status": "open",
+                    "owner_id": "dev-admin"
+                }
+            ],
+            "sender_id": "dev-admin",
+            "class_id": "@changes",
+            "id": "2f15926a443974a1f77ad15a4d00cb50",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "name": "es-client CLI binary",
+            "description": "Standalone binary: WS listener + LLM broker + shell executor",
+            "priority": "P0",
+            "status": "open",
+            "owner_id": "dev-admin",
+            "@state": {
+                "version": "2f15926a443974a1f77ad15a4d00cb50"
+            },
+            "id": "2f15926a443974a1f77ad15a4d00d246",
+            "class_id": "ai:task",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "items": [
+                {
+                    "name": "Unite AI chat",
+                    "description": "All chat apps use same msg: classes + ES WS protocol",
+                    "priority": "P0",
+                    "status": "open",
+                    "owner_id": "dev-admin"
+                }
+            ],
+            "sender_id": "dev-admin",
+            "class_id": "@changes",
+            "id": "2f15926a443974a1f77ad15a4d00dc90",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "name": "Unite AI chat",
+            "description": "All chat apps use same msg: classes + ES WS protocol",
+            "priority": "P0",
+            "status": "open",
+            "owner_id": "dev-admin",
+            "@state": {
+                "version": "2f15926a443974a1f77ad15a4d00dc90"
+            },
+            "id": "2f15926a443974a1f77ad15a4d00e4eb",
+            "class_id": "ai:task",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "items": [
+                {
+                    "name": "Rebuild architect frontend",
+                    "description": "Frontend container has old code. Chat broken.",
+                    "priority": "P0",
+                    "status": "open",
+                    "owner_id": "dev-admin"
+                }
+            ],
+            "sender_id": "dev-admin",
+            "class_id": "@changes",
+            "id": "2f15926a443974a1f77ad15a4d00eb72",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "name": "Rebuild architect frontend",
+            "description": "Frontend container has old code. Chat broken.",
+            "priority": "P0",
+            "status": "open",
+            "owner_id": "dev-admin",
+            "@state": {
+                "version": "2f15926a443974a1f77ad15a4d00eb72"
+            },
+            "id": "2f15926a443974a1f77ad15a4d00f142",
+            "class_id": "ai:task",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "items": [
+                {
+                    "name": "Auth-service ES integration",
+                    "description": "Needs security policy design first",
+                    "priority": "P1",
+                    "status": "open",
+                    "owner_id": "dev-admin"
+                }
+            ],
+            "sender_id": "dev-admin",
+            "class_id": "@changes",
+            "id": "2f15926a443974a1f77ad15a4d00fcc4",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "name": "Auth-service ES integration",
+            "description": "Needs security policy design first",
+            "priority": "P1",
+            "status": "open",
+            "owner_id": "dev-admin",
+            "@state": {
+                "version": "2f15926a443974a1f77ad15a4d00fcc4"
+            },
+            "id": "2f15926a443974a1f77ad15a4d0106cd",
+            "class_id": "ai:task",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "items": [
+                {
+                    "name": "Admin es-client integration",
+                    "description": "Gradual migration from raw API to store",
+                    "priority": "P2",
+                    "status": "open",
+                    "owner_id": "dev-admin"
+                }
+            ],
+            "sender_id": "dev-admin",
+            "class_id": "@changes",
+            "id": "2f15926a443974a1f77ad15a4d010be3",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "name": "Admin es-client integration",
+            "description": "Gradual migration from raw API to store",
+            "priority": "P2",
+            "status": "open",
+            "owner_id": "dev-admin",
+            "@state": {
+                "version": "2f15926a443974a1f77ad15a4d010be3"
+            },
+            "id": "2f15926a443974a1f77ad15a4d010c0e",
+            "class_id": "ai:task",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "items": [
+                {
+                    "name": "Widget consolidation",
+                    "description": "Move 18 components to es-client",
+                    "priority": "P2",
+                    "status": "open",
+                    "owner_id": "dev-admin"
+                }
+            ],
+            "sender_id": "dev-admin",
+            "class_id": "@changes",
+            "id": "2f15926a443974a1f77ad15a4d010e8d",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "name": "Widget consolidation",
+            "description": "Move 18 components to es-client",
+            "priority": "P2",
+            "status": "open",
+            "owner_id": "dev-admin",
+            "@state": {
+                "version": "2f15926a443974a1f77ad15a4d010e8d"
+            },
+            "id": "2f15926a443974a1f77ad15a4d0110ad",
+            "class_id": "ai:task",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "items": [
+                {
+                    "name": "ASI local data sync",
+                    "description": "Tasks and messages persist in asi/.es/",
+                    "priority": "P1",
+                    "status": "in_progress",
+                    "owner_id": "dev-admin"
+                }
+            ],
+            "sender_id": "dev-admin",
+            "class_id": "@changes",
+            "id": "2f15926a443974a1f77ad15a4d0117be",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
+        },
+        {
+            "name": "ASI local data sync",
+            "description": "Tasks and messages persist in asi/.es/",
+            "priority": "P1",
+            "status": "in_progress",
+            "owner_id": "dev-admin",
+            "@state": {
+                "version": "2f15926a443974a1f77ad15a4d0117be"
+            },
+            "id": "2f15926a443974a1f77ad15a4d012198",
+            "class_id": "ai:task",
+            "created_at": "2026-04-03 08:26:05",
+            "updated_at": "2026-04-03 08:26:05"
         }
     ],
     "seed": [
